@@ -25,7 +25,7 @@
 - 문구를 고쳐 새 글자가 생기면 글꼴을 다시 만든다(`python tools/build_fonts.py`).
 
 ## 점검
-- `cd tests && npm test -- rules data text`.
+- `cd tests && npm test -- rules data check-text`(`text`만 주면 브라우저 점검 `check-screen-text`도 돈다).
 - `check-data`: 조항 원문 키가 다 있음, 제15항 원고 대조, 지침 데이터 모양.
 - `check-text`: 두 학년 키 구조, 금지 낱말·한자·빗금 없는 자모·대괄호·줄바꿈.
 - `check-rules`: 원고 엔진 대조, 지침 예시 검증(`checkGuides`가 빈 목록), 모든 시드에서 뽑기 조건.

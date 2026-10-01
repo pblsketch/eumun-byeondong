@@ -32,7 +32,7 @@ npm test
 
 | 명령·환경 값 | 뜻 |
 |---|---|
-| `npm test -- rules data save text audio-load` | 이름에 그 낱말이 든 점검만. 이 다섯은 브라우저 없이 몇 초 |
+| `npm test -- rules data save check-text audio-load` | 이름에 그 낱말이 든 점검만(이름의 일부와 맞춰 봄). 이 다섯은 브라우저 없이 몇 초. `text`만 주면 브라우저 점검 `check-screen-text`도 함께 돈다 |
 | `npm test -- review` | 감수 화면 브라우저 점검만 |
 | `BASE=https://pblsketch.github.io/eumun-byeondong/ npm test -- 00-smoke` | 로컬 서버 대신 그 주소를 점검(배포 확인). 브라우저 점검만 주소를 쓴다 |
 | `STEP=낱말 node check-review.mjs` | 한 점검 파일 안에서 이름에 그 낱말이 든 단계만(서버를 따로 켜 둠: `node server.mjs 8791`) |

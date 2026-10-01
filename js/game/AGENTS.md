@@ -13,7 +13,7 @@
 - 부품끼리: `blocks.js`와 `chart.js`는 서로 부르지 않고 판단하지 않는다. 감수 화면이 둘을 엮는다.
 
 ## 불변 조건
-- 화면은 `G.screens.<이름> = { mount(root, 값), unmount() }`로 등록한다. `app.js`를 고쳐 화면을 더하지 않는다. 이름은 `start|guide|review|reveal|result` — `start`는 `app.js`가 그린다. `guide`·`review`·`reveal`의 값은 `{ run }`(저장소에서 다시 읽은 진행 장), 값이 없으면 `G.save.loadChapter()`.
+- 화면은 `G.screens.<이름> = { mount(root, 값), unmount() }`로 등록하고, 화면끼리는 `G.app.go(이름, 값)`로만 넘어간다. 지금 이름은 `start|guide|review|reveal|result`(`G.app.NAMES` — 새 화면은 여기에 이름을 더함, 목록에 없는 이름은 시작 화면으로) — `start`는 `app.js`가 그린다. `guide`·`review`·`reveal`의 값은 `{ run }`(저장소에서 다시 읽은 진행 장), 값이 없으면 `G.save.loadChapter()`.
 - 결과 화면 전에는 뽑힌 원고의 표준 발음·비표준 발음·함정 여부·갈래, 지침 정답이 화면 글·DOM 속성·aria에 없다. 지침의 정답 보기와 오답 보기는 속성이 같아야 한다(`aria-pressed`·`data-i`만 다름). 프롬프터는 송출한 뒤 학생이 교정한 발음만 보인다.
 - 심화 단계: `G.blocks.create`에 `level`을 꼭 넘긴다(빠뜨리면 기본으로 그려 경계가 샌다). 심화면 경계·이름표가 DOM·aria에 아예 없고, 닮은 칸을 넘기지 않는다. 닮은 칸은 1·2장 기본 단계만.
 - 할 수 없는 교정(`G.rules.apply`가 받은 상태를 그대로 돌려줌)만 한 줄로 알리고 기록하지 않는다. 그 밖의 교정은 막지 않는다.
