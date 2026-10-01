@@ -4,6 +4,7 @@
 //     · 누르는 자리: 가로 배치 64px, 휴대폰 세로 48px 이상(D.targets)
 //     · 글이 제 상자 밖으로 넘치거나 말줄임 없이 잘리지 않음(한 줄 문구 · 단추 — D.textBox, tests/lib/flow.mjs)
 //   을 보고, 화면마다 캡처를 tests/shots/(저장소 제외)에 남긴다: 크기-번호-화면.png(긴 화면은 아래 끝도 -end).
+//   캡처 없이 재기만: SHOTS=0 npm test (캡처 한 장이 10초 넘게 걸리는 바쁜 aside에서 이 점검이 20분을 넘을 때)
 //   화면: 시작 · 게임 방법 · 설정 · 감수 지침(처음 · 틀림 · 다 맞음) · 이어 하기 카드 · 덮어쓰기 확인 · 감수(처음 4음절 · 자음표 · 넣을 음운 ·
 //   신호 · 도움 ①②③ · 넘김 확인) · 조항 공개 · 장 결과. 눕힌 휴대폰(844×390)은 어느 화면에서나 '세로로 돌려 주세요'.
 //   화면별 세부 동작은 check-app · check-guide · check-review · check-result가 본다. 모든 단계에서 페이지 오류가 없어야 한다.
@@ -15,6 +16,8 @@ import { FLOW } from './lib/flow.mjs';
 
 const J = JSON.stringify;
 const SHOT_BUDGET = +(process.env.SHOT_BUDGET || 55000); // 조각 하나에서 캡처를 찍는 시간 예산(ms)
+// SHOTS=0 이면 캡처 없이 재기만 한다(공용 aside가 바빠 캡처가 느릴 때 전체 점검 시간을 줄임 — 판정은 같음)
+const NO_SHOTS = process.env.SHOTS === '0';
 const open = (v, w, h) => `
 const ${v} = await openTab(${J(frame(w, h, 'index.html'))});
 await ${v}.evaluate(() => frameReady);
@@ -29,6 +32,7 @@ try { await fs.mkdir('./artifacts', { recursive: true }); } catch (e) { /* 있�
 // aside.mjs가 돌려주는 빈 그림으로 예전 캡처를 덮지 않는다.
 const __t0 = Date.now();
 const shot = async (name, end) => {
+  if (${NO_SHOTS}) return;
   if (Date.now() - __t0 > ${SHOT_BUDGET}) { console.log('WARN 캡처 건너뜀(시간 예산): ${w}x${h}-' + name); return; }
   const sc = await ${v}.evaluate(() => Math.min(1, innerWidth / ${w}, innerHeight / ${h}));
   const clip = { x: 0, y: 0, width: Math.floor(${w} * sc), height: Math.floor(${h} * sc) };
