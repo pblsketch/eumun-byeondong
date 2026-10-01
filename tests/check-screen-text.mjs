@@ -7,6 +7,7 @@
 //     · 채우지 않은 {이름} 자리 · undefined · null · NaN이 없음
 //   도는 화면: 시작(이어 하기 카드 · 덮어쓰기 확인) · 게임 방법 · 설정 · 감수 지침(틀림 · 다 맞음) · 감수(도표 · 넣을 음운 · 도움 ①②③ ·
 //   신호 넷 · 연음 안내 · 넘김 확인 · 게임 방법) · 조항 공개 · 장 결과 · 세로로 돌려 주세요 — 중3 · 기본, 고1 · 심화 두 번.
+//   3~8장은 장마다 한 번(학년 · 단계 · 크기를 섞음): 지침(8장은 없음) · 그 장 원고 몇 개(송출 · 도움 ①②③ · 풀이 · 합침 도표) · 조항 공개 · 장 결과.
 import { step, frame } from './aside.mjs';
 import { DRIVER } from './lib/drive.mjs';
 import { RUNS } from './lib/runs.mjs';
@@ -170,3 +171,87 @@ try {
   ${fin('ec1')}
 } finally { await closeTab(c1); }
 `);
+
+// ───────────── 3~8장 화면(결정 0019) — 장마다 지침(8장은 없음) · 감수 원고 몇 개(송출 · 도움 ①②③ · 풀이 · 합침 도표) · 조항 공개 · 장 결과 ─────────────
+//   새 규칙 이름(도움 ③ 풀이 예시의 '· 규칙 이름')이 비지 않았는지도 본다.
+const LATER = [
+  { ch: 3, grade: 'm3', level: 'basic', size: [1280, 800], ids: ['밭이', '곁에서', '디디다'] },
+  { ch: 4, grade: 'h1', level: 'basic', size: [1366, 768], ids: ['신고', '갈 데가', '값을', '볶음밥'] },
+  { ch: 5, grade: 'm3', level: 'advanced', size: [390, 844], ids: ['앉다', '좋은', '통닭을', '맑고'] },
+  { ch: 6, grade: 'h1', level: 'advanced', size: [1280, 800], ids: ['색연필', '베어', '콧날', '금요일'] },
+  { ch: 7, grade: 'm3', level: 'basic', size: [1920, 1080], ids: ['먹히다', '많아', '숱하다', '넓히고'] },
+  { ch: 8, grade: 'h1', level: 'basic', size: [360, 740], ids: ['홑이불', '결단력', '굵직한', '굳히다'] },
+];
+const walkLater = (v, c) => {
+  const o = J({ ch: c.ch, grade: c.grade, level: c.level });
+  const tagv = J(`${c.ch}장 ${c.grade} ${c.level}`);
+  return `
+  e${v}.push(...await ${v}.evaluate(async () => { await D.fresh(); D.G().save.setSettings({ reduceMotion: true }); return D.take(); }));
+  e${v}.push(...await ${v}.evaluate(async () => {
+    const tag = ${tagv}, o = ${o};
+    D.tapSel('[data-grade=' + JSON.stringify(o.grade) + ']', '학년');
+    D.tapSel('.st-ch[data-ch="' + o.ch + '"]', o.ch + '장');
+    D.scanText(tag + ' 시작(장 고름)');
+    await D.startChapter(o);
+    if (D.w().GUIDES[o.ch]) {
+      D.scanText(tag + ' 지침');
+      let first = true;
+      D.pickGuide(o.ch, (gd, b) => { const a = gd.blanks[b].answer; if (first) { first = false; return (a + 1) % gd.blanks[b].options.length; } return a; });
+      D.tapSel('[data-act="guide-check"]', '확인(한 칸 틀림)'); D.scanText(tag + ' 지침 틀림');
+      await D.solveGuide(o.ch); D.scanText(tag + ' 지침 다 맞음');
+      await D.enterReview();
+    }
+    D.scanText(tag + ' 감수 처음');
+    return D.take();
+  }));
+  e${v}.push(...await ${v}.evaluate(async () => {
+    const tag = ${tagv}, ids = ${J(c.ids)};
+    const back = D.dbg().script().id;
+    for (const id of ids) {
+      await D.load(id);
+      const t = tag + ' ' + id;
+      D.scanText(t + ' 처음');
+      await D.send(t + ' 교정 없이'); D.scanText(t + ' 교정 없이 송출');
+      D.act('rw-help'); await D.until(() => D.$('.rw-help') && D.visible(D.$('.rw-help')), 2000, '도움');
+      ['1', '2', '3'].forEach((n) => { D.tapSel('.rw-help-step[data-step="' + n + '"]', '도움 ' + n); D.scanText(t + ' 도움 ' + n); });
+      D.$$('.rw-ex-step').forEach((s) => { if (/·\s*$/.test(s.textContent.trim()) || /·\s*·/.test(s.textContent)) D.bad(t + ': 도움 ③ 규칙 이름이 빔 — ' + s.textContent.trim()); });
+      D.tapSel('.rw-help-close', '도움 닫기');
+      const sc = D.dbg().script();
+      if ((sc.steps || []).length) { await D.solveScript(); await D.send(t + ' 풀이'); D.scanText(t + ' 풀이 송출'); }
+      const m = (sc.steps || []).find((x) => x[1] === 'merge');
+      if (m) {
+        while (D.logN() > 0) D.act('rw-undo');
+        const ab = m[2].split('+');
+        D.mark('merge'); D.slot(ab[0]); D.slot(ab[1]);
+        await D.until(() => D.sheet() && D.$('.rw-sheet .ch-cell'), 2000, '합침 도표'); D.scanText(t + ' 합침 도표');
+        D.tapSel('.rw-sheet .ch-close', '도표 닫기');
+      }
+    }
+    D.dbg().exit();
+    await D.until(() => D.dbg().script().id === back, 3000, '원래 원고로');
+    return D.take();
+  }));
+  e${v}.push(...await ${v}.evaluate(async () => {
+    const tag = ${tagv}, o = ${o};
+    const G = D.G();
+    D.finishRun(o.ch, { grade: o.grade, level: o.level, seed: 77 });
+    G.app.resume();
+    await D.until(() => D.cur() === 'reveal' && D.$('.rv-art'), 3000, '조항 공개'); D.scanText(tag + ' 조항 공개');
+    D.tapSel('[data-act="reveal-next"]', '장 결과 보기');
+    await D.until(() => D.cur() === 'result' && D.$('.rs-row'), 3000, '장 결과'); D.scanText(tag + ' 장 결과');
+    (window.__infos = window.__infos || []).push(tag + ' 본 화면 ' + D.scanned);
+    return D.take();
+  }));
+`;
+};
+LATER.forEach((c) => {
+  const v = 'l' + c.ch;
+  step(`화면 글 — ${c.grade === 'm3' ? '중3' : '고1'} · ${c.ch}장 · ${c.level === 'basic' ? '기본' : '심화'}`, `
+${open(v, c.size[0], c.size[1])}
+try {
+  const e${v} = [];
+  ${walkLater(v, c)}
+  ${fin('e' + v)}
+} finally { await closeTab(${v}); }
+`);
+});

@@ -4,6 +4,7 @@
 //   점검용 조작은 점검 대본에만 있다(명세 §18). 게임 코드에는 아무것도 더하지 않는다 — 학생처럼 누르고, 정답은 데이터(GUIDES · SCRIPTS)에서 읽는다.
 //
 //   D.startChapter({ ch, grade, level })  시작 화면에서 학년 · 장 · 단계를 눌러 고르고 [감수 시작](진행 장이 있으면 [새로 시작]) → 지침 화면
+//                                         (지침이 없는 장 — 8장 — 은 곧바로 감수 화면)
 //   D.pickGuide(ch, fn)    지침 빈칸마다 fn(지침, 빈칸 id, 화면 차례 번호) → 보기 번호를 눌러 고른다 → 고른 값
 //   D.solveGuide(ch)       정답 보기를 모두 누르고 [확인] → [원고 감수 시작]이 나올 때까지
 //   D.enterReview()        [원고 감수 시작] → 감수 화면
@@ -25,7 +26,8 @@ if (window.D && D.toReview && !D.startChapter) {
     D.tapSel('[data-level="' + o.level + '"]', '단계 ' + o.level);
     D.tapSel('[data-act="begin"]', '감수 시작');
     if (D.$('.st-confirm')) D.tapSel('[data-act="overwrite-yes"]', '새로 시작');
-    await D.until(() => D.cur() === 'guide' && D.$('.gd-card'), 4000, '지침 화면');
+    if (D.w().GUIDES[o.ch]) await D.until(() => D.cur() === 'guide' && D.$('.gd-card'), 4000, '지침 화면');
+    else await D.until(() => D.cur() === 'review' && D.$('.rw-blocks .bk-slot'), 4000, '감수 화면(지침 없는 장)');
     return D.G().save.loadChapter();
   };
   D.pickGuide = (ch, fn) => {

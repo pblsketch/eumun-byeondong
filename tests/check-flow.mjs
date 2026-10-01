@@ -232,3 +232,143 @@ try {
   ${fin('eb')}
 } finally { await closeTab(b1); }
 `);
+
+// ───────────── 3~8장(결정 0019) — 장마다 한 번씩 지침부터(8장은 지침 없이) 장 결과까지 ─────────────
+//   학년 · 단계를 번갈아(기본 · 심화 모두). 원고 결과는 1 · 2장과 같은 계획(넘김 · 규칙 밖 · 다름 뒤 온에어 + 도움 · solve · 온에어).
+//   장마다 덧붙여 보는 것(연습 자리 — 점검 전용 G.review.debug.load, 저장하지 않음):
+//     4장 심화: 어간 + 어미 경계 이름표가 없음 · 5장 기본: 어간 + 어미 경계 이름표(학년별)
+//     6장: /ㄴ/ 넣음(솜이불) · 반모음 /j/ 넣음(피어 — 허용 발음, 넣지 않아도 온에어) 끝까지
+//     7장: 합침표로 /ㅋ/ · /ㅌ/ · /ㅍ/ · /ㅊ/ 만들기 — 자음 도표만 열림
+//     8장: 지침 화면 없이 감수, 조항 공개 머리 문장은 지침 없는 장의 문장(도움 ②의 한 줄은 check-review가 봄)
+const LATER = [
+  { ch: 3, grade: 'h1', level: 'basic', size: [1280, 800] },
+  { ch: 4, grade: 'm3', level: 'advanced', size: [1366, 768] },
+  { ch: 5, grade: 'h1', level: 'basic', size: [1280, 800] },
+  { ch: 6, grade: 'm3', level: 'advanced', size: [1366, 768] },
+  { ch: 7, grade: 'h1', level: 'basic', size: [1280, 800] },
+  { ch: 8, grade: 'm3', level: 'advanced', size: [1366, 768] },
+];
+// 연습 자리 원고 하나로 교정 몇 개를 해 보고 송출 신호를 확인한 뒤 원래 원고로 돌아온다
+const SAND = String.raw`
+if (!D.sandSend) {
+  D.sandSend = async (id, steps, want, tag) => {
+    const back = D.dbg().script().id;
+    await D.load(id);
+    await D.doSteps(steps);
+    const k = await D.send(tag + ' ' + id);
+    if (k !== want) D.bad(tag + ' ' + id + ': 신호 ' + k + ' / ' + want);
+    D.dbg().exit();
+    await D.until(() => D.dbg().script().id === back && D.$('.rw-blocks .bk-slot'), 3000, tag + ' 원래 원고로');
+  };
+  D.stemLabel = (gap) => {
+    const g = D.$('.rw-blocks .bk-gap[data-gap="' + gap + '"]');
+    return g ? { stem: g.classList.contains('is-stem'), cut: (g.querySelector('.bk-cut') || {}).textContent || null, aria: g.getAttribute('aria-label') } : null;
+  };
+}
+`;
+LATER.forEach((c) => {
+  const v = 'f' + c.ch;
+  const o = J({ ch: c.ch, grade: c.grade, level: c.level });
+  step(`${c.ch}장 · ${c.grade} · ${c.level === 'basic' ? '기본' : '심화'} — ${c.ch === 8 ? '지침 없이 ' : '지침 → '}원고 7개 → 조항 공개 → 장 결과`, `
+${open(v, c.size[0], c.size[1])}
+${SETUP(v)}
+await ${v}.evaluate(() => { ${SAND} });
+try {
+  const e${v} = [];
+  e${v}.push(...await ${v}.evaluate(async () => { await D.fresh(); D.G().save.setSettings({ reduceMotion: true }); return D.take(); }));
+  e${v}.push(...await ${v}.evaluate(async () => {
+    const G = D.G(), T = D.T(), o = ${o};
+    const run = await D.startChapter(o);
+    if (!run || run.ch !== o.ch || run.grade !== o.grade || run.level !== o.level) D.bad('시작한 진행 장');
+    if (o.ch === 8) {
+      if (run.phase !== 'review' || !run.guideDone || run.guides !== null) D.bad('8장은 지침 없이 감수부터: ' + JSON.stringify({ p: run.phase, d: run.guideDone, g: run.guides }));
+    } else {
+      if (run.phase !== 'guide') D.bad(o.ch + '장이 지침부터가 아님');
+      let first = true;
+      D.pickGuide(o.ch, (g, b) => { const a = g.blanks[b].answer; if (first) { first = false; return (a + 1) % g.blanks[b].options.length; } return a; });
+      D.tapSel('[data-act="guide-check"]', '확인(한 칸 틀림)');
+      const msg = D.$('.gd-msg').textContent.trim();
+      if (msg !== G.text.fill(T.guide.wrong, { n: 1 })) D.bad('틀린 칸 안내: ' + msg);
+      await D.solveGuide(o.ch);
+      await D.enterReview();
+    }
+    const kicker = D.$('.rw-kicker').textContent.trim();
+    if (kicker !== G.text.t('common.chapterLevel', { chapter: G.text.chapterTitle(o.ch), level: G.text.levelName(o.level) })) D.bad('감수 화면 머리: ' + kicker);
+    if (o.level === 'advanced' && D.$('.rw-blocks .bk-plus, .rw-blocks .bk-cut, .rw-blocks [data-cut], .rw-blocks .is-stem')) D.bad('심화인데 경계가 보임');
+    return D.take();
+  }));
+  // 장마다 덧붙여 보는 것(연습 자리)
+  e${v}.push(...await ${v}.evaluate(async () => {
+    const T = D.T(), o = ${o};
+    if (o.ch === 4) {
+      await D.load('신고');
+      const l = D.stemLabel(0);
+      if (!l || l.stem || l.cut) D.bad('4장 심화: 어간 + 어미 경계 이름표가 보임 ' + JSON.stringify(l));
+      D.dbg().exit();
+    }
+    if (o.ch === 5) {
+      await D.load('앉다');
+      const l = D.stemLabel(0), want = T.terms[o.grade].cut.stem;
+      if (!l || !l.stem || l.cut !== want || l.aria.indexOf(want) < 0) D.bad('5장 기본: 어간 + 어미 경계 이름표 ' + JSON.stringify(l) + ' / ' + want);
+      await D.load('넋과');
+      const f = D.stemLabel(0);
+      if (!f || f.stem || f.cut !== T.terms[o.grade].cut.formal) D.bad('5장 기본: 어간 표시가 없는 형식 경계는 그대로 ' + JSON.stringify(f));
+      D.dbg().exit();
+    }
+    if (o.ch === 6) {
+      await D.sandSend('솜이불', [['n-insert', 'insert', '1.on', 'ㄴ']], 'onair', '/ㄴ/ 넣음');
+      await D.sandSend('피어', [['glide-insert', 'insert', '1.gl', 'j']], 'onair', '/j/ 넣음(허용)');
+      await D.sandSend('피어', [], 'onair', '교정 없이(원칙)');
+      await D.sandSend('솜이불', [['n-insert', 'insert', '1.gl', 'j']], 'diff', '/j/를 잘못 넣음');
+    }
+    if (o.ch === 7) {
+      for (const [id, at, to] of [['놓고', '0.co+1.on', 'ㅋ'], ['좋던', '0.co+1.on', 'ㅌ'], ['좁히다', '0.co+1.on', 'ㅍ'], ['쌓지', '0.co+1.on', 'ㅊ']]) {
+        const back = D.dbg().script().id;
+        await D.load(id);
+        const ab = at.split('+');
+        D.mark('merge'); D.slot(ab[0]); D.slot(ab[1]);
+        await D.until(() => D.sheet() && D.$('.rw-sheet .ch-cell'), 2000, '합침 도표 ' + id);
+        const parts = D.$$('.rw-sheet .ch-part').map((p) => p.getAttribute('data-part'));
+        if (JSON.stringify(parts) !== '["consonant"]') D.bad(id + ' 합침: 자음 도표만 열려야 함 ' + JSON.stringify(parts));
+        D.cell(to);
+        const k = await D.send('합침 ' + id);
+        if (k !== 'onair') D.bad(id + ' 합침 /' + to + '/: ' + k);
+        D.dbg().exit();
+        await D.until(() => D.dbg().script().id === back, 3000, '원래 원고로');
+      }
+    }
+    return D.take();
+  }));
+  e${v}.push(...await ${v}.evaluate(async () => {
+    const r = D.G().save.loadChapter();
+    window.__plan = D.planRun(r);
+    window.__wants = [];
+    for (let i = 0; i < 3; i++) window.__wants.push(await D.playScript(window.__plan[i]));
+    return D.take();
+  }));
+  e${v}.push(...await ${v}.evaluate(async () => {
+    for (let i = 3; i < 5; i++) window.__wants.push(await D.playScript(window.__plan[i]));
+    return D.take();
+  }));
+  e${v}.push(...await ${v}.evaluate(async () => {
+    const G = D.G(), T = D.T(), o = ${o};
+    for (let i = 5; i < 7; i++) window.__wants.push(await D.playScript(window.__plan[i]));
+    await D.until(() => D.cur() === 'reveal' && D.$('.rv-art'), 4000, '조항 공개');
+    window.__run = G.save.loadChapter();
+    const by = D.byId();
+    const arts = G.rules.revealArticles(D.w().GUIDES[o.ch], window.__run.ids.map((id) => by[id]));
+    const cards = D.$$('.rv-art').map((a) => a.getAttribute('data-article'));
+    if (JSON.stringify(cards) !== JSON.stringify(arts)) D.bad('조항 공개 카드 ' + JSON.stringify(cards) + ' / ' + JSON.stringify(arts));
+    const head = D.$('.rv-heading').textContent.trim();
+    const want = G.text.fill(o.ch === 8 ? T.reveal.headingNoGuide : T.reveal.heading, { articles: G.text.articleList(arts) });
+    if (head !== want) D.bad('조항 공개 머리 문장: ' + head);
+    D.tapSel('[data-act="reveal-next"]', '장 결과 보기');
+    await D.until(() => D.cur() === 'result' && D.$$('.rs-row').length === 7, 4000, '장 결과');
+    D.checkResult(window.__run, window.__wants, o.grade);
+    (window.__infos = window.__infos || []).push(o.ch + '장 원고 ' + window.__run.ids.join(',') + ' · 계획 ' + window.__plan.join(',') + ' → ' + window.__wants.map((x) => x.result + '/' + x.sends + (x.helped ? '+도움' : '')).join(','));
+    return D.take();
+  }));
+  ${fin('e' + v)}
+} finally { await closeTab(${v}); }
+`);
+});

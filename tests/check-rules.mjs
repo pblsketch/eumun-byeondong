@@ -572,21 +572,42 @@ const G_LAT = {
   check(!!GD && Array.isArray(GD[2]) && GD[2].length === 3, '2장 지침 3개');
   if (!GD || !Array.isArray(GD[1]) || !Array.isArray(GD[2])) done('규칙 점검');
   const gdJ = J(GD);
+  // 지침이 있는 장: 1~7장(3~7장은 2~3개). 8장은 지침이 없다(결정 0019 — 지침 없이 감수부터)
+  const GCH = Object.keys(GD).map(Number).sort((a, b) => a - b);
+  eq(GCH, [1, 2, 3, 4, 5, 6, 7], '지침이 있는 장은 1~7장');
+  check(!(8 in GD), '8장은 지침이 없음');
+  [3, 4, 5, 6, 7].forEach((ch) => check(Array.isArray(GD[ch]) && GD[ch].length >= 2 && GD[ch].length <= 3, `${ch}장 지침 2~3개 (${GD[ch] && GD[ch].length})`));
 
   // 8-1 지침마다 공개할 조항(명세 §7-1) · 조항 원문 데이터에 있는 조항
   eq(GD[1].map((g) => g.articles), [['8', '9'], ['13', '14'], ['15']], '1장 지침 조항: ①제8·9항 ②제13·14항 ③제15항');
   eq(GD[2].map((g) => g.articles), [['18'], ['19'], ['20', '20-다만']], '2장 지침 조항: ①제18항 ②제19항 ③제20항·다만');
-  [1, 2].forEach((ch) => GD[ch].forEach((g) => (g.articles || []).forEach((a) =>
+  GCH.forEach((ch) => GD[ch].forEach((g) => (g.articles || []).forEach((a) =>
     check(!!A && a in A, `[${g.id}] 조항 ${a}가 조항 원문 데이터에 있음`))));
 
   // 8-2 예시 검증(엔진): 예시가 빈칸 조건을 모두 보이고, 원고가 있고, 함정 표시가 맞음
   eq(R.checkGuides(GD[1], SC), [], '1장 지침 예시 검증 통과');
   eq(R.checkGuides(GD[2], SC), [], '2장 지침 예시 검증 통과');
-  [1, 2].forEach((ch) => GD[ch].forEach((g) => {
+  [3, 4, 5, 6, 7].forEach((ch) => eq(R.checkGuides(GD[ch], SC), [], `${ch}장 지침 예시 검증 통과`));
+  GCH.forEach((ch) => GD[ch].forEach((g) => {
     const n = (g.examples || []).length;
     check(n >= 3 && n <= 4, `[${g.id}] 예시 3~4개 (${n})`);
-    check((g.examples || []).every((e) => byId[e.id] && byId[e.id].ch === ch), `[${g.id}] 예시는 그 장 원고`);
+    // 1·2장은 그 장 원고만. 3~7장은 장 배정이 누적이라 앞 장 원고도 됨(7장 ③의 낳은·좋은 = 5장) — 함정 예시는 그 장 원고
+    check((g.examples || []).every((e) => byId[e.id] && (ch <= 2 ? byId[e.id].ch === ch : byId[e.id].ch <= ch && (!e.trap || byId[e.id].ch === ch))),
+      `[${g.id}] 예시는 그 장(3~7장은 앞 장까지) 원고`);
   }));
+  // 3~7장 지침 내용: 함정 예시(그 장 함정 종류), 7장은 함정 예시가 하나뿐(뽑기에 함정 2개가 남게 — findings F11)
+  {
+    const trapEx = (ch) => R.exampleIds(GD[ch]).filter((id) => byId[id] && byId[id].ch === ch && byId[id].trap);
+    eq(trapEx(3).map((id) => byId[id].trap), ['blocked', 'blocked', 'blocked'], '3장: 구개음화가 없는 자리 예시(실질 형태소 앞 · 한 형태소 안)');
+    check(trapEx(4).every((id) => ['안기다', '감기다'].includes(id)), '4장: 함정 예시는 피동 · 사동 -기-');
+    check(trapEx(5).every((id) => byId[id].trap === 'exception'), '5장: 함정 예시는 다만 낱말');
+    eq(trapEx(6), ['송별연'], '6장: 함정 예시는 송별연');
+    eq(trapEx(7), ['놓아'], '7장: 함정 예시는 놓아 하나');
+    check(GD[6].some((g) => g.rules.includes('glide-insert')), '6장: 반모음 첨가(제22항) 지침이 있음');
+    check(GD[7].every((g) => g.rules.every((r) => ['aspirate', 'h-drop'].includes(r))), '7장: 지침은 거센소리되기와 ㅎ 탈락 대비뿐(모음 쪽 없음)');
+    const exAll = [3, 4, 5, 6, 7].map((ch) => R.exampleIds(GD[ch]).filter((id) => byId[id] && byId[id].ch === ch && !byId[id].trap).length);
+    check(exAll[0] <= 6, `3장 일반 예시는 6개 이하(뽑기에 일반 5개가 남게) (${exAll[0]})`);
+  }
   // 지침 내용(명세 §7-1): 1장 ②는 홑·쌍받침 연음과 겹받침 연음, ③은 제15항 원고, 2장 ③은 다만 낱말
   {
     const ex = (g) => (g.examples || []).map((e) => byId[e.id]).filter(Boolean);
@@ -600,7 +621,7 @@ const G_LAT = {
   }
 
   // 8-3 채점: 정답이면 0칸, 칸마다 하나씩 틀리면 1칸, 모두 틀리면 빈칸 수
-  [1, 2].forEach((ch) => {
+  GCH.forEach((ch) => {
     const gs = GD[ch];
     const answers = (f) => Object.fromEntries(gs.map((g) => [g.id, Object.fromEntries(Object.keys(g.blanks).map((b) => [b, f(g, b)]))]));
     const wrongOf = (g, b) => (g.blanks[b].answer + 1) % g.blanks[b].options.length;
@@ -615,6 +636,9 @@ const G_LAT = {
     check(oneOk === total, `${ch}장 지침: 빈칸 하나만 틀리면 1칸 (${oneOk}/${total})`);
     eq(R.gradeGuides(gs, answers(wrongOf)), total, `${ch}장 지침: 모두 틀리면 빈칸 수 ${total}`);
     eq(R.gradeGuides(gs, {}), total, `${ch}장 지침: 아무것도 안 고르면 빈칸 수`);
+    // 보기는 데이터 차례대로 화면에 나온다 — 한 장의 정답이 한 자리(늘 첫 보기 등)에 몰리면 안 된다
+    const pos = gs.flatMap((g) => Object.keys(g.blanks).map((b) => g.blanks[b].answer));
+    check(new Set(pos).size >= 2, `${ch}장 지침: 정답 자리가 한 곳에 몰리지 않음 ${J(pos)}`);
   });
 
   // 8-4 예시를 뺀 원고 풀로 뽑기(명세 §6): 시드 0~199 모두 성공, 예시는 안 뽑힘, 함정 2개, 제15항·갈래 조건
@@ -650,6 +674,23 @@ const G_LAT = {
     check(!ex2.includes('감기'), '감기는 지침 예시가 아님');
     ['nasal', 'r-nasal', 'lateral'].forEach((k) => check(left(2, ex2, (s) => !s.trap && R.kindOf(s) === k) >= 1, `2장 ${k} 갈래 원고가 남음`));
   }
+  // 3~8장: 실제 지침 예시를 빼고 시드 200개 모두 뽑힘(8장은 지침이 없어 exampleIds(undefined) = []), 예시는 안 뽑힘, 함정 2(8장은 예외 1)
+  for (let ch = 3; ch <= 8; ch++) {
+    const ex = R.exampleIds(GD[ch]);
+    if (ch === 8) eq(ex, [], '8장: 지침이 없으면 뺄 예시도 없음');
+    let fail = 0, err = '';
+    for (let sd = 0; sd < 200; sd++) {
+      try {
+        const a = R.draw(ch, SC, ex, sd), ss = a.map((id) => byId[id]);
+        const ok = a.length === 7 && new Set(a).size === 7 && ss.every((s) => s && s.ch === ch && !ex.includes(s.id)) &&
+          ss.filter((s) => s.trap).length === (ch === 8 ? 1 : 2);
+        if (!ok) fail++;
+      } catch (e) { fail++; err = err || e.message; }
+    }
+    check(fail === 0, `${ch}장: 지침 예시를 빼고 시드 200개 모두 뽑힘 (어긋남 ${fail}) ${err}`);
+    const trapsLeft = SC.filter((s) => s.ch === ch && s.trap && !ex.includes(s.id));
+    if (ch <= 7) check(trapsLeft.length >= 2, `${ch}장: 함정이 2개 이상 남음 (${trapsLeft.map((s) => s.id).join(', ')})`);
+  }
 
   // 8-5 지침 문구 규칙(명세 §3-6·§13): 금지 낱말·한자 없음, 학년 키 구조 같음, 빗금 표기, 대괄호(발음 표시) 없음
   {
@@ -661,7 +702,7 @@ const G_LAT = {
     const slashed = new RegExp(`/[${JAMO}]/`, 'g');
     const lone = new RegExp(`[${JAMO}]`);
     const shown = []; // 화면에 보이는 문구: 지침 문장(두 학년)과 보기
-    [1, 2].forEach((ch) => GD[ch].forEach((g) => {
+    GCH.forEach((ch) => GD[ch].forEach((g) => {
       const t = g.text || {};
       check(Object.keys(t).sort().join() === 'h1,m3', `[${g.id}] 문장은 학년 키 m3·h1 둘`);
       const holes = (s) => J([...new Set(String(s).match(/\{\w+\}/g) || [])].sort());
@@ -681,12 +722,23 @@ const G_LAT = {
       check(!shown.some(([, s]) => String(s).includes(w)), `지침 문구에 금지 낱말 '${w}' 없음`);
       check(!src.includes(w), `지침 파일에 금지 낱말 '${w}' 없음(주석 포함)`);
     }
+    // 3~7장: 지침 문장이 정답을 말하지 않음 — 그 장 어느 지침 문장(두 학년)에도 그 장 빈칸의 정답 보기가 그대로 들어 있지 않다
+    //   (1·2장 문장은 /ㄴ/처럼 한 음운 정답이 문장 안 다른 자리에 쓰여 이 점검을 하지 않는다 — QA가 사람 눈으로 본 문장)
+    [3, 4, 5, 6, 7].forEach((ch) => {
+      const sents = GD[ch].flatMap((g) => ['m3', 'h1'].map((gr) => [g.id + '.' + gr, String((g.text || {})[gr])]));
+      GD[ch].forEach((g) => Object.keys(g.blanks || {}).forEach((b) => {
+        const a = g.blanks[b].options[g.blanks[b].answer];
+        const hit = sents.filter(([, x]) => x.includes(a)).map(([n]) => n);
+        check(!hit.length, `${ch}장 [${g.id}] ${b} 정답 '${a}'이 지침 문장에 그대로 있음: ${hit.join(', ')}`);
+      }));
+    });
     const hanLines = src.split('\n').map((l, i) => [i + 1, l]).filter(([, l]) => HAN.test(l));
     check(!hanLines.length, `지침 파일에 한자 없음 ${hanLines.map(([n]) => n + '행').join(', ')}`);
     check(!/\bdocument\b|localStorage|setTimeout|setInterval/.test(src.replace(/\/\/.*$/gm, '')), '지침 파일은 DOM·저장소·타이머를 쓰지 않음');
   }
   check(J(GD) === gdJ && J(SC) === poolJ, '지침 점검이 지침과 원고를 바꾸지 않음');
   console.log(`  지침 예시(뽑기에서 뺌) 1장 ${ex1.join(', ')} · 2장 ${ex2.join(', ')}`);
+  [3, 4, 5, 6, 7].forEach((ch) => console.log(`  지침 예시(뽑기에서 뺌) ${ch}장 ${R.exampleIds(GD[ch]).join(', ')}`));
 }
 
 // ───────────────────────── 9. 3~8장 규칙(구현 3단계) ─────────────────────────
@@ -900,7 +952,8 @@ if (has3(['신고', '안기다', '할 것을', '문고리', '볶음밥', '밟다
     3: [['palatal']], 4: [['tense'], ['tense-stem'], ['tense-sino', 'tense-adn', 'tense-cmp']], 5: [['simplify'], ['h-drop']],
     6: [['n-insert']], 7: [['aspirate']],
   };
-  // 지침이 아직 없다(GUIDES에 3~8장 없음) — 연구 자료의 지침 초안 예시를 뺀 원고 풀로도 뽑혀야 한다(지침 2~3개 × 예시 최대 4)
+  // 연구 자료(design/research/04 §3)의 지침 초안 예시를 뺀 원고 풀로도 뽑혀야 한다(지침 2~3개 × 예시 최대 4 — 실제 지침보다 많이 뺀 경우의 여유).
+  //   실제 지침(js/data/guides.js) 예시를 뺀 뽑기는 8절이 본다.
   const DRAFT_EX = {
     3: ['굳이', '밭이', '해돋이', '같이', '곧이', '곧이어', '잔디', '벼훑이', '곁에서'],
     4: ['국밥', '곱돌', '꽃다발', '국수', '신고', '삼고', '안기다', '감기다', '갈등', '할 것을', '문고리', '볶음밥'],

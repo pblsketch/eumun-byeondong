@@ -171,7 +171,7 @@
         try { goBtn.focus({ preventScroll: true }); } catch (e) { /* 무시 */ }
       }
 
-      // 지침 데이터가 없는 장이면 지침을 건너뛴다(지금은 1 · 2장 모두 있음)
+      // 지침 데이터가 없는 장이면 지침을 건너뛴다(지침이 없는 8장은 G.app.beginChapter가 감수부터 시작해 여기 오지 않는다 — 망가진 값을 위한 안전장치)
       if (!guides.length) { finish(); }
 
       return null;

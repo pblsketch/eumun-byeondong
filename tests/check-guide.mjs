@@ -3,10 +3,11 @@
 //   1) 1장 지침 화면 모양: 지침 3개 · 빈칸마다 보기 2~4개(빗금 표기) · 예시 원고(표기 → 표준 발음)
 //      지침 빈칸의 정답이 DOM · aria 어디에도 없음(정답 보기와 다른 보기의 모양이 같음, 'answer' 낱말 없음)
 //      뽑힌 원고 7개의 표준 발음이 화면에 없음
-//   2) 채점: 여러 고른 값마다 "n칸이 맞지 않아요"의 n이 G.rules.gradeGuides(그리고 데이터로 직접 센 수)와 같음,
+//   2) 채점(1~7장 — 8장은 지침이 없음): 여러 고른 값마다 "n칸이 맞지 않아요"의 n이 G.rules.gradeGuides(그리고 데이터로 직접 센 수)와 같음,
 //      어느 칸이 틀렸는지 화면에 드러나지 않음(빈칸 · 보기의 모양이 모두 같음), 덜 고르면 '모두 골라 주세요'
 //   3) 다 맞으면 '지침을 모두 채웠어요' + 저장(guideDone · 감수 단계) → [원고 감수 시작] → 감수 화면
-//   4) 다섯 크기에서 가로 스크롤 없음 · 누르는 자리(가로 64px, 휴대폰 세로 48px)
+//   4) 다섯 크기에서 가로 스크롤 없음 · 누르는 자리(가로 64px, 휴대폰 세로 48px) — 1 · 2장과 문장 · 보기가 가장 긴 4장
+//   5) 8장(지침 없음)은 [감수 시작]에서 곧바로 감수 화면(지침 화면을 거치지 않음)
 //   모든 단계에서 페이지 오류(window.__gamsuErrors)가 없어야 한다.
 import { step, frame } from './aside.mjs';
 import { DRIVER } from './lib/drive.mjs';
@@ -161,7 +162,7 @@ const SETS = [
   ['섞임 2', 'mix2'],
   ['정답이 아닌 보기만', 'allWrong'],
 ];
-[[1, 'm3'], [2, 'h1']].forEach(([ch, grade]) => {
+[[1, 'm3'], [2, 'h1'], [3, 'm3'], [4, 'h1'], [5, 'm3'], [6, 'h1'], [7, 'm3']].forEach(([ch, grade]) => {
   step(`${ch}장 지침 채점 — 틀린 칸 수만 (${grade})`, `
 ${open('b' + ch, 1366, 768)}
 try {
@@ -188,7 +189,8 @@ try {
       first: () => 0,
       oneOff: (g, b, n) => (n === 2 ? (g.blanks[b].answer + 1) % g.blanks[b].options.length : g.blanks[b].answer),
       mix1: (g, b, n) => (n % 2 ? g.blanks[b].answer : (g.blanks[b].answer + 1) % g.blanks[b].options.length),
-      mix2: (g, b, n) => (n % 3 === 0 ? g.blanks[b].answer : g.blanks[b].options.length - 1),
+      // 셋째마다 정답, 나머지는 정답 바로 앞 보기(늘 오답 — 장마다 정답 자리가 달라도 '모두 정답'이 되지 않게)
+      mix2: (g, b, n) => (n % 3 === 0 ? g.blanks[b].answer : (g.blanks[b].answer + g.blanks[b].options.length - 1) % g.blanks[b].options.length),
       allWrong: (g, b) => (g.blanks[b].answer + 1) % g.blanks[b].options.length,
     };
     const seen = [];
@@ -274,7 +276,7 @@ try {
   r${v}.push(...await ${v}.evaluate(async () => {
     const tag = '${W}×${H}', MIN = ${min};
     const G = D.G();
-    for (const [ch, grade] of [[1, 'm3'], [2, 'h1']]) {
+    for (const [ch, grade] of [[1, 'm3'], [2, 'h1'], [4, 'm3']]) {
       G.app.beginChapter({ ch, grade, level: 'basic', seed: 3 });
       await D.until(() => D.cur() === 'guide' && D.$('.gd-card'), 3000, tag + ' 지침 ' + ch);
       D.targets(MIN, tag + ' ' + ch + '장 처음'); D.noScroll(tag + ' ' + ch + '장 처음');
@@ -294,3 +296,25 @@ try {
 } finally { await closeTab(${v}); }
 `);
 });
+
+step('8장 — 지침 없이 곧바로 감수', `
+${open('e1', 1280, 800)}
+try {
+  const ee = [];
+  ee.push(...await e1.evaluate(async () => { await D.fresh(); return D.take(); }));
+  ee.push(...await e1.evaluate(async () => {
+    const G = D.G(), w = D.w();
+    if (w.GUIDES[8]) D.bad('8장 지침이 있음');
+    G.app.go('start');
+    await D.until(() => D.$('.st-ch[data-ch="8"]'), 3000, '시작 화면');
+    D.tapSel('.st-ch[data-ch="8"]', '8장');
+    D.tapSel('[data-act="begin"]', '감수 시작');
+    await D.until(() => D.cur() === 'review' && D.$('.rw-blocks .bk-slot'), 4000, '8장 → 감수 화면');
+    if (D.$('.gd-card')) D.bad('8장에 지침 카드');
+    const run = G.save.loadChapter();
+    if (!run || run.ch !== 8 || run.phase !== 'review' || run.guideDone !== true || run.guides !== null) D.bad('8장 진행 장: ' + JSON.stringify(run && { ch: run.ch, p: run.phase, d: run.guideDone, g: run.guides }));
+    return D.take();
+  }));
+  ${fin('ee')}
+} finally { await closeTab(e1); }
+`);

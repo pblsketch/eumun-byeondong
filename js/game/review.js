@@ -594,16 +594,20 @@
         }
       } else if (n === 2) {
         helpBody.appendChild(guidesView());
-        record(2);
+        if (hasGuides()) record(2);
+        else if (opened) save(); // 지침이 없는 장(8장): 한 줄 안내만 — 도움으로 세지 않고 연 단계만 저장(③이 열림)
       } else {
         U.append(helpBody, exampleView());
         record(3);
       }
       paintHelp();
     }
-    // ② 이 장의 채운 감수 지침(빈칸에 고른 답) — 지침은 이미 다 맞힌 것이다
+    // ② 이 장의 채운 감수 지침(빈칸에 고른 답) — 지침은 이미 다 맞힌 것이다. 지침이 없는 장(8장)은 그렇다는 한 줄
+    function guidesOf() { return (window.GUIDES && window.GUIDES[run.ch]) || []; }
+    function hasGuides() { return guidesOf().length > 0; }
     function guidesView() {
-      const gs = (window.GUIDES && window.GUIDES[run.ch]) || [];
+      const gs = guidesOf();
+      if (!gs.length) return el('p', { class: 'rw-help-line rw-no-guide' }, H.noGuide);
       return el('div', { class: 'rw-guides' }, [
         el('h3', { class: 'rw-help-h' }, H.guideTitle),
         el('ol', { class: 'rw-guide-list' }, gs.map((g) => {

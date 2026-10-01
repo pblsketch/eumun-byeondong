@@ -45,6 +45,9 @@
 //   · 심화 단계: 위의 것이 하나도 없다 — 심화 블록의 HTML은 경계를 모두 지운 상태의 블록과 똑같다(점검이 확인).
 //     두 줄 나누기 자리도 띄어쓰기만 보고 고른다(나누는 자리로 경계가 새지 않게).
 //   제20항 다만 표시(marks)는 그리지 않는다(기본 단계 '한자어' 이름표가 그 도움이다 — 명세 원칙 5).
+//   낱말 표시 가운데 어간 + 어미(marks.stem)만 기본 단계에 보인다: 그 형식 경계의 이름표를 G.text.cutLabel(학년, 'stem')
+//   (중3 '어미 앞' · 고1 '어간+어미')으로 바꾸고 .is-stem을 단다(제24 · 25항, 제11항 다만 — 결정 0019). 심화 단계에는 없다.
+//   나머지 표시(adn · sai · noIns · clusterExc · lateralExc)는 어느 단계에도 그리지 않는다.
 //
 // ── 두 줄 나누기(명세 §14) ──────────────────────────────────────────────
 //   음절 · 틈의 실제 너비를 재서 나눈다. 띄어쓰기 틈(기본 단계는 형태소 경계 틈도) 자리에서 먼저 나누되, 그렇게 나눠서
@@ -120,13 +123,16 @@ G.blocks = (function () {
     function gapEl(i, cut) {
       const kind = showCuts && SHOWN[cut] ? cut : null;
       const space = cut === 'space';
+      // 어간 + 어미 표시(marks.stem)가 있는 형식 경계: 기본 단계에서 이름표만 학년별 '어간 + 어미' 꼴로(모양 · 색은 형식 경계 그대로)
+      const stem = kind === 'formal' && ((state && state.marks && state.marks.stem) || []).indexOf(i) >= 0;
+      const name = kind ? G.text.cutLabel(o.grade, stem ? 'stem' : kind) : '';
       let label = G.text.t('review.aria.gap', { n: i + 1 });
-      if (kind) label += ', ' + G.text.t('review.aria.cut', { label: G.text.cutLabel(o.grade, kind) }, o.grade);
+      if (kind) label += ', ' + G.text.t('review.aria.cut', { label: name }, o.grade);
       return U.el('button', {
         type: 'button',
-        class: 'bk-gap' + (space ? ' is-space' : '') + (kind ? ' cut-' + kind : ''),
+        class: 'bk-gap' + (space ? ' is-space' : '') + (kind ? ' cut-' + kind : '') + (stem ? ' is-stem' : ''),
         'data-gap': i, 'data-cut': kind, 'aria-label': label,
-      }, kind ? [pic('bk-plus', PLUS[kind]), U.el('span', { class: 'bk-cut', 'aria-hidden': 'true' }, G.text.cutLabel(o.grade, kind))]
+      }, kind ? [pic('bk-plus', PLUS[kind]), U.el('span', { class: 'bk-cut', 'aria-hidden': 'true' }, name)]
         : space ? pic('bk-space', SPACE) : null);
     }
 

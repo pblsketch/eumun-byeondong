@@ -40,7 +40,7 @@
 //   reveal     조항 공개 화면
 //   result     장 결과 화면: 칸 이름, 원고 결과 이름(outcome: 'onair' | 'offrule' | 'skip'), 정답 기준 숫자
 //   terms      학년별 긴 이름 { m3, h1 }: 자질(axis~column), 반모음(glide), 음절 자리(slot),
-//              형태소 경계 이름표(cut — 명세 §8-1 표), 규칙 이름(rule — G.rules 규칙 id), 변동 유형(change — 교정 op)
+//              형태소 경계 이름표(cut — 명세 §8-1 표, stem = 어간 + 어미 경계), 규칙 이름(rule — G.rules 규칙 id), 변동 유형(change — 교정 op)
 //   shortTerms 학년별 짧은 이름 { m3, h1 }: 도표 머리글·결과 표처럼 좁은 곳
 //   rotate     낮은 가로 화면 안내
 //   images     그림 자리 대체 글(이번에는 빈 틀)
@@ -50,8 +50,9 @@
 //     strength: plain tense aspirated none · height: high mid low · backness: front back · lips: unrounded rounded
 //     column: front-unrounded front-rounded back-unrounded back-rounded · glide: j w
 //   음절 자리 slot: on gl nu co (js/core/rules.js의 자리 Pos)
-//   형태소 경계 cut: formal content sino (space·null은 이름표 없음)
-//   규칙 rule: coda r-nasal-exc r-nasal nasal lateral · 변동 change: replace delete insert merge
+//   형태소 경계 cut: formal content sino (space·null은 이름표 없음) + stem(형식 경계 가운데 어간 + 어미 표시가 있는 곳 — 기본 단계 이름표만)
+//   규칙 rule: coda r-nasal-exc r-nasal nasal lateral palatal tense tense-stem tense-sino tense-adn tense-cmp tense-link
+//     simplify h-drop n-insert glide-insert aspirate · 변동 change: replace delete insert merge
 //   화면 단계 phase: guide review reveal · 단계 level: basic advanced
 // · 맨 아래에 다른 코드가 쓰는 도우미 함수(G.text.…)가 있다. 문구만 고칠 때는 건드리지 않아도 된다.
 
@@ -82,8 +83,9 @@ window.TEXT = {
     listJoin: '·',                          // 여러 이름을 이을 때('제18항·제19항')
   },
 
-  // ── 장 이름(기획안 3절). 3~8장은 이번에 '준비 중' ─────────────────
+  // ── 장 이름(기획안 3절) ─────────────────────────────────────
   // 3장 이름의 모음은 음운이므로 빗금으로 적었다(기획안은 따옴표로 적음 — 선생님 검토).
+  // 7장은 모음 쪽(반모음화 · 모음 축약)을 아직 넣지 않아(결정 0019, findings F8) 거센소리되기만 적는다.
   chapters: {
     1: { name: '첫 출근', topic: { m3: '받침의 일곱 소리, 이어 읽기', h1: '음절의 끝소리 규칙, 연음' } },
     2: { name: '닮은 소리', topic: { m3: '이웃 소리를 닮아 바뀌기', h1: '비음화, /ㄹ/의 비음화, 유음화' } },
@@ -91,7 +93,7 @@ window.TEXT = {
     4: { name: '세게', topic: { m3: '세게 바뀌는 소리', h1: '된소리되기' } },
     5: { name: '자리가 하나', topic: { m3: '받침 하나만 남기', h1: '자음군 단순화, /ㅎ/ 탈락' } },
     6: { name: '덧나는 소리', topic: { m3: '없던 소리가 덧나기', h1: '/ㄴ/ 첨가, 반모음 첨가, 사잇소리' } },
-    7: { name: '하나로', topic: { m3: '두 소리가 하나로 줄기', h1: '거센소리되기, 모음 축약' } },
+    7: { name: '하나로', topic: { m3: '두 소리가 하나로 줄기', h1: '거센소리되기' } },
     8: { name: '생방송', topic: { m3: '여러 변동이 차례로', h1: '연쇄 변동' } },
   },
 
@@ -102,6 +104,8 @@ window.TEXT = {
     hint: {
       basic: { m3: '말의 경계와 닮은 칸 안내가 보여요', h1: '형태소 경계와 닮은 칸 안내가 보여요' },
       advanced: { m3: '경계도 안내도 없이 감수해요', h1: '경계도 안내도 없이 감수해요' },
+      // 3~8장 기본 단계: 닮은 칸 안내는 1·2장에만 있다
+      basicPlain: { m3: '말의 경계와 이름표가 보여요', h1: '형태소 경계와 이름표가 보여요' },
     },
   },
 
@@ -175,6 +179,7 @@ window.TEXT = {
           '② 원고 감수: 원고 7개를 하나씩 교정하고 송출해요.',
           '③ 조항 공개: 채운 지침이 실제 「표준 발음법」의 어느 조항인지 알려 줘요.',
           '④ 장 결과: 원고마다 표준 발음과 내 결과를 확인해요.',
+          '8장 생방송은 감수 지침 없이 곧바로 원고 감수부터 해요.',
         ],
       },
       {
@@ -249,11 +254,11 @@ window.TEXT = {
         title: '기본과 심화',
         lines: {
           m3: [
-            '기본: 말의 경계(+)와 이름표가 보이고, 고침표의 도표에 닮은 칸이 은은히 보여요.',
+            '기본: 말의 경계(+)와 이름표가 보이고, 1·2장에서는 고침표의 도표에 닮은 칸이 은은히 보여요.',
             '심화: 경계도 닮은 칸도 보이지 않아요. 스스로 판단해요.',
           ],
           h1: [
-            '기본: 형태소 경계(+)와 이름표가 보이고, 조음 도표에 닮은 칸이 은은히 보여요.',
+            '기본: 형태소 경계(+)와 이름표가 보이고, 1·2장에서는 조음 도표에 닮은 칸이 은은히 보여요.',
             '심화: 경계도 닮은 칸도 보이지 않아요. 스스로 판단해요.',
           ],
         },
@@ -383,6 +388,7 @@ window.TEXT = {
     diffMarked: '다른 음절을 프롬프터에 표시했어요',
     needBroadcast: '먼저 송출해 보세요',     // 아직 송출 안 함 또는 마지막 송출이 '다름'이 아닐 때(도움으로 세지 않음)
     guideTitle: '이 장의 감수 지침',
+    noGuide: '이 장에는 감수 지침이 없어요',   // 지침이 없는 장(8장)의 도움 ② · ③(쌍둥이가 없을 때)
     exampleTitle: '같은 규칙을 쓰는 다른 낱말',
     exampleSpelling: '표기',
     examplePron: '발음',
@@ -398,6 +404,8 @@ window.TEXT = {
     title: '조항 공개',
     // {articles} = '제18항·제19항·제20항'(G.text.articleList). 여러 줄을 써도 되는 머리 문장
     heading: '선생님이 채운 지침은 실제로 「표준 발음법」 {articles}입니다',
+    // 지침이 없는 장(8장): 감수한 원고의 근거 조항만 공개한다
+    headingNoGuide: '선생님이 감수한 원고의 근거는 「표준 발음법」 {articles}입니다',
     articleName: '제{n}항',
     articleSub: '제{n}항 {sub}',             // '제20항 다만', '제19항 붙임', '제12항 3'
     source: '「표준 발음법」',
@@ -455,7 +463,8 @@ window.TEXT = {
       glide: { j: '반모음 /j/', w: '반모음 /w/' },
       slot: { on: '첫소리', gl: '반모음', nu: '가운뎃소리', co: '끝소리' },
       // 형태소 경계 이름표(명세 §8-1 표). space·null은 이름표 없음
-      cut: { formal: '뒤에 붙는 말', content: '뜻이 있는 말', sino: '한자어' },
+      // stem = 형식 경계 가운데 어간 + 어미 표시가 있는 곳(4·5장 — 결정 0019, 기본 단계만)
+      cut: { formal: '뒤에 붙는 말', content: '뜻이 있는 말', sino: '한자어', stem: '어미 앞' },
       // 규칙 이름(도움 ③ 풀이 예시 등). 키 = G.rules 규칙 id
       rule: {
         'coda': '끝소리 규칙',
@@ -463,6 +472,18 @@ window.TEXT = {
         'r-nasal': '/ㄹ/이 /ㄴ/으로 닮기',
         'nasal': '비음으로 닮기',
         'lateral': '/ㄹ/로 닮기',
+        'palatal': '/ㅣ/ 앞에서 바뀌기',
+        'tense': '된소리로 바뀌기',
+        'tense-stem': '어간 받침 뒤 된소리',
+        'tense-sino': '한자어 /ㄹ/ 뒤 된소리',
+        'tense-adn': '꾸미는 /ㄹ/ 뒤 된소리',
+        'tense-cmp': '사잇소리 된소리',
+        'tense-link': '겹받침 /ㅅ/의 된소리',
+        'simplify': '겹받침 하나 빼기',
+        'h-drop': '/ㅎ/ 빼기',
+        'n-insert': '/ㄴ/ 덧나기',
+        'glide-insert': '반모음 덧나기',
+        'aspirate': '거센소리로 줄기',
       },
       // 변동 네 갈래(교정 op)
       change: { replace: '바뀜', delete: '빠짐', insert: '덧남', merge: '줄어듦' },
@@ -487,13 +508,25 @@ window.TEXT = {
       },
       glide: { j: '반모음 /j/', w: '반모음 /w/' },
       slot: { on: '초성', gl: '반모음', nu: '중성', co: '종성' },
-      cut: { formal: '형식 형태소', content: '실질 형태소', sino: '한자어' },
+      cut: { formal: '형식 형태소', content: '실질 형태소', sino: '한자어', stem: '어간+어미' },
       rule: {
         'coda': '음절의 끝소리 규칙',
         'r-nasal-exc': '유음화의 예외',
         'r-nasal': '/ㄹ/의 비음화',
         'nasal': '비음화',
         'lateral': '유음화',
+        'palatal': '구개음화',
+        'tense': '된소리되기',
+        'tense-stem': '된소리되기(어간 받침)',
+        'tense-sino': '된소리되기(한자어)',
+        'tense-adn': '된소리되기(관형사형)',
+        'tense-cmp': '된소리되기(사잇소리)',
+        'tense-link': '된소리되기(겹받침 /ㅅ/)',
+        'simplify': '자음군 단순화',
+        'h-drop': '/ㅎ/ 탈락',
+        'n-insert': '/ㄴ/ 첨가',
+        'glide-insert': '반모음 첨가',
+        'aspirate': '거센소리되기',
       },
       change: { replace: '교체(바뀜)', delete: '탈락(빠짐)', insert: '첨가(덧남)', merge: '축약(줄어듦)' },
     },

@@ -53,11 +53,12 @@ if (window.D && !D.toReview) {
     const html = D.d().body.innerHTML;
     const strip = G.rules.strip;
     const words = [G.text.pron(sc.pron), G.text.pron(strip(sc.pron))];
-    if (sc.pron !== sc.text) words.push(sc.pron);
-    if (strip(sc.pron) !== strip(sc.text)) words.push(strip(sc.pron));
+    // 대괄호 없는 꼴은 두 음절 이상만(한 음절은 '입'술소리처럼 다른 낱말 안에 흔히 있음 — check-leak과 같음: 잎 → 입)
+    if (sc.pron !== sc.text && strip(sc.pron).length > 1) words.push(sc.pron);
+    if (strip(sc.pron) !== strip(sc.text) && strip(sc.pron).length > 1) words.push(strip(sc.pron));
     (sc.nonstandard || []).forEach((ns) => { words.push(G.text.pron(ns[0]), strip(ns[0])); });
     words.forEach((x) => { if (html.indexOf(x) >= 0) D.bad(tag + ': 아직 얻지 않은 발음이 DOM에 있음 ' + x + ' (' + sc.id + ')'); });
-    if (/trap|data-kind="(link|exception|coda|nasal|r-nasal|lateral)"/.test(html)) D.bad(tag + ': 함정 · 갈래 표시가 DOM에 있음');
+    if (/trap|data-kind="(link|exception|blocked|contrast|coda|nasal|r-nasal|lateral|palatal|tense[a-z-]*|simplify|h-drop|n-insert|glide-insert|aspirate)"/.test(html)) D.bad(tag + ': 함정 · 갈래 표시가 DOM에 있음');
   };
   D.noBad = (tag) => {
     const t = D.d().body.textContent;
