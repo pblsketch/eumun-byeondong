@@ -7,6 +7,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { loadScripts, check, done, ROOT } from './lib/load.mjs';
+import { FORBIDDEN as WORDS_FORBIDDEN, BROADCASTERS } from './lib/words.mjs';
 
 let ctx;
 try {
@@ -654,9 +655,7 @@ const G_LAT = {
   {
     const FILE = 'js/data/guides.js';
     const src = fs.readFileSync(path.join(ROOT, FILE), 'utf8');
-    // TODO(병합 때): tests/lib/words.mjs의 FORBIDDEN·BROADCASTERS를 가져와 이 목록을 바꾼다(2단계 가지에 있음 — 방송사 이름이 빠져 있음)
-    const FORBIDDEN = ['글자', '훈민정음', '해례', '제자 원리', '제자원리', '상형', '가획', '중세', '조선 수군', '조선',
-      '판옥선', '협선', '척후선', '게임오버', '게임 오버'];
+    const FORBIDDEN = [...WORDS_FORBIDDEN, ...BROADCASTERS];   // tests/lib/words.mjs — 문구·화면 글 점검과 같은 목록
     const HAN = /\p{Script=Han}/u;
     const JAMO = '\\u3131-\\u318E\\u1100-\\u11FF';
     const slashed = new RegExp(`/[${JAMO}]/`, 'g');
