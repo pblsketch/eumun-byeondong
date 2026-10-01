@@ -3,11 +3,15 @@
 // 1 음운 데이터 · 2 한글 나누기/합치기 · 3 원고 데이터 모양 · 4 원고마다 엔진 대조(도출 발음 = 표준 발음, 풀이 과정이 규칙 안,
 // 음운 수·변동 횟수, 모든 규칙 순서가 같은 발음에 닿음, 송출 신호) · 5 함정과 규칙 밖 교정 · 6 막지 않는 오답과 입력 보존
 // · 7 판 진행 함수(원고 갈래·뽑기·쌍둥이·지침 채점과 예시 검증(가짜 지침)·공개 조항·연음 자리·닮은 칸·원고 결과·장 합계)
-import { loadScripts, check, done } from './lib/load.mjs';
+// · 8 실제 감수 지침(js/data/guides.js): 예시 검증·채점·예시를 뺀 뽑기·지침 문구 규칙
+import fs from 'node:fs';
+import path from 'node:path';
+import { loadScripts, check, done, ROOT } from './lib/load.mjs';
 
 let ctx;
 try {
-  ctx = loadScripts(['js/core/util.js', 'js/data/sounds.js', 'js/data/scripts.js', 'js/core/hangul.js', 'js/core/rules.js']);
+  ctx = loadScripts(['js/core/util.js', 'js/data/sounds.js', 'js/data/scripts.js', 'js/data/articles.js', 'js/data/guides.js',
+    'js/core/hangul.js', 'js/core/rules.js']);
 } catch (e) {
   check(false, '스크립트 불러오기 실패: ' + e.message);
   done('규칙 점검');
@@ -527,6 +531,132 @@ const G_LAT = {
     R.revealArticles([G_NASAL], [byId['짓는']]), R.checkGuide(G_NASAL, SC), R.gradeGuides([G_NASAL], {}), R.kindOf(byId['옷']), R.scriptResult(['onair'])];
   check(outs.every(plainV), '새 함수 반환값이 평범한 값');
   check(J(st) === stJ && J(SC) === poolJ, '상태·원고 풀을 바꾸지 않음');
+}
+
+// ───────────────────────── 8. 실제 감수 지침(js/data/guides.js, 명세 §7·§6·§13) ─────────────────────────
+{
+  const GD = ctx.GUIDES, A = ctx.ARTICLES;
+  check(!!GD && typeof GD === 'object', 'window.GUIDES 있음');
+  check(!!GD && Array.isArray(GD[1]) && GD[1].length === 3, '1장 지침 3개');
+  check(!!GD && Array.isArray(GD[2]) && GD[2].length === 3, '2장 지침 3개');
+  if (!GD || !Array.isArray(GD[1]) || !Array.isArray(GD[2])) done('규칙 점검');
+  const gdJ = J(GD);
+
+  // 8-1 지침마다 공개할 조항(명세 §7-1) · 조항 원문 데이터에 있는 조항
+  eq(GD[1].map((g) => g.articles), [['8', '9'], ['13', '14'], ['15']], '1장 지침 조항: ①제8·9항 ②제13·14항 ③제15항');
+  eq(GD[2].map((g) => g.articles), [['18'], ['19'], ['20', '20-다만']], '2장 지침 조항: ①제18항 ②제19항 ③제20항·다만');
+  [1, 2].forEach((ch) => GD[ch].forEach((g) => (g.articles || []).forEach((a) =>
+    check(!!A && a in A, `[${g.id}] 조항 ${a}가 조항 원문 데이터에 있음`))));
+
+  // 8-2 예시 검증(엔진): 예시가 빈칸 조건을 모두 보이고, 원고가 있고, 함정 표시가 맞음
+  eq(R.checkGuides(GD[1], SC), [], '1장 지침 예시 검증 통과');
+  eq(R.checkGuides(GD[2], SC), [], '2장 지침 예시 검증 통과');
+  [1, 2].forEach((ch) => GD[ch].forEach((g) => {
+    const n = (g.examples || []).length;
+    check(n >= 3 && n <= 4, `[${g.id}] 예시 3~4개 (${n})`);
+    check((g.examples || []).every((e) => byId[e.id] && byId[e.id].ch === ch), `[${g.id}] 예시는 그 장 원고`);
+  }));
+  // 지침 내용(명세 §7-1, 계획 T3): 1장 ②는 홑·쌍받침 연음과 겹받침 연음, ③은 제15항 원고, 2장 ③은 다만 낱말
+  {
+    const ex = (g) => (g.examples || []).map((e) => byId[e.id]).filter(Boolean);
+    const [c1a, c1b, c1c] = GD[1], [, , c2c] = GD[2];
+    check(ex(c1a).every((s) => !s.trap), '1장 ①: 예시는 함정 아닌 끝소리 원고');
+    check(ex(c1b).every((s) => s.trap === 'link'), '1장 ②: 예시는 모두 연음 함정');
+    check(ex(c1b).some((s) => R.start(s).syl.some((y) => y.co.length === 1)) && ex(c1b).some((s) => R.start(s).syl.some((y) => y.co.length === 2)),
+      '1장 ②: 홑받침·쌍받침 연음과 겹받침 연음 예시가 함께 있음');
+    check(ex(c1c).every((s) => !s.trap && (s.articles || []).includes('15')), '1장 ③: 예시는 제15항 원고');
+    check(ex(c2c).some((s) => s.trap === 'exception') && ex(c2c).some((s) => !s.trap && R.kindOf(s) === 'lateral'), '2장 ③: 유음화 예시와 다만 낱말 예시가 함께 있음');
+  }
+
+  // 8-3 채점: 정답이면 0칸, 칸마다 하나씩 틀리면 1칸, 모두 틀리면 빈칸 수
+  [1, 2].forEach((ch) => {
+    const gs = GD[ch];
+    const answers = (f) => Object.fromEntries(gs.map((g) => [g.id, Object.fromEntries(Object.keys(g.blanks).map((b) => [b, f(g, b)]))]));
+    const wrongOf = (g, b) => (g.blanks[b].answer + 1) % g.blanks[b].options.length;
+    const total = gs.reduce((n, g) => n + Object.keys(g.blanks).length, 0);
+    eq(R.gradeGuides(gs, answers((g, b) => g.blanks[b].answer)), 0, `${ch}장 지침: 정답을 모두 고르면 0칸`);
+    let oneOk = 0;
+    gs.forEach((g) => Object.keys(g.blanks).forEach((b) => {
+      const p = answers((gg, bb) => gg.blanks[bb].answer);
+      p[g.id][b] = wrongOf(g, b);
+      if (R.gradeGuides(gs, p) === 1) oneOk++;
+    }));
+    check(oneOk === total, `${ch}장 지침: 빈칸 하나만 틀리면 1칸 (${oneOk}/${total})`);
+    eq(R.gradeGuides(gs, answers(wrongOf)), total, `${ch}장 지침: 모두 틀리면 빈칸 수 ${total}`);
+    eq(R.gradeGuides(gs, {}), total, `${ch}장 지침: 아무것도 안 고르면 빈칸 수`);
+  });
+
+  // 8-4 예시를 뺀 원고 풀로 뽑기(명세 §6): 시드 0~199 모두 성공, 예시는 안 뽑힘, 함정 2개, 제15항·갈래 조건
+  const is15 = (s) => (s.articles || []).includes('15');
+  const ex1 = R.exampleIds(GD[1]), ex2 = R.exampleIds(GD[2]);
+  {
+    let fail1 = 0, fail2 = 0, err = '';
+    for (let sd = 0; sd < 200; sd++) {
+      let a, b;
+      try { a = R.draw(1, SC, ex1, sd); } catch (e) { fail1++; err = err || e.message; continue; }
+      const ss = a.map((id) => byId[id]);
+      const ok1 = a.length === 7 && new Set(a).size === 7 && ss.every((s) => s && s.ch === 1 && !ex1.includes(s.id)) &&
+        ss.filter((s) => s.trap === 'link').length === 2 && ss.filter((s) => s.trap).length === 2 &&
+        ss.filter((s) => !s.trap).every((s) => R.kindOf(s) === 'coda') && ss.some((s) => !s.trap && is15(s));
+      if (!ok1) fail1++;
+      try { b = R.draw(2, SC, ex2, sd); } catch (e) { fail2++; err = err || e.message; continue; }
+      const tt = b.map((id) => byId[id]);
+      const kinds = tt.filter((s) => !s.trap).map((s) => R.kindOf(s));
+      const ok2 = b.length === 7 && new Set(b).size === 7 && tt.every((s) => s && s.ch === 2 && !ex2.includes(s.id)) &&
+        tt.filter((s) => s.trap === 'exception').length === 1 && tt.filter((s) => s.id === '감기').length === 1 &&
+        tt.filter((s) => s.trap).length === 2 && kinds.length === 5 && ['nasal', 'r-nasal', 'lateral'].every((k) => kinds.includes(k));
+      if (!ok2) fail2++;
+    }
+    check(fail1 === 0, `1장: 지침 예시를 빼고 시드 200개 모두 뽑힘 — 연음 함정 2 + 끝소리 5(제15항 ≥1) (어긋남 ${fail1}) ${err}`);
+    check(fail2 === 0, `2장: 지침 예시를 빼고 시드 200개 모두 뽑힘 — 다만 1 + 감기 1 + 갈래 셋 (어긋남 ${fail2}) ${err}`);
+  }
+  // 예시로 쓰고도 뽑을 원고가 남음(제15항 원고 ≥1, 연음 함정 ≥2, 다만 ≥1, 감기는 예시가 아님)
+  {
+    const left = (ch, ex, f) => SC.filter((s) => s.ch === ch && !ex.includes(s.id) && f(s)).length;
+    check(left(1, ex1, (s) => !s.trap && is15(s)) >= 1, `1장 감수에 쓸 제15항 원고가 남음 (${left(1, ex1, (s) => !s.trap && is15(s))}개)`);
+    check(left(1, ex1, (s) => s.trap === 'link') >= 2, '1장 연음 함정이 2개 이상 남음');
+    check(left(2, ex2, (s) => s.trap === 'exception') >= 1, '2장 다만 낱말이 남음');
+    check(!ex2.includes('감기'), '감기는 지침 예시가 아님');
+    ['nasal', 'r-nasal', 'lateral'].forEach((k) => check(left(2, ex2, (s) => !s.trap && R.kindOf(s) === k) >= 1, `2장 ${k} 갈래 원고가 남음`));
+  }
+
+  // 8-5 지침 문구 규칙(명세 §3-6·§13): 금지 낱말·한자 없음, 학년 키 구조 같음, 빗금 표기, 대괄호(발음 표시) 없음
+  {
+    const FILE = 'js/data/guides.js';
+    const src = fs.readFileSync(path.join(ROOT, FILE), 'utf8');
+    const FORBIDDEN = ['글자', '훈민정음', '해례', '제자 원리', '제자원리', '상형', '가획', '중세', '조선 수군', '조선',
+      '판옥선', '협선', '척후선', '게임오버', '게임 오버'];
+    const HAN = /\p{Script=Han}/u;
+    const JAMO = '\\u3131-\\u318E\\u1100-\\u11FF';
+    const slashed = new RegExp(`/[${JAMO}]/`, 'g');
+    const lone = new RegExp(`[${JAMO}]`);
+    const shown = []; // 화면에 보이는 문구: 지침 문장(두 학년)과 보기
+    [1, 2].forEach((ch) => GD[ch].forEach((g) => {
+      const t = g.text || {};
+      check(Object.keys(t).sort().join() === 'h1,m3', `[${g.id}] 문장은 학년 키 m3·h1 둘`);
+      const holes = (s) => J([...new Set(String(s).match(/\{\w+\}/g) || [])].sort());
+      check(holes(t.m3) === holes(t.h1), `[${g.id}] 두 학년의 빈칸 자리가 같음`);
+      check(J((String(t.m3).match(/\{\w+\}/g) || [])) === J(String(t.h1).match(/\{\w+\}/g) || []), `[${g.id}] 빈칸이 한 번씩, 같은 차례`);
+      ['m3', 'h1'].forEach((gr) => shown.push([`${g.id}.text.${gr}`, t[gr]]));
+      Object.keys(g.blanks || {}).forEach((b) => (g.blanks[b].options || []).forEach((o, i) => shown.push([`${g.id}.${b}.${i}`, o])));
+    }));
+    check(shown.length > 20, `지침 문구 수 ${shown.length}`);
+    for (const [p, s] of shown) {
+      check(typeof s === 'string' && s.trim() === s && s.length > 0, `지침 문구가 빈칸·앞뒤 공백 없음: ${p}`);
+      check(!lone.test(String(s).replace(slashed, '')), `지침 문구의 음운은 빗금 표기: ${p} = ${s}`);
+      check(!/[\[\]]/.test(s), `지침 문구에 대괄호(발음 표시) 없음: ${p} = ${s}`);
+      check(!/[\r\n]/.test(s), `지침 문구는 한 줄: ${p}`);
+    }
+    for (const w of FORBIDDEN) {
+      check(!shown.some(([, s]) => String(s).includes(w)), `지침 문구에 금지 낱말 '${w}' 없음`);
+      check(!src.includes(w), `지침 파일에 금지 낱말 '${w}' 없음(주석 포함)`);
+    }
+    const hanLines = src.split('\n').map((l, i) => [i + 1, l]).filter(([, l]) => HAN.test(l));
+    check(!hanLines.length, `지침 파일에 한자 없음 ${hanLines.map(([n]) => n + '행').join(', ')}`);
+    check(!/\bdocument\b|localStorage|setTimeout|setInterval/.test(src.replace(/\/\/.*$/gm, '')), '지침 파일은 DOM·저장소·타이머를 쓰지 않음');
+  }
+  check(J(GD) === gdJ && J(SC) === poolJ, '지침 점검이 지침과 원고를 바꾸지 않음');
+  console.log(`  지침 예시(뽑기에서 뺌) 1장 ${ex1.join(', ')} · 2장 ${ex2.join(', ')}`);
 }
 
 done('규칙 점검');
