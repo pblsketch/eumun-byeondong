@@ -5,3 +5,4 @@ tests/shots
 assets/raw
 __pycache__
 *.pyc
+tools/fonts_src
