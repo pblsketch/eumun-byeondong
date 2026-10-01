@@ -6,7 +6,8 @@
 //   을 보고, 화면마다 캡처를 tests/shots/(저장소 제외)에 남긴다: 크기-번호-화면.png(긴 화면은 아래 끝도 -end).
 //   캡처 없이 재기만: SHOTS=0 npm test (캡처 한 장이 10초 넘게 걸리는 바쁜 aside에서 이 점검이 20분을 넘을 때)
 //   화면: 시작 · 게임 방법 · 설정 · 감수 지침(처음 · 틀림 · 다 맞음) · 이어 하기 카드 · 덮어쓰기 확인 · 감수(처음 4음절 · 자음표 · 넣을 음운 ·
-//   신호 · 도움 ①②③ · 넘김 확인) · 조항 공개 · 장 결과. 눕힌 휴대폰(844×390)은 어느 화면에서나 '세로로 돌려 주세요'.
+//   신호 · 도움 ①②③ · 넘김 확인) · 조항 공개 · 장 결과, 3~8장(문장이 가장 긴 4장 지침 · 어간+어미 이름표 · 띄어 쓴 긴 원고 · 합침 도표).
+//   눕힌 휴대폰(844×390)은 어느 화면에서나 '세로로 돌려 주세요'.
 //   화면별 세부 동작은 check-app · check-guide · check-review · check-result가 본다. 모든 단계에서 페이지 오류가 없어야 한다.
 import { step, frame } from './aside.mjs';
 import { DRIVER } from './lib/drive.mjs';
@@ -157,6 +158,32 @@ const PARTS = [
     await D.until(() => D.cur() === 'result' && D.$$('.rs-row').length === 7, 3000, '장 결과');
     ${m('장 결과')} return D.take(); }));
   await shot('16-result', true);
+`],
+  ['3~8장(4장 지침 · 어간+어미 이름표 · 긴 원고 · 합침 도표)', (v, m) => `
+  e${v}.push(...await ${v}.evaluate(async () => {
+    await D.fresh(); D.G().save.setSettings({ reduceMotion: true });
+    await D.startChapter({ ch: 4, grade: 'm3', level: 'basic' });
+    ${m('4장 지침')} return D.take(); }));
+  await shot('17-guide-ch4', true);
+  e${v}.push(...await ${v}.evaluate(async () => {
+    await D.solveGuide(4);
+    await D.enterReview();
+    await D.load('얽거나');
+    await D.wait(150);
+    if (!D.$('.rw-blocks .bk-gap.is-stem')) D.bad('얽거나에 어간+어미 이름표가 없음');
+    ${m('어간+어미 이름표')} return D.take(); }));
+  await shot('18-review-stem');
+  e${v}.push(...await ${v}.evaluate(async () => {
+    await D.load('잊히지 않는');
+    await D.wait(150);
+    ${m('띄어 쓴 긴 원고')} return D.take(); }));
+  await shot('19-review-long', true);
+  e${v}.push(...await ${v}.evaluate(async () => {
+    await D.load('좁히다');
+    D.mark('merge'); D.slot('0.co'); D.slot('1.on');
+    await D.until(() => D.sheet() && D.$('.rw-sheet .ch-cell'), 2000, '합침 도표');
+    ${m('합침 도표')} return D.take(); }));
+  await shot('20-review-merge', true);
 `],
 ];
 

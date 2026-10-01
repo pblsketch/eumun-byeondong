@@ -13,6 +13,7 @@
 //
 // ── 화면 ────────────────────────────────────────────────────────────────
 //   [장 · 단계 | 조항 공개]  [머리 문장(게임 쪽 말) — 「표준 발음법」 제8항·제9항…]  [원문 표시 안내]
+//     지침이 없는 장(8장)은 머리 문장이 reveal.headingNoGuide(감수한 원고의 근거 조항). 조항은 뽑힌 원고 7개의 것뿐이다.
 //   조항 카드(조항 번호 순, '20-다만'은 '20' 바로 뒤): 「표준 발음법」 제N항 + '원문' 표시
 //     원문 단락 차례대로 — 문장, 묶음 표시((1) · (2)), 예시 낱말 표기 [발음](제21항은 틀린 발음 (×[…])까지)
 //   [장 결과 보기] → G.app.go('result', { run })
@@ -66,14 +67,17 @@
       const byId = {};
       (window.SCRIPTS || []).forEach((s) => { byId[s.id] = s; });
       const scripts = run.ids.map((id) => byId[id]).filter(Boolean);
-      const ids = G.rules.revealArticles(window.GUIDES && window.GUIDES[run.ch], scripts);
+      const guides = window.GUIDES && window.GUIDES[run.ch];
+      const ids = G.rules.revealArticles(guides, scripts);
+      // 지침이 없는 장(8장, 결정 0019): 채운 지침이 없으므로 감수한 원고의 근거 조항이라고만 말한다
+      const heading = Array.isArray(guides) && guides.length ? R.heading : R.headingNoGuide;
 
       root.appendChild(el('div', { class: 'rv' }, [
         el('header', { class: 'rv-head' }, [
           el('p', { class: 'rv-kicker' }, G.text.t('common.chapterLevel', { chapter: G.text.chapterTitle(run.ch), level: G.text.levelName(run.level) })),
           el('h1', { class: 'app-h1 rv-title' }, R.title),
         ]),
-        el('p', { class: 'rv-heading' }, G.text.fill(R.heading, { articles: G.text.articleList(ids) })),
+        el('p', { class: 'rv-heading' }, G.text.fill(heading, { articles: G.text.articleList(ids) })),
         el('p', { class: 'rv-note' }, [el('span', { class: 'rv-orig' }, T().common.original), el('span', null, R.note)]),
         el('div', { class: 'rv-list' }, ids.map(articleCard)),
         el('footer', { class: 'rv-foot' }, el('button', {

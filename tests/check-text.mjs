@@ -98,7 +98,7 @@ for (const [p, s] of strings) {
 // 그 밖의 모든 문구(신호·안내·확인·단추·머리·이름표)는 한 줄 자리로 보고 대략 30자 이내로 쓴다.
 // {이름} 자리는 채운 값이 대개 짧으므로 2자로 센다(예: {n} → '2'). 공백 포함.
 const MAX = 30;
-const MULTI_OK = [/^TEXT\.howto\.sections\./, /^TEXT\.reveal\.heading$/];
+const MULTI_OK = [/^TEXT\.howto\.sections\./, /^TEXT\.reveal\.heading(NoGuide)?$/];
 const len = (s) => [...s.replace(/\{\w+\}/g, '00')].length;
 for (const [p, s] of strings) {
   if (MULTI_OK.some((r) => r.test(p))) continue;
@@ -186,7 +186,10 @@ const REQ = {
   slot: ['on', 'gl', 'nu', 'co'],
   change: ['replace', 'delete', 'insert', 'merge'],
 };
-const REQ_LONG = { ...REQ, cut: ['formal', 'content', 'sino'], rule: ['coda', 'r-nasal-exc', 'r-nasal', 'nasal', 'lateral'] };
+// 규칙 이름: G.rules의 규칙 id 모두(도움 ③ 풀이 예시 · 감수 기록이 쓴다 — 3~8장 규칙 포함)
+const RULE_IDS = ['coda', 'r-nasal-exc', 'r-nasal', 'nasal', 'lateral', 'palatal', 'tense', 'tense-stem', 'tense-sino', 'tense-adn',
+  'tense-cmp', 'tense-link', 'simplify', 'h-drop', 'n-insert', 'glide-insert', 'aspirate'];
+const REQ_LONG = { ...REQ, cut: ['formal', 'content', 'sino', 'stem'], rule: RULE_IDS };
 for (const [table, req] of [['terms', REQ_LONG], ['shortTerms', REQ]]) {
   for (const g of ['m3', 'h1']) for (const grp of Object.keys(req)) for (const id of req[grp]) {
     const v = T[table][g] && T[table][g][grp] && T[table][g][grp][id];
@@ -210,6 +213,19 @@ for (const [id, w] of [['nasal', '비음화'], ['lateral', '유음화'], ['r-nas
   check(H.rule('h1', id).includes(w), `고1 규칙 이름 ${id}`);
   check(!H.rule('m3', id).includes(w), `중3 규칙 이름은 우리말 ${id}`);
 }
+for (const [id, w] of [['palatal', '구개음화'], ['tense', '된소리되기'], ['simplify', '자음군 단순화'], ['h-drop', '탈락'], ['n-insert', '첨가'], ['glide-insert', '첨가'], ['aspirate', '거센소리되기']]) {
+  check(H.rule('h1', id).includes(w), `고1 규칙 이름 ${id}`);
+  check(!H.rule('m3', id).includes(w), `중3 규칙 이름은 우리말 ${id}`);
+}
+check(new Set(RULE_IDS.map((id) => H.rule('h1', id))).size === RULE_IDS.length && new Set(RULE_IDS.map((id) => H.rule('m3', id))).size === RULE_IDS.length, '규칙 이름이 서로 다름(학년마다)');
+// 어간 + 어미 경계 이름표(기본 단계, 결정 0019 D4-2 · D0-5)
+eq(H.cutLabel('m3', 'stem'), '어미 앞', '경계 이름표 m3 stem');
+eq(H.cutLabel('h1', 'stem'), '어간+어미', '경계 이름표 h1 stem');
+// 3~8장: 지침이 없는 장(8장)의 도움 ② · 조항 공개 머리 문장, 닮은 칸이 없는 장의 단계 풀이, 7장은 모음 쪽을 약속하지 않음
+check(!!T.help.noGuide && T.reveal.headingNoGuide.includes('{articles}') && T.reveal.headingNoGuide.includes('「표준 발음법」'), '지침이 없는 장의 도움 ② · 조항 공개 머리 문장');
+check(!!T.levels.hint.basicPlain && !T.levels.hint.basicPlain.m3.includes('닮은 칸') && !T.levels.hint.basicPlain.h1.includes('닮은 칸'), '3~8장 기본 단계 풀이에는 닮은 칸이 없음');
+for (const g of ['m3', 'h1']) check(!/모음|반모음/.test(H.chapterTopic(g, 7)), `7장 다루는 변동이 모음 쪽을 약속하지 않음 ${g}: ${H.chapterTopic(g, 7)}`);
+for (const g of ['m3', 'h1']) check(H.get('howto.sections', g).flatMap((x) => x.lines).some((l) => l.includes('8장') && l.includes('지침 없이')), `게임 방법: 8장은 지침 없이 ${g}`);
 eq(H.term('h1', 'slot', 'co'), '종성', '고1 자리 이름');
 eq(H.term('m3', 'slot', 'co'), '끝소리', '중3 자리 이름');
 

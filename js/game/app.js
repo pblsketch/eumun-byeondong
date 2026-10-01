@@ -29,6 +29,7 @@
 //   G.app.beginChapter({ ch, level?, grade?, skipGuide?, seed? }) → ChapterRun
 //     원고 7개 = G.rules.draw(ch, SCRIPTS, G.rules.exampleIds(GUIDES && GUIDES[ch]), 시드) → 새 진행 장을 저장(옛 진행 장은 덮임)
 //     → go('guide', { run }). skipGuide: true면 지침을 건너뛰고 go('review', { run })(장 결과의 [다시 하기], 명세 §10).
+//     지침이 없는 장(GUIDES에 그 장이 없음 — 8장, 결정 0019)은 늘 감수부터: phase 'review' · guideDone true로 시작한다.
 //     level · grade를 안 주면 마지막 선택(G.save.levelOf(ch) · getSelection().grade). 덮어쓰기 확인은 부르는 쪽이 한다
 //     (시작 화면은 묻고 부름, 장 결과의 [다시 하기]는 같은 장이라 묻지 않음).
 //   G.app.resume() → 저장된 진행 장의 단계 화면으로(없거나 버려졌으면 시작 화면).
@@ -41,7 +42,7 @@
 //
 // ── 지킬 것 ─────────────────────────────────────────────────────────────
 //   화면 문구는 js/data/text.js(TEXT)에서 꺼낸다. 판정 · 뽑기는 G.rules, 저장은 G.save가 한다(여기서 다시 계산하지 않음).
-//   1 · 2장만 시작할 수 있다(ACTIVE). 3~8장은 '준비 중'으로 보이기만 하고 누를 수 없다(명세 §5-2).
+//   1~8장 모두 시작할 수 있다(ACTIVE). ACTIVE에 없는 장은 '준비 중'으로 보이기만 하고 누를 수 없다(명세 §5-2).
 //   배경 음악: 시작 화면에는 없다(명세 §15의 소리 자리) — 시작 화면에 오면 멈춘다.
 // ───────────────────────────────────────────────────────────────
 G.app = (function () {
@@ -49,8 +50,9 @@ G.app = (function () {
   const T = () => window.TEXT;
   const NAMES = ['start', 'guide', 'review', 'reveal', 'result'];
   const CHAPTERS = [1, 2, 3, 4, 5, 6, 7, 8];
-  const ACTIVE = [1, 2];         // 이번에 할 수 있는 장(명세 §2)
+  const ACTIVE = [1, 2, 3, 4, 5, 6, 7, 8]; // 할 수 있는 장(명세 §2 — 3~8장은 결정 0019의 잠정 선택으로 엶)
   const RECOMMEND_M3 = [1, 2];   // '중3 추천' 표시(명세 §5-2, 결정 0003)
+  const LIKE_CHAPTERS = [1, 2];  // 기본 단계 닮은 칸 안내가 있는 장(js/game/review.js와 같음) — 단계 풀이 한 줄을 고를 때만 씀
   // 배치 기준(조정값) — css/base.css · app.css · howto.css의 @media와 같은 값(바꿀 때 모두)
   const PORTRAIT_Q = '(max-width: 760px), (orientation: portrait)';
   const LOW_Q = '(orientation: landscape) and (max-height: 500px)';
@@ -123,7 +125,7 @@ G.app = (function () {
     const seed = typeof o.seed === 'number' && isFinite(o.seed) ? o.seed : newSeed();
     const guides = window.GUIDES && window.GUIDES[ch];
     const ids = G.rules.draw(ch, window.SCRIPTS || [], G.rules.exampleIds(guides), seed);
-    const skip = !!o.skipGuide;
+    const skip = !!o.skipGuide || !(Array.isArray(guides) && guides.length); // 지침이 없는 장(8장)은 감수부터
     const run = { grade, ch, level, seed, ids, phase: skip ? 'review' : 'guide', guideDone: skip, done: [], cur: null };
     G.save.saveChapter(run);
     const saved = G.save.loadChapter();
@@ -357,7 +359,7 @@ G.app = (function () {
         return el('div', { class: 'st-row st-level' }, [
           el('div', { class: 'st-level-pick' }, [
             el('span', { class: 'st-label' }, S.level), lv,
-            el('p', { class: 'st-hint st-level-hint' }, tx('levels.hint.' + level, null, grade)),
+            el('p', { class: 'st-hint st-level-hint' }, tx('levels.hint.' + (level === 'basic' && LIKE_CHAPTERS.indexOf(chosenCh) < 0 ? 'basicPlain' : level), null, grade)),
           ]),
           btn([el('span', null, S.begin), U.glyph('next', 'glyph st-begin-ico')], onBegin, 'is-primary is-big st-begin', { 'data-act': 'begin', 'data-fk': 'begin' }),
         ]);

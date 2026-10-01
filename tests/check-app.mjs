@@ -1,6 +1,6 @@
 // 앱 뼈대 G.app · 시작 화면 · 게임 방법 창 · 설정 점검(aside) — 명세 §4 · §5 · §11 · §14.
 //   진짜 index.html을 크기별 틀(tests/pages/frame.html)에 띄우고 학생처럼 누른다(운전 도구 tests/lib/drive.mjs의 D).
-//   1) 처음 쓰는 기기의 시작 화면: 학년 · 8장(1·2장만 누름, 중3 추천 · 준비 중) · 단계 · 게임 방법(처음 표시) · 그림 자리
+//   1) 처음 쓰는 기기의 시작 화면: 학년 · 8장(모두 누름, 1·2장 중3 추천, 준비 중 없음) · 단계(3~8장 기본은 닮은 칸 없는 풀이) · 게임 방법(처음 표시) · 그림 자리
 //   2) 마지막 선택 기억: 학년, 단계는 장마다
 //   3) 감수 시작 → 진행 장 저장(지침 단계) → 새로 고침 → 이어 하기 카드 요약 → 저장된 단계 화면으로
 //   4) 진행 장이 있을 때 새로 시작하면 "진행 중인 장이 지워져요"를 묻는다(그만두기 = 그대로, 새로 시작 = 덮어씀)
@@ -44,15 +44,11 @@ try {
       if (!c) { D.bad(ch + '장 없음'); continue; }
       if (!c.textContent.includes(T.chapters[ch].name)) D.bad(ch + '장 이름 없음');
       if (!D.visible(c)) D.bad(ch + '장이 안 보임');
-      if (ch <= 2) {
-        if (c.tagName !== 'BUTTON' || c.disabled) D.bad(ch + '장을 누를 수 없음');
-        if (!c.textContent.includes(T.start.recommendM3)) D.bad(ch + '장 중3 추천 없음');
-        if (c.textContent.includes(T.start.comingSoon)) D.bad(ch + '장에 준비 중');
-      } else {
-        if (c.tagName === 'BUTTON' || c.querySelector('button')) D.bad(ch + '장을 누를 수 있음');
-        if (c.getAttribute('aria-disabled') !== 'true') D.bad(ch + '장 aria-disabled');
-        if (!c.textContent.includes(T.start.comingSoon)) D.bad(ch + '장 준비 중 없음');
-      }
+      // 1~8장 모두 시작할 수 있다(결정 0019). 중3 추천은 1 · 2장만
+      if (c.tagName !== 'BUTTON' || c.disabled) D.bad(ch + '장을 누를 수 없음');
+      if (c.textContent.includes(T.start.comingSoon)) D.bad(ch + '장에 준비 중');
+      if (c.textContent.includes(T.start.recommendM3) !== (ch <= 2)) D.bad(ch + '장 중3 추천 표시가 틀림');
+      if (!c.textContent.includes(G.text.chapterTopic('m3', ch))) D.bad(ch + '장 다루는 변동 없음');
     }
     if (D.$('.st-ch[data-ch="1"]').getAttribute('aria-pressed') !== 'true') D.bad('처음 고른 장이 1장이 아님');
     if (D.$('[data-level="basic"]').getAttribute('aria-pressed') !== 'true') D.bad('처음 단계가 기본이 아님');
@@ -71,9 +67,14 @@ try {
     if (!rot) D.bad('세로로 돌려 주세요 덮개 없음');
     else if (D.visible(rot)) D.bad('넓은 화면에서 세로로 돌려 주세요가 보임');
     if (/\\uAE00\\uC790/.test(D.d().body.textContent)) D.bad('금지 낱말이 화면에 있음'); // 명세 §3-6 — 이 파일에도 그 낱말을 쓰지 않으려고 부호(\\u)로 적음
-    // 준비 중인 장은 눌러도 아무 일 없음
-    D.$('.st-ch[data-ch="3"]').click();
-    if (D.$('.st-ch[data-ch="1"]').getAttribute('aria-pressed') !== 'true' || D.cur() !== 'start') D.bad('준비 중 장을 누르니 바뀜');
+    // 3~8장을 고르면 그 장이 골라지고, 기본 단계 풀이는 닮은 칸이 없는 문구(닮은 칸은 1 · 2장만)
+    for (const ch of [3, 8]) {
+      D.tapSel('.st-ch[data-ch="' + ch + '"]', ch + '장');
+      if (D.$('.st-ch[data-ch="' + ch + '"]').getAttribute('aria-pressed') !== 'true' || D.cur() !== 'start') D.bad(ch + '장이 골라지지 않음');
+      const h2 = D.$('.st-level-hint');
+      if (!h2 || h2.textContent.trim() !== G.text.t('levels.hint.basicPlain', null, 'm3')) D.bad(ch + '장 단계 풀이: ' + (h2 && h2.textContent));
+    }
+    D.tapSel('.st-ch[data-ch="1"]', '1장으로');
     return D.take();
   }));
   ${fin('ea')}

@@ -20,7 +20,7 @@
 ```
 { grade: 'm3'|'h1', ch: 1~8, level: 'basic'|'advanced', seed: 수|null,
   ids: [원고 id 7개, 감수 차례],
-  guides: [그 장 지침 id 차례] | null,
+  guides: [그 장 지침 id 차례] | null,   // null = 지침 데이터가 없거나 지침이 없는 장(8장)
   phase: 'guide'|'review'|'reveal', guideDone: true|false,
   done: [{ id, result: 'onair'|'offrule'|'skip', sends, help: [1|2|3…], helped }],   // ids 차례대로
   cur: { corrections: [교정…], kinds: [신호 kind…], sends, help, helped, open: 0~3,
@@ -29,6 +29,7 @@
 ```
 
 - `done[i].id === ids[i]`. `cur`는 감수 단계에만 있다(지금 원고 = `ids[done.length]`). 조항 공개 단계는 `done` 7개, `cur: null`.
+- 지침이 없는 장(`GUIDES`에 그 장 키가 없음 — 8장): `guides`는 null, `phase: 'guide'`는 없다(감수부터, `guideDone: true`). 불러올 때 지침 목록이 적혀 있으면 버린다.
 - 감수·조항 공개 단계면 `guideDone`은 true. `sends`는 `kinds.length`, `helped`는 `help`가 비지 않았는지와 같다(저장할 때 맞춰 적음).
 - `help`는 도움으로 센 단계, `open`은 연 적 있는 가장 높은 도움 단계(0~3)다. '먼저 송출해 보세요'였던 ①은 `open`에만 들어가고 `help`에는 없다(다음 단계를 여는 데만 씀). `open`이 `help`의 가장 큰 값보다 작으면 저장할 때 맞춰 올린다.
 - `last`는 마지막 송출의 모습이다: 신호 `kind`, 다른 음절 번호 `at`·수 `diff`, 그때 프롬프터에 보인 발음 `reading`(연음까지 읽은 것), 규칙 밖 교정 번호 `outOfRule`, 그때의 교정 수 `n`. 새로 고친 뒤 프롬프터·신호 배지·도움 ①은 이 모습 그대로 보인다. 송출 뒤 교정이 바뀌면(되돌리기·다시 감수·새 교정) 화면이 `n`을 null로, `outOfRule`을 []로 적는다 — 규칙 밖 표시와 감수 도장은 `n`이 지금 교정 수와 같을 때만 다시 보인다. 저장할 때 `n`이 교정 수와 다르면 null로 맞춘다.
@@ -44,7 +45,7 @@
 { id: 표기와 같은 유일한 이름, ch: 장, text: 표기, morphs: 형태소 분석(사람이 읽는 것),
   cuts: [음절 사이 경계 — 'formal'|'content'|'space'|'sino'|null, 길이 = 음절 수 − 1],
   marks?: { lateralExc: [경계 번호] },            // 제20항 다만 자리
-  pron: 표준 발음(장음 ː 포함), allowed?: [허용 발음],
+  pron: 표준 발음(장음 ː 포함), allowed?: [허용 발음 — 규칙 안 교정만으로 닿는 것만(check-rules), findings F12],
   nonstandard?: [[흔하지만 표준이 아닌 발음, 조항]],
   steps: [[규칙 id, op, 자리('0.co'·'1.on'·'0.co1'), 음운]…],   // 풀이 과정, 교정 하나 = 규칙 하나
   count: [표기의 음운 수, 발음의 음운 수], change: { replace?, delete?, insert?, merge? },
@@ -61,8 +62,9 @@
   blanks: { b1: { options: [보기 2~4개, 빗금 표기], answer: 정답 번호(0부터), members?: [조건 낱말…] } },
   examples: [{ id: 원고 id, trap?: 함정 원고면 그 종류, shows: { 빈칸 id: 조건 낱말 | [조건 낱말…] } }] }
 ```
-- 조건 낱말: `coda:X`(종성 /X/ 하나), `coda2:XY`(겹받침), `onset:X`(받침 뒤 초성), `before:X`(받침 /X/ + 뒤 /ㄹ/), `cut:K`(받침과 빈 초성 사이 경계 종류), `link`(연음 자리 있음), `exc`(제20항 다만 표시). 원고의 처음 상태에서 엔진이 확인한다.
-- 예시들의 `shows`가 빈칸마다 `members`를 모두 덮어야 한다. 예시 원고는 그 장 뽑기에서 빠진다.
+- 조건 낱말: `coda:X`(종성 /X/ 하나), `coda2:XY`(겹받침), `onset:X`(받침 뒤 초성), `before:X`(받침 /X/ + 뒤 /ㄹ/), `cut:K`(받침과 빈 초성 사이 경계 종류), `gap:K`(받침 뒤 경계 종류 — 뒤 초성이 있어도), `link`(연음 자리 있음), `exc`(제20항 다만 표시), `stem`·`adn`·`sai`·`cexc`·`noins`(낱말 표시가 있음), `cv:XY`(한 형태소 안 초성 + 단모음 — 잔디), `vowelI`(받침 뒤 빈 초성의 /ㅣ/·/j/). 원고의 처음 상태에서 엔진이 확인한다(`js/core/rules.js` 머리 주석).
+- 예시들의 `shows`가 빈칸마다 `members`를 모두 덮어야 한다. 예시 원고는 그 장 뽑기에서 빠진다. `GUIDES`에 키가 없는 장(8장)은 지침 없이 감수부터 한다.
+- 보기는 화면에 데이터 차례대로 나온다 — 한 장의 정답이 한 자리에 몰리지 않게 보기 차례를 정한다. 지침 문장에 빈칸 정답을 그대로 쓰지 않는다.
 
 ### 조항 원문 `js/data/articles.js` → `window.ARTICLES = { 조항 id: { name, parts, src } }`
 

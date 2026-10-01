@@ -8,7 +8,8 @@
 //     · 지침 빈칸의 정답: 지침 화면에서 정답 보기와 다른 보기의 모양(속성)이 같고 'answer' 낱말이 없음,
 //       정답으로 채운 지침 문장이 지침 화면(다 맞기 전)과 감수 화면(도움 ② 전)에 없음
 //     · 심화 단계: 형태소 경계 요소 · 경계 종류 · 경계 이름표(학년 둘 모두)가 감수 화면 DOM · aria에 없음
-//   장 결과에는 표준 발음이 모두 보인다. 두 단계(기본 · 심화) × 두 장 × 두 학년을 돈다.
+//   장 결과에는 표준 발음이 모두 보인다. 1 · 2장은 두 단계(기본 · 심화) × 두 학년, 3~8장은 다섯 장(3 · 5 · 6 · 7 · 8장)을 학년 · 단계 ·
+//   크기를 섞어 돈다(8장은 지침이 없어 감수부터).
 import { step, frame } from './aside.mjs';
 import { DRIVER } from './lib/drive.mjs';
 import { RUNS } from './lib/runs.mjs';
@@ -49,14 +50,14 @@ if (!D.secrets) {
     return out;
   };
   // 정답으로 채운 지침 문장(학년) — 빈칸 자리를 정답 보기로 바꾼 글(띄어쓰기 없앰)
-  D.filledGuides = (ch, grade) => D.w().GUIDES[ch].map((g) => {
+  D.filledGuides = (ch, grade) => (D.w().GUIDES[ch] || []).map((g) => {
     let t = g.text[grade];
     Object.keys(g.blanks).forEach((b) => { t = t.split('{' + b + '}').join(g.blanks[b].options[g.blanks[b].answer]); });
     return t.replace(/\s+/g, '');
   });
   D.cutWords = () => {
     const T = D.T(), out = [];
-    ['m3', 'h1'].forEach((g) => ['formal', 'content', 'sino'].forEach((c) => out.push(T.terms[g].cut[c])));
+    ['m3', 'h1'].forEach((g) => ['formal', 'content', 'sino', 'stem'].forEach((c) => out.push(T.terms[g].cut[c])));
     out.push(T.review.aria.cut.m3.split(':')[0], T.review.aria.cut.h1.split(':')[0]);
     return out;
   };
@@ -68,23 +69,24 @@ if (!D.secrets) {
     const flat = d.body.textContent.replace(/\s+/g, '');
     D.secrets(run, o.except).forEach((x) => { if (html.indexOf(x.w) >= 0) D.bad(tag + ': 결과 전인데 ' + x.what + ' ' + x.w + ' (' + x.id + ')'); });
     if (/trap/i.test(html)) D.bad(tag + ': trap 낱말이 DOM에');
-    if (/data-kind="(link|exception|coda|nasal|r-nasal|lateral)"/.test(html)) D.bad(tag + ': 원고 갈래 · 함정 표시가 DOM에');
+    if (/data-kind="(link|exception|blocked|contrast|coda|nasal|r-nasal|lateral|palatal|tense[a-z-]*|simplify|h-drop|n-insert|glide-insert|aspirate)"/.test(html)) D.bad(tag + ': 원고 갈래 · 함정 표시가 DOM에');
     if (o.guides) D.filledGuides(run.ch, run.grade).forEach((t, i) => { if (flat.indexOf(t) >= 0) D.bad(tag + ': 정답으로 채운 지침 ' + (i + 1) + '이 화면에'); });
     if (o.steps) {
       const G = D.G(), H = D.T().help, sc = D.dbg().script();
       let st = G.rules.start(sc);
+      const at1 = (p) => { const a = G.rules.pos(p), y = st.syl[a.s]; return a.slot === 'co' ? y.co[a.k] : y[a.slot]; };
       (sc.steps || []).map((x) => G.rules.parseStep(x)).forEach((c, i) => {
-        if (c.op === 'merge' || c.op === 'insert') { st = G.rules.apply(st, c); return; } // 1 · 2장 원고에는 없음
-        const at = G.rules.pos(c.at), y = st.syl[at.s];
-        const from = at.slot === 'co' ? y.co[at.k] : y[at.slot];
-        const line = G.text.fill(H.exampleStep, { line: G.text.logLine(i + 1, { op: c.op, from, to: c.to }), rule: G.text.rule(run.grade, c.rule) });
+        // 감수 기록 한 줄과 같은 꼴(합침은 두 음운, 넣음은 넣은 음운만 — js/game/review.js의 logInfo)
+        const info = c.op === 'merge' ? { op: 'merge', from: c.at.map(at1), to: c.to } : c.op === 'insert' ? { op: 'insert', to: c.to }
+          : c.op === 'delete' ? { op: 'delete', from: at1(c.at) } : { op: c.op, from: at1(c.at), to: c.to };
+        const line = G.text.fill(H.exampleStep, { line: G.text.logLine(i + 1, info), rule: G.text.rule(run.grade, c.rule) });
         if (d.body.textContent.indexOf(line) >= 0) D.bad(tag + ': 이 원고의 풀이 과정이 화면에 ' + line);
         st = G.rules.apply(st, c);
       });
     }
     if (o.advanced) {
       if (D.$('.bk-plus, .bk-cut, [data-cut]')) D.bad(tag + ': 심화인데 경계 요소');
-      if (/cut-(formal|content|sino)/.test(html)) D.bad(tag + ': 심화인데 경계 종류 클래스');
+      if (/cut-(formal|content|sino)|is-stem/.test(html)) D.bad(tag + ': 심화인데 경계 종류 클래스');
       const outside = Array.from(d.body.querySelectorAll('*')).filter((e) => !e.closest('.rw-help-body')).map((e) => Array.from(e.attributes).map((a) => a.value).join(' ')).join(' ')
         + ' ' + Array.from(d.body.querySelectorAll('.rw-blocks, .rw-head, .rw-desk')).map((e) => e.textContent).join(' ');
       D.cutWords().forEach((x) => { if (outside.indexOf(x) >= 0) D.bad(tag + ': 심화인데 경계 이름 ' + x); });
@@ -102,6 +104,7 @@ if (!D.secrets) {
   D.leakGuide = async (o) => {
     const tag = o.ch + '장 ' + o.grade + ' ' + o.level;
     const run = await D.startChapter(o);
+    if (!D.w().GUIDES[o.ch]) return run; // 지침이 없는 장(8장): 곧바로 감수
     D.noSecret(tag + ' 지침 처음', run, { guides: true });
     D.guideNoAnswer(tag + ' 지침 처음');
     let first = true;
@@ -169,6 +172,11 @@ const CASES = [
   { ch: 2, grade: 'h1', level: 'advanced', size: [1366, 768] },
   { ch: 1, grade: 'h1', level: 'advanced', size: [390, 844] },
   { ch: 2, grade: 'm3', level: 'basic', size: [1920, 1080] },
+  { ch: 3, grade: 'h1', level: 'basic', size: [1280, 800] },
+  { ch: 5, grade: 'm3', level: 'advanced', size: [360, 740] },
+  { ch: 6, grade: 'h1', level: 'basic', size: [1366, 768] },
+  { ch: 7, grade: 'm3', level: 'advanced', size: [1920, 1080] },
+  { ch: 8, grade: 'h1', level: 'basic', size: [390, 844] },
 ];
 CASES.forEach((c, k) => {
   const v = 'l' + k;
@@ -178,8 +186,11 @@ ${open(v, c.size[0], c.size[1])}
 try {
   const e${v} = [];
   e${v}.push(...await ${v}.evaluate(async () => { await D.fresh(); D.G().save.setSettings({ reduceMotion: true }); window.__sent = []; return D.take(); }));
-  e${v}.push(...await ${v}.evaluate(async () => { window.__run = await D.leakGuide(${o}); await D.leakScripts(${o}, window.__run, 0, 4); return D.take(); }));
-  e${v}.push(...await ${v}.evaluate(async () => { await D.leakScripts(${o}, window.__run, 4, 7); await D.leakResult(${o}, window.__run); return D.take(); }));
+  // 한 번의 evaluate가 CDP 30초 안에 끝나게 잘게(공용 aside가 바쁠 때 — docs/engineering-notes.md)
+  e${v}.push(...await ${v}.evaluate(async () => { window.__run = await D.leakGuide(${o}); await D.leakScripts(${o}, window.__run, 0, 2); return D.take(); }));
+  e${v}.push(...await ${v}.evaluate(async () => { await D.leakScripts(${o}, window.__run, 2, 4); return D.take(); }));
+  e${v}.push(...await ${v}.evaluate(async () => { await D.leakScripts(${o}, window.__run, 4, 6); return D.take(); }));
+  e${v}.push(...await ${v}.evaluate(async () => { await D.leakScripts(${o}, window.__run, 6, 7); await D.leakResult(${o}, window.__run); return D.take(); }));
   ${fin('e' + v)}
 } finally { await closeTab(${v}); }
 `);

@@ -14,7 +14,7 @@ util ──▶ data ──▶ core ──▶ game ──▶ main
 |---|---|---|---|
 | util | `js/core/util.js` | `G` 만들기, DOM·SVG 도우미, 신호·부호 기호, 화면 자리 `G.screens`, 페이지 오류 모음 | 없음 |
 | data | `js/data/sounds.js` | 음운 목록과 자질(자음 19·단모음 10·반모음 j·w, 이중 모음 분해) `window.SOUNDS` | 없음 |
-| data | `js/data/scripts.js` | 원고(1장 31·2장 56) `window.SCRIPTS` | 없음 |
+| data | `js/data/scripts.js` | 원고 377개(1~8장) `window.SCRIPTS` | 없음 |
 | data | `js/data/articles.js` | 표준 발음법 조항 원문(11개 키) `window.ARTICLES` | 없음 |
 | data | `js/data/guides.js` | 장마다 감수 지침(빈칸·보기·예시) `window.GUIDES` | 없음 |
 | data | `js/data/text.js` | 화면 문구 `window.TEXT` + 문구 도우미 `G.text` | 없음 |
