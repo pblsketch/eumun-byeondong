@@ -14,7 +14,7 @@
 //            sai: [경계 번호] = 사잇소리가 나는 합성어(제28항)                     noIns: [경계 번호] = ㄴ 첨가가 일어나지 않는 자리(제29항 다만 등)
 //            adn: [음절 번호] = 그 받침 /ㄹ/이 관형사형 -(으)ㄹ(제27항)          clusterExc: [음절 번호] = 겹받침 /ㄼ/의 앞 /ㄹ/을 뺌(제10항 다만)
 //   pron     표준 발음(원문 그대로, 장음 ː 포함 — 엔진은 장음을 비교하지 않음)
-//   allowed  [허용 발음] → 송출하면 온에어(쇠붙이[쉐부치], 피어[피여], 야금야금[야그먀금])
+//   allowed  [허용 발음] → 송출하면 온에어(피어[피여], 야금야금[야그먀금]). 규칙 안 교정으로 닿을 수 있는 발음만 적는다(check-rules가 확인)
 //   nonstandard  [[흔하지만 표준이 아닌 발음, 조항]] → 송출하면 '표준 아님' 신호
 //   steps    풀이 과정 [규칙 id, 'replace'|'delete'|'insert'|'merge', 자리('0.co' = 0번 음절 종성, 합침은 '0.co+1.on'), 바뀐 음운(뺌은 없음)]
 //   count    [표기의 음운 수, 표준 발음의 음운 수]   change  변동 유형별 횟수(교체 replace · 탈락 delete · 첨가 insert · 축약 merge)
@@ -137,7 +137,7 @@ window.SCRIPTS = [
   { id: '해돋이', ch: 3, text: '해돋이', morphs: '해+돋-+-이', cuts: ['content', 'formal'], pron: '해도지', steps: [['palatal', 'replace', '1.co', 'ㅈ']], count: [6, 6], change: { replace: 1 }, articles: ['17'], src: ['지공1 109', '지공1지도 134'] },
   { id: '같이', ch: 3, text: '같이', morphs: '같-+-이', cuts: ['formal'], pron: '가치', steps: [['palatal', 'replace', '0.co', 'ㅊ']], count: [4, 4], change: { replace: 1 }, articles: ['17'], src: ['지공1 109', '지공1지도 134'] },
   { id: '볕이', ch: 3, text: '볕이', morphs: '볕+이', cuts: ['formal'], pron: '벼치', steps: [['palatal', 'replace', '0.co', 'ㅊ']], count: [5, 5], change: { replace: 1 }, articles: ['17'], src: ['지공1 116', '지공1지도 147'] },
-  { id: '쇠붙이', ch: 3, text: '쇠붙이', morphs: '쇠+붙-+-이', cuts: ['content', 'formal'], pron: '쇠부치', allowed: ['쉐부치'], steps: [['palatal', 'replace', '1.co', 'ㅊ']], count: [6, 6], change: { replace: 1 }, articles: ['17'], src: ['지공1 114', '지공1지도 144'] },
+  { id: '쇠붙이', ch: 3, text: '쇠붙이', morphs: '쇠+붙-+-이', cuts: ['content', 'formal'], pron: '쇠부치', steps: [['palatal', 'replace', '1.co', 'ㅊ']], count: [6, 6], change: { replace: 1 }, articles: ['17'], src: ['지공1 114', '지공1지도 144'] },
   { id: '곧이', ch: 3, text: '곧이', morphs: '곧-+-이', cuts: ['formal'], pron: '고지', steps: [['palatal', 'replace', '0.co', 'ㅈ']], count: [4, 4], change: { replace: 1 }, articles: ['17'], src: ['지공1지도 135'] },
   { id: '밭이랑', ch: 3, text: '밭이랑', morphs: '밭+이랑', cuts: ['formal', null], pron: '바치랑', steps: [['palatal', 'replace', '0.co', 'ㅊ']], count: [7, 7], change: { replace: 1 }, articles: ['17'], src: ['지공1지도 135'] },
   // 함정: 한 형태소 안·실질 형태소 앞·/ㅣ/가 아닌 모음 앞(교정 없음이 정답 — blocked, 곁에서는 표준 아님)
@@ -241,7 +241,7 @@ window.SCRIPTS = [
   { id: '넋', ch: 5, text: '넋', morphs: '넋', cuts: [], pron: '넉', steps: [['simplify', 'delete', '0.co1']], count: [4, 3], change: { delete: 1 }, articles: ['10'], src: ['표준 10', '지공1 110', '지공1지도 138'] },
   { id: '몫', ch: 5, text: '몫', morphs: '몫', cuts: [], pron: '목', steps: [['simplify', 'delete', '0.co1']], count: [4, 3], change: { delete: 1 }, articles: ['10'], src: ['지공1 111', '지공1지도 139', '지화언 30'] },
   { id: '여덟', ch: 5, text: '여덟', morphs: '여덟', cuts: [null], pron: '여덜', steps: [['simplify', 'delete', '1.co1']], count: [6, 5], change: { delete: 1 }, articles: ['10'], src: ['표준 10', '지공1 111', '지화언 34'] },
-  { id: '외곬', ch: 5, text: '외곬', morphs: '외곬', cuts: [null], pron: '외골', allowed: ['웨골'], steps: [['simplify', 'delete', '1.co1']], count: [5, 4], change: { delete: 1 }, articles: ['10'], src: ['표준 10', '지공1 110', '지화언 30'] },
+  { id: '외곬', ch: 5, text: '외곬', morphs: '외곬', cuts: [null], pron: '외골', steps: [['simplify', 'delete', '1.co1']], count: [5, 4], change: { delete: 1 }, articles: ['10'], src: ['표준 10', '지공1 110', '지화언 30'] },
   { id: '값', ch: 5, text: '값', morphs: '값', cuts: [], pron: '갑', steps: [['simplify', 'delete', '0.co1']], count: [4, 3], change: { delete: 1 }, articles: ['10'], src: ['표준 10', '지공1 110'] },
   { id: '닭', ch: 5, text: '닭', morphs: '닭', cuts: [], pron: '닥', steps: [['simplify', 'delete', '0.co']], count: [4, 3], change: { delete: 1 }, articles: ['11'], src: ['표준 11', '지공1 110', '지화언 30'] },
   { id: '삶', ch: 5, text: '삶', morphs: '삶', cuts: [], pron: '삼ː', steps: [['simplify', 'delete', '0.co']], count: [4, 3], change: { delete: 1 }, articles: ['11'], src: ['표준 11', '지공1 110', '지화언 30'] },
@@ -302,7 +302,7 @@ window.SCRIPTS = [
   { id: '밟지', ch: 5, text: '밟지', morphs: '밟-+-지', cuts: ['formal'], marks: { stem: [0], clusterExc: [0] }, pron: '밥ː찌', steps: [['simplify', 'delete', '0.co'], ['tense', 'replace', '1.on', 'ㅉ']], count: [6, 5], change: { replace: 1, delete: 1 }, articles: ['10-다만', '23'], trap: 'exception', src: ['표준 10', '지화언 30'] },
   { id: '밟게', ch: 5, text: '밟게', morphs: '밟-+-게', cuts: ['formal'], marks: { stem: [0], clusterExc: [0] }, pron: '밥ː께', steps: [['simplify', 'delete', '0.co'], ['tense', 'replace', '1.on', 'ㄲ']], count: [6, 5], change: { replace: 1, delete: 1 }, articles: ['10-다만', '23'], trap: 'exception', src: ['표준 10', '지공1지도 140'] },
   { id: '밟고', ch: 5, text: '밟고', morphs: '밟-+-고', cuts: ['formal'], marks: { stem: [0], clusterExc: [0] }, pron: '밥ː꼬', steps: [['simplify', 'delete', '0.co'], ['tense', 'replace', '1.on', 'ㄲ']], count: [6, 5], change: { replace: 1, delete: 1 }, articles: ['10-다만', '23'], trap: 'exception', src: ['표준 10', '지공1 110', '지공1지도 138'] },
-  { id: '넓둥글다', ch: 5, text: '넓둥글다', morphs: '넓-+둥글-+-다', cuts: ['formal', null, 'formal'], marks: { clusterExc: [0] }, pron: '넙뚱글다', steps: [['simplify', 'delete', '0.co'], ['tense', 'replace', '1.on', 'ㄸ']], count: [12, 11], change: { replace: 1, delete: 1 }, articles: ['10-다만', '23'], trap: 'exception', src: ['표준 10', '지공1 110', '지공1지도 138'] },
+  { id: '넓둥글다', ch: 5, text: '넓둥글다', morphs: '넓-+둥글-+-다', cuts: ['content', null, 'formal'], marks: { clusterExc: [0] }, pron: '넙뚱글다', steps: [['simplify', 'delete', '0.co'], ['tense', 'replace', '1.on', 'ㄸ']], count: [12, 11], change: { replace: 1, delete: 1 }, articles: ['10-다만', '23'], trap: 'exception', src: ['표준 10', '지공1 110', '지공1지도 138'] },
   { id: '통닭을', ch: 5, text: '통닭을', morphs: '통+닭+을', cuts: ['content', 'formal'], pron: '통달글', nonstandard: [['통다글', '14']], steps: [], count: [9, 9], change: {}, articles: ['14'], trap: 'link', src: ['지공1 117', '지공1지도 148'] },
   { id: '여덟이다', ch: 5, text: '여덟이다', morphs: '여덟+이-+-다', cuts: [null, 'formal', 'formal'], pron: '여덜비다', steps: [], count: [9, 9], change: {}, articles: ['14'], trap: 'link', src: ['지공1 115', '지공1지도 146'] },
 

@@ -110,8 +110,15 @@
 //     3장 'palatal' · 4장 'tense', 'tense-stem', ('tense-sino'|'tense-adn'|'tense-cmp'), 'tense-link'* · 5장 'simplify', 'h-drop'
 //     · 6장 'n-insert', 'glide-insert'*, 제30항 원고(articles에 '30')* (6장 일반 갈래 = 'n-insert'·'glide-insert'·'nasal') · 7장 'aspirate'.
 //   8장(결정 D8-1, 지침 없음): 예외 함정('exception') 1(남아 있을 때만 — 없으면 일반 7) + 일반(함정 아닌 8장 원고 모두)에
-//     탈락이 먼저(첫 단계 op 'delete') · 끝소리 규칙이 먼저(첫 단계 'coda') · 축약이 먼저(첫 단계 'aspirate') ·
-//     첨가 ▸ 비음화('n-insert' 뒤에 'nasal')가 적어도 1개씩(앞에서 뽑은 원고가 이미 채우면 건너뜀 — 홑이불은 둘을 채움).
+//     차례가 중요한 갈래(orderPairs의 [A, B] — 풀이에 적힌 차례가 아니라 엔진이 본 '앞 단계가 뒤 단계를 연다')가 적어도 1개씩:
+//     탈락이 먼저(뺌 규칙 → 무엇이든: 흙만 'simplify'→'nasal') · 끝소리 규칙이 먼저('coda' → 무엇이든: 옷 한 벌 → 'aspirate', 옷맵시 → 'nasal') ·
+//     축약이 먼저('aspirate' → 무엇이든: 굳히다 → 'palatal') · 첨가 ▸ 비음화('n-insert' → 'nasal': 홑이불)
+//     (앞에서 뽑은 일반 원고가 이미 채우면 건너뜀 — 읊는은 탈락이 먼저·끝소리가 먼저를 함께 채움). 직행열차(합침과 첨가가 다른 자리)는 어느 갈래도 아님.
+//
+// ── 차례 관계 orderPairs(원고) → [[규칙 A, 규칙 B]…] (결정 D8-1) ──────────────
+//   풀이 과정을 차례로 적용하면서, 뒤 단계 j(규칙 B)의 교정이 앞 단계 i(규칙 A)를 적용하기 직전 상태에서는 규칙 안이 아니고
+//   적용한 직후 상태에서는 규칙 안이면 [A, B](B가 A의 결과에 기댐). 같은 쌍은 한 번, 처음 나온 차례. 풀이가 규칙 밖이면 오류.
+//   차례가 자유로운 두 단계(직행열차의 합침·첨가, 홑이불의 끝소리 고침·첨가)는 쌍이 아니다.
 //   7개의 차례와 함정 위치는 무작위. 시드 = 수(같은 시드 → 같은 결과) 또는 () => [0, 1) 함수.
 //   조건을 채울 수 없으면(원고가 모자람) 오류를 던진다 — 데이터 잘못(지침 예시를 너무 많이 뺀 것 포함). 뽑기 조건이 없는 장도 오류.
 //   exampleIds(한 장의 지침들) → 예시 원고 id 목록(겹치면 한 번). 지침이 없으면(undefined) [] — GUIDES 없이도 뽑힌다.
@@ -613,6 +620,26 @@ G.rules = (function () {
     try { const a = allowable(start(script)); return a.length ? a[0].rule : null; } catch (e) { return null; }
   }
 
+  // ── 차례 관계(결정 D8-1): 뒤 단계가 앞 단계의 결과에 기대는 [규칙 A, 규칙 B] 쌍 ──
+  //   풀이에 적힌 차례가 아니라, 앞 단계를 적용하기 직전·직후 상태에서 뒤 단계 교정이 규칙 안인지로 정한다.
+  function orderPairs(script) {
+    const cs = (script.steps || []).map(parseStep);
+    const states = [start(script)];
+    cs.forEach((c, i) => {
+      const st = states[i], next = ruleHit(st, c) ? tryApply(st, c) : null;
+      if (!next) throw new Error('풀이 과정이 규칙 밖: ' + script.id + ' ' + (i + 1) + '단계');
+      states.push(next);
+    });
+    const out = [];
+    cs.forEach((b, j) => {
+      for (let i = 0; i < j; i++) {
+        if (ruleHit(states[i], b) || !ruleHit(states[i + 1], b)) continue;
+        if (!out.some((p) => p[0] === cs[i].rule && p[1] === b.rule)) out.push([cs[i].rule, b.rule]);
+      }
+    });
+    return out;
+  }
+
   // ── 난수(시드 → 결정적) ───────────────────────────────
   // 시드는 수(같은 시드 → 같은 결과, mulberry32) 또는 () => [0, 1) 함수
   function rng(seed) {
@@ -643,7 +670,8 @@ G.rules = (function () {
   const is15 = (s) => (s.articles || []).includes('15');
   const kindIs = (...ks) => (s) => ks.includes(kindOf(s));
   const needKind = (k, optional) => ({ what: k + ' 갈래', test: kindIs(k), optional: !!optional });
-  const stepAt = (s, i) => (s.steps || [])[i] || [];
+  // 8장 차례 갈래: orderPairs에 [A, B]가 있는지(A·B는 규칙 id를 받는 시험, 없으면 무엇이든)
+  const hasPair = (fa, fb) => (s) => orderPairs(s).some(([a, b]) => fa(a) && (!fb || fb(b)));
   const TENSE_KINDS = ['tense', 'tense-stem', 'tense-sino', 'tense-adn', 'tense-cmp', 'tense-link'];
   const DRAW = {
     1: { traps: [['link', 2]], normal: ['coda'], need: [{ what: '제15항 원고', test: is15, optional: true }] },
@@ -666,10 +694,10 @@ G.rules = (function () {
     8: {
       trapN: 1, trapKinds: ['exception'], trapOptional: true, normal: null,
       need: [
-        { what: '탈락이 먼저인 원고', test: (s) => stepAt(s, 0)[1] === 'delete' },
-        { what: '끝소리 규칙이 먼저인 원고', test: (s) => stepAt(s, 0)[0] === 'coda' },
-        { what: '축약이 먼저인 원고', test: (s) => stepAt(s, 0)[0] === 'aspirate' },
-        { what: '첨가 뒤 비음화 원고', test: (s) => { const q = ruleSeq(s), i = q.indexOf('n-insert'); return i >= 0 && q.indexOf('nasal', i + 1) > i; } },
+        { what: '탈락이 먼저인 원고', test: hasPair((a) => RULES[a].op === 'delete') },
+        { what: '끝소리 규칙이 먼저인 원고', test: hasPair((a) => a === 'coda') },
+        { what: '축약이 먼저인 원고', test: hasPair((a) => a === 'aspirate') },
+        { what: '첨가 뒤 비음화 원고', test: hasPair((a) => a === 'n-insert', (b) => b === 'nasal') },
       ],
     },
   };
@@ -925,7 +953,7 @@ G.rules = (function () {
 
   return {
     RULES, ORDER, slash, strip, pos, start, surface, reading, phonemes, applicable, allowable, apply, check, tally, derive, broadcast, parseStep,
-    kindOf, draw, exampleIds, twin, twins, linkSites, touchedLink, similarCell, hasCondition, gradeGuides, checkGuide, checkGuides,
+    kindOf, orderPairs, draw, exampleIds, twin, twins, linkSites, touchedLink, similarCell, hasCondition, gradeGuides, checkGuide, checkGuides,
     revealArticles, scriptResult, chapterTotals,
   };
 })();
