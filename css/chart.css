@@ -1,0 +1,74 @@
+/* 조음 도표 — js/game/chart.js (명세 §8-2 · §14)
+   자음 체계표(방법 줄 × 위치 열, 칸 안은 세기 차례) · 단모음 체계표(높이 × 앞뒤·입술) · 반모음 줄.
+   음운 단추 하나 = 누르는 자리 하나(가로 배치 64px, 휴대폰 세로 48px 이상 — --touch).
+   색의 역할(css/base.css): 칸 · 글씨는 잉크, 닮은 칸은 선택 색(--accent)의 옅은 바탕 + 점선 테두리 + 점(색만으로 구분하지 않음),
+   지금 음운 칸은 잉크 두꺼운 테두리 + 꺼짐. 국어에 없는 칸은 옅은 빗금 무늬. 계속 움직이는 장식은 없다. */
+.ch {
+  --ch-cell: var(--touch);
+  --ch-fs: calc(var(--ch-cell) * .4);
+  --ch-head: 15px;
+  display: flex; flex-direction: column; gap: var(--s2);
+  max-width: 100%; min-width: 0; padding: var(--s3);
+  background: var(--surface); border: 2px solid var(--control-line); border-radius: var(--r-panel);
+  font-family: var(--font-body); color: var(--ink);
+  -webkit-user-select: none; user-select: none;
+}
+@media (min-width: 1600px) { .ch { --ch-cell: 80px; --ch-head: 19px; } }   /* 전자칠판 */
+
+.ch-bar { display: flex; justify-content: flex-end; }
+.ch-close { min-height: var(--touch); min-width: var(--touch); padding: 0 16px; }
+.ch-parts { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: var(--s3) var(--s5); min-width: 0; }
+.ch-part { display: flex; flex-direction: column; align-items: center; gap: var(--s2); min-width: 0; max-width: 100%; }
+.ch-title { font-family: var(--font-title); font-weight: 800; font-size: calc(var(--ch-head) + 3px); color: var(--ink); }
+.ch-legend { margin: 0; font-size: calc(var(--ch-head) - 1px); font-weight: 600; color: var(--ink-2); }
+
+/* 표 */
+.ch-table { border-collapse: separate; border-spacing: 3px; }
+.ch-table th {
+  padding: 2px 6px; font-size: var(--ch-head); font-weight: 700; line-height: 1.15; color: var(--ink-2);
+  text-align: center; word-break: keep-all;
+}
+.ch-table tbody th { text-align: right; white-space: nowrap; }
+.ch-corner { position: relative; min-width: 3.2em; padding: 2px 4px; font-size: calc(var(--ch-head) - 3px); color: var(--ink-2); line-height: 1.1; }
+.ch-ax { display: block; white-space: nowrap; }
+.ch-ax-col { text-align: right; }
+.ch-ax-row { text-align: left; }
+.ch-td { padding: 2px; vertical-align: middle; background: var(--surface-2); border-radius: 8px; }
+.ch-stack { display: flex; justify-content: center; gap: 2px; }
+.ch-empty {
+  min-width: var(--ch-cell); height: var(--ch-cell);
+  background: repeating-linear-gradient(135deg, transparent 0 7px, var(--divider) 7px 9px);
+}
+.ch-glides { display: flex; gap: var(--s2); justify-content: center; }
+
+/* 음운 단추 */
+.ch-cell {
+  min-width: var(--ch-cell); min-height: var(--ch-cell); margin: 0; padding: 0 4px; position: relative;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 2px solid var(--divider); border-radius: 8px; background: var(--surface); color: var(--ink);
+  font-family: var(--font-pron); font-weight: 700; font-size: var(--ch-fs); line-height: 1; white-space: nowrap;
+  cursor: pointer; touch-action: manipulation;
+  transition: background-color var(--t-pick), border-color var(--t-pick);
+}
+.ch-cell:hover { background: var(--accent-soft); border-color: var(--accent); }
+.ch-sl { color: var(--ink-2); font-weight: 500; font-size: .72em; padding: 0 .04em; }
+.ch-cell[data-part="glide"] .ch-ph { font-family: var(--font-body); font-style: italic; }
+/* 지금 음운(누를 수 없음 — 이미 그 음운) */
+.ch-cell.is-current { cursor: default; background: var(--surface-2); border: 3px solid var(--ink); color: var(--ink); }
+.ch-cell.is-current:hover { background: var(--surface-2); border-color: var(--ink); }
+/* 닮은 칸(감수 화면이 넘긴 칸만, 1·2장 기본 단계): 옅은 선택 바탕 + 점선 테두리 + 오른쪽 위 점 */
+.ch-cell.is-like { background: var(--accent-soft); border: 2px dashed var(--accent); }
+.ch-cell.is-like::after {
+  content: ''; position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent);
+}
+
+/* 휴대폰 세로: 칸 안 음운을 세로로 쌓아 가로 너비를 줄이고, 머리글은 좁은 열 안에서 줄을 바꾼다 */
+@media (max-width: 760px), (orientation: portrait) {
+  .ch { --ch-head: 12px; padding: var(--s2); }
+  .ch-consonant .ch-stack { flex-direction: column; }
+  .ch-table { border-spacing: 2px; }
+  .ch-table th { padding: 1px 2px; word-break: break-all; }
+  .ch-table thead th { max-width: var(--ch-cell); }
+  .ch-corner { min-width: 0; }
+  .ch-cell { padding: 0 2px; }
+}
