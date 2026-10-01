@@ -1,7 +1,7 @@
 // 소리 장치 불러오기 점검(브라우저 없이) — js/core/audio.js가 웹 오디오도 <audio>도 없는 곳에서
 // 예외 없이 뜨고, 공개 함수가 있으며, 불러도 던지지 않고 조용한지만 본다.
 //   node tests/check-audio-load.mjs
-// 실제 재생·크로스페이드·음원 없음 상태의 콘솔은 브라우저 점검(T12 check-audio-engine)에서 본다.
+// 실제 재생·크로스페이드·음원 없음 상태의 콘솔은 브라우저 점검(tests/check-audio-engine.mjs — 명세 §15 · §18)에서 본다.
 import fs from 'node:fs';
 import path from 'node:path';
 import { loadScripts, check, done, ROOT } from './lib/load.mjs';

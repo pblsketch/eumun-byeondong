@@ -1,4 +1,4 @@
-// 감수 화면 G.screens.review 점검(aside) — 명세 §8 · §11 · §14 · §15 · §18 · §19, 계획 T9.
+// 감수 화면 G.screens.review 점검(aside) — 명세 §8 · §11 · §14 · §15 · §18 · §19.
 //   진짜 index.html을 크기별 틀(tests/pages/frame.html)에 띄우고 학생처럼 누른다(교정 부호 → 음절 블록 → 조음 도표 · 넣을 음운).
 //   감수 단계 진행 장은 점검 전용 조작 D.finishRun(tests/lib/runs.mjs, phase 'review')으로 만들고 G.app.resume()으로 들어간다.
 //   지침 예시 원고(옷이 · 겉옷 · 닭이 · 먹는 …)는 뽑기에 나오지 않으므로 점검 전용 조작 G.review.debug.load(id)로 띄운다
@@ -16,6 +16,7 @@ import { step, frame } from './aside.mjs';
 import { DRIVER } from './lib/drive.mjs';
 import { RUNS } from './lib/runs.mjs';
 import { REVIEW } from './lib/review.mjs';
+import { FLOW } from './lib/flow.mjs';
 
 const J = JSON.stringify;
 
@@ -32,6 +33,12 @@ else console.log('PASS');
 `;
 // 저장 값을 지우고 움직임 줄이기를 켠다(송출 연출 없이 곧바로 — 점검 시간을 줄임)
 const FRESH = `async () => { await D.fresh(); D.G().save.setSettings({ reduceMotion: true }); return D.take(); }`;
+// 새로 고친 뒤 시작 화면의 [이어 하기] → 감수 화면
+const RESUME = `async () => {
+  D.act('resume');
+  await D.until(() => D.cur() === 'review' && D.$('.rw-blocks .bk-slot'), 5000, '이어 하기 → 감수');
+  return D.take();
+}`;
 
 step('신호 넷 · 할 수 없는 교정 · 되돌리기 · 넘김 확인', `
 ${open('a1', 1280, 800)}
@@ -371,6 +378,212 @@ try {
 } finally { await closeTab(d1); }
 `);
 
+// 새로 고침 뒤에는 '마지막 송출의 모습'(cur.last — 그때 읽은 발음 · 신호 · 다른 음절 · 규칙 밖 교정 · 그때의 교정 수)을 그대로 보인다(명세 §8-3 · §8-4 · §11).
+//   송출 뒤 교정을 바꾸고 다시 송출하지 않은 채 새로 고쳐도 프롬프터 · 배지 · 도움 ①은 그 송출 그대로, 규칙 밖 표시 · 감수 도장은
+//   교정이 송출 때 그대로일 때만. 송출 전에 연 도움 ①('먼저 송출해 보세요' — 세지 않음)도 새로 고친 뒤 ②를 열어 둔다.
+step('새로 고침 — 송출한 모습 그대로 · 연 도움 단계', `
+${open('g1', 1280, 800)}
+await g1.evaluate(() => { ${FLOW} });
+try {
+  const eg = [];
+  eg.push(...await g1.evaluate(${FRESH}));
+  eg.push(...await g1.evaluate(async () => {
+    const G = D.G(), T = D.T(), w = D.w(), by = D.byId();
+    const ids = G.rules.draw(2, w.SCRIPTS, G.rules.exampleIds(w.GUIDES[2]), 33);
+    const k = ids.findIndex((id) => (by[id].steps || []).some((x) => x[1] === 'replace'));
+    if (k < 0) { D.bad('점검용 원고(고침 단계 있음) 없음'); return D.take(); }
+    await D.toReview(2, { seed: 33, doneCount: k, grade: 'h1' });
+    // 송출 전 도움 ① → '먼저 송출해 보세요'(도움으로 세지 않음) → ②가 열림
+    D.act('rw-help'); await D.until(() => D.$('.rw-help') && D.visible(D.$('.rw-help')), 2000, '도움 열림');
+    D.tapSel('.rw-help-step[data-step="1"]', '도움 ①(송출 전)');
+    if (!D.$('.rw-help-body').textContent.includes(T.help.needBroadcast)) D.bad('송출 전 ① 안내');
+    const c = G.save.loadChapter().cur;
+    if (c.help.length || c.helped || c.open !== 1) D.bad('송출 전 ① 저장(센 도움 없음 · open 1): ' + JSON.stringify({ help: c.help, helped: c.helped, open: c.open }));
+    if (D.$('.rw-help-step[data-step="2"]').disabled) D.bad('송출 전 ① 뒤 ②가 잠김');
+    return D.take();
+  }));
+  eg.push(...await g1.evaluate(async () => { await D.reload(); return D.take(); }));
+  eg.push(...await g1.evaluate(${RESUME}));
+  eg.push(...await g1.evaluate(async () => {
+    const G = D.G(), T = D.T();
+    D.act('rw-help'); await D.until(() => D.$('.rw-help') && D.visible(D.$('.rw-help')), 2000, '도움 열림(새로 고침 뒤)');
+    const s2 = D.$('.rw-help-step[data-step="2"]'), s3 = D.$('.rw-help-step[data-step="3"]');
+    if (!s2 || s2.disabled) D.bad('새로 고침 뒤 ②가 다시 잠김(① 연 것이 저장되지 않음)');
+    if (!s3 || !s3.disabled) D.bad('새로 고침 뒤 ③이 열림');
+    if (G.save.loadChapter().cur.helped) D.bad('세지 않은 ①이 도움 받음이 됨');
+    D.tapSel('.rw-help-close', '도움 닫기');
+    // 교정 없이 송출 → 다름. 그 뒤 교정을 하나 하고(다시 송출하지 않음) 새로 고친다
+    if ((await D.send('다름')) !== 'diff') D.bad('교정 없이 송출이 다름이 아님: ' + D.kind());
+    const last = G.save.loadChapter().cur.last;
+    const shown = D.$('.rw-prompter').textContent.replace(/\\s+/g, '');
+    if (!last || last.reading !== shown || last.n !== 0 || last.diff < 1 || !last.at.length) D.bad('송출 모습 저장: ' + JSON.stringify(last) + ' / ' + shown);
+    const sc = D.dbg().script();
+    const st = sc.steps.find((x) => x[1] === 'replace');
+    await D.doStep(st);
+    if (D.logN() !== 1) D.bad('교정 하나가 기록되지 않음');
+    if (D.$('.rw-prompter').textContent.replace(/\\s+/g, '') !== shown) D.bad('교정했는데 프롬프터가 바뀜(송출 전)');
+    if (G.save.loadChapter().cur.last.n !== null) D.bad('송출 뒤 교정이 바뀌었는데 n이 null이 아님');
+    window.__snap = { reading: shown, at: last.at.slice(), now: G.rules.reading(D.dbg().state()) };
+    if (window.__snap.now === shown) D.bad('점검 전제: 교정 뒤 읽기가 송출 때와 같음');
+    return D.take();
+  }));
+  eg.push(...await g1.evaluate(async () => { await D.reload(); return D.take(); }));
+  eg.push(...await g1.evaluate(${RESUME}));
+  eg.push(...await g1.evaluate(async () => {
+    const G = D.G(), T = D.T(), sn = window.__snap;
+    const shown = D.$('.rw-prompter').textContent.replace(/\\s+/g, '');
+    if (shown !== sn.reading) D.bad('새로 고침 뒤 프롬프터가 송출한 발음이 아님: ' + shown + ' / ' + sn.reading + ' (지금 교정대로는 ' + sn.now + ')');
+    if (D.kind() !== 'diff') D.bad('새로 고침 뒤 배지: ' + D.kind());
+    if (D.visible(D.$('.rw-stamp'))) D.bad('다름인데 감수 도장');
+    if (D.logN() !== 1) D.bad('새로 고침 뒤 교정 수: ' + D.logN());
+    // 도움 ①: 송출한 발음 위에 그때의 다른 음절 위치
+    D.act('rw-help'); await D.until(() => D.$('.rw-help') && D.visible(D.$('.rw-help')), 2000, '도움 열림');
+    D.tapSel('.rw-help-step[data-step="1"]', '도움 ①(새로 고침 뒤)');
+    if (!D.$('.rw-help-body').textContent.includes(T.help.diffMarked)) D.bad('새로 고침 뒤 ① 표시 안내');
+    const marks = D.$$('.rw-psyl.is-diff').map((n) => +n.getAttribute('data-i'));
+    if (marks.join() !== sn.at.join() || !marks.length) D.bad('새로 고침 뒤 ① 위치: ' + marks.join() + ' / ' + sn.at.join());
+    if (D.$('.rw-prompter').textContent.replace(/\\s+/g, '') !== sn.reading) D.bad('① 뒤 프롬프터가 바뀜');
+    D.tapSel('.rw-help-close', '도움 닫기');
+    // 규칙 밖: 교정을 지우고 다른 음운을 거쳐 고친 뒤 송출
+    while (D.logN()) D.act('rw-undo');
+    if (!(await D.offruleScript())) D.bad('규칙 밖 만들기 실패');
+    if ((await D.send('규칙 밖')) !== 'offrule') D.bad('규칙 밖이 아님: ' + D.kind());
+    window.__off = { n: D.$$('.rw-log-item.is-offrule').length, reading: D.$('.rw-prompter').textContent.replace(/\\s+/g, ''), log: D.logN() };
+    if (!window.__off.n) D.bad('규칙 밖 표시 없음(새로 고침 전)');
+    return D.take();
+  }));
+  eg.push(...await g1.evaluate(async () => { await D.reload(); return D.take(); }));
+  eg.push(...await g1.evaluate(${RESUME}));
+  eg.push(...await g1.evaluate(async () => {
+    const o = window.__off;
+    if (D.kind() !== 'offrule') D.bad('새로 고침 뒤 규칙 밖 배지: ' + D.kind());
+    if (D.$$('.rw-log-item.is-offrule').length !== o.n || !D.visible(D.$('.rw-log-mark'))) D.bad('새로 고침 뒤 규칙 밖 표시: ' + D.$$('.rw-log-item.is-offrule').length + ' / ' + o.n);
+    const redo = D.$('[data-act="rw-redo"]');
+    if (!redo || !D.visible(redo) || !redo.classList.contains('is-primary')) D.bad('새로 고침 뒤 다시 감수가 앞에 오지 않음');
+    // 되돌리기(다시 송출 안 함) → 표시가 지워지고, 새로 고쳐도 다시 나오지 않음
+    D.act('rw-undo');
+    if (D.$$('.rw-log-item.is-offrule').length) D.bad('되돌리기 뒤에도 규칙 밖 표시');
+    return D.take();
+  }));
+  eg.push(...await g1.evaluate(async () => { await D.reload(); return D.take(); }));
+  eg.push(...await g1.evaluate(${RESUME}));
+  eg.push(...await g1.evaluate(async () => {
+    const G = D.G(), o = window.__off;
+    if (D.$$('.rw-log-item.is-offrule').length || D.visible(D.$('.rw-log-mark'))) D.bad('교정을 바꾼 뒤 새로 고쳤는데 규칙 밖 표시가 돌아옴');
+    if (D.kind() !== 'offrule') D.bad('교정을 바꾼 뒤에도 배지는 남아야 함: ' + D.kind());
+    if (D.$('.rw-prompter').textContent.replace(/\\s+/g, '') !== o.reading) D.bad('프롬프터가 규칙 밖 송출 발음이 아님');
+    if (D.logN() !== o.log - 1) D.bad('되돌린 교정 수: ' + D.logN());
+    // 온에어: 풀이대로 고쳐 송출 → 새로 고침 뒤 감수 도장. 되돌렸다 같은 교정을 다시 해도(다시 송출 안 함) 도장은 사라짐
+    D.act('rw-redo');
+    D.dbg().solve();
+    if ((await D.send('온에어')) !== 'onair') D.bad('온에어가 아님: ' + D.kind());
+    if (!D.visible(D.$('.rw-stamp'))) D.bad('온에어 도장(새로 고침 전)');
+    return D.take();
+  }));
+  eg.push(...await g1.evaluate(async () => { await D.reload(); return D.take(); }));
+  eg.push(...await g1.evaluate(${RESUME}));
+  eg.push(...await g1.evaluate(async () => {
+    const G = D.G();
+    if (D.kind() !== 'onair' || !D.visible(D.$('.rw-stamp'))) D.bad('새로 고침 뒤 온에어 배지 · 감수 도장: ' + D.kind());
+    if (D.$('.rw-prompter').textContent.replace(/\\s+/g, '') !== G.save.loadChapter().cur.last.reading) D.bad('새로 고침 뒤 온에어 프롬프터');
+    D.act('rw-undo');
+    D.dbg().solve();
+    if (D.visible(D.$('.rw-stamp'))) D.bad('교정을 바꿨는데 도장이 남음(새로 고침 전)');
+    return D.take();
+  }));
+  eg.push(...await g1.evaluate(async () => { await D.reload(); return D.take(); }));
+  eg.push(...await g1.evaluate(${RESUME}));
+  eg.push(...await g1.evaluate(async () => {
+    if (D.visible(D.$('.rw-stamp'))) D.bad('송출 뒤 교정을 바꾸고 새로 고쳤는데 감수 도장이 돌아옴');
+    if (D.kind() !== 'onair') D.bad('배지는 남아야 함: ' + D.kind());
+    D.noBad('새로 고침 송출 모습');
+    return D.take();
+  }));
+  ${fin('eg')}
+} finally { await closeTab(g1); }
+`);
+
+// 묻기 창 · 게임 방법 창은 모달: 열린 동안 뒤 화면은 inert, Tab · Shift+Tab은 창 안에서 돌고, 닫으면 여는 단추로 초점(명세 §14).
+//   감수 화면에서 연 게임 방법 창은 감수 화면을 떠나면 닫힌다.
+step('모달 — 넘김 확인 · 게임 방법 · 설정(초점 가두기 · inert · 초점 돌려주기)', `
+${open('h1', 1280, 800)}
+try {
+  const eh = [];
+  eh.push(...await h1.evaluate(${FRESH}));
+  eh.push(...await h1.evaluate(async () => {
+    const G = D.G(), d = D.d(), w = D.w();
+    const tab = (shift) => (d.activeElement || d.body).dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Tab', shiftKey: !!shift, bubbles: true, cancelable: true }));
+    const esc = () => (d.activeElement || d.body).dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    // 가둔 창의 처음 · 마지막에서 Tab이 돈다(가운데에서는 브라우저에 맡김)
+    const trap = (panel, tag) => {
+      const list = Array.from(panel.querySelectorAll('button, [href], input, select, textarea')).filter((e) => !e.disabled && D.visible(e));
+      if (list.length < 2) { D.bad(tag + ': 누를 것이 둘보다 적음'); return; }
+      const first = list[0], last = list[list.length - 1];
+      last.focus(); tab(false);
+      if (d.activeElement !== first) D.bad(tag + ': 마지막에서 Tab → 처음이 아님(' + D.desc(d.activeElement) + ')');
+      first.focus(); tab(true);
+      if (d.activeElement !== last) D.bad(tag + ': 처음에서 Shift+Tab → 마지막이 아님(' + D.desc(d.activeElement) + ')');
+      d.body.focus(); d.activeElement.blur && d.activeElement.blur(); tab(false);
+      if (!panel.contains(d.activeElement)) D.bad(tag + ': 창 밖에서 Tab → 창 안으로 오지 않음');
+    };
+    await D.toReview(2, { seed: 5, grade: 'h1' });
+    // 넘김 확인(송출 전 [다음 원고])
+    const nx = D.$('[data-act="rw-next"]');
+    nx.focus();
+    D.act('rw-next');
+    await D.until(() => D.$('.rw-confirm'), 2000, '넘김 확인');
+    if (!D.$('.rw').hasAttribute('inert')) D.bad('넘김 확인: 뒤 화면(.rw)이 inert가 아님');
+    if (!D.$('.rw-confirm').contains(d.activeElement)) D.bad('넘김 확인: 초점이 창 안이 아님');
+    trap(D.$('.rw-confirm'), '넘김 확인');
+    D.act('rw-skip-no');
+    await D.until(() => !D.$('.rw-confirm'), 2000, '넘김 확인 닫힘');
+    if (d.querySelector('[inert]')) D.bad('넘김 확인을 닫았는데 inert가 남음');
+    if (d.activeElement !== D.$('[data-act="rw-next"]')) D.bad('넘김 확인을 닫은 뒤 초점이 [다음 원고]로 돌아오지 않음(' + D.desc(d.activeElement) + ')');
+    // 게임 방법(감수 화면에서)
+    const hb = D.$('.rw-howto');
+    hb.focus();
+    D.tap(hb, '게임 방법');
+    await D.until(() => D.$('.howto'), 2000, '게임 방법 창');
+    if (!d.getElementById('app').hasAttribute('inert')) D.bad('게임 방법: 뒤 화면(#app)이 inert가 아님');
+    trap(D.$('.howto-panel'), '게임 방법');
+    esc();
+    await D.until(() => !D.$('.howto'), 2000, '게임 방법 닫힘(Esc)');
+    if (d.querySelector('[inert]')) D.bad('게임 방법을 닫았는데 inert가 남음');
+    if (d.activeElement !== D.$('.rw-howto')) D.bad('게임 방법을 닫은 뒤 초점이 여는 단추로 돌아오지 않음');
+    // 게임 방법을 연 채 감수 화면을 떠나면 창이 닫힌다
+    D.tap(D.$('.rw-howto'), '게임 방법(다시)');
+    await D.until(() => D.$('.howto'), 2000, '게임 방법 창(다시)');
+    G.app.go('start');
+    await D.until(() => D.cur() === 'start' && D.$('.st-ch'), 3000, '시작 화면');
+    if (D.$('.howto') || G.howto.current()) D.bad('감수 화면을 떠났는데 게임 방법 창이 남음');
+    if (d.querySelector('[inert]')) D.bad('감수 화면을 떠난 뒤 inert가 남음');
+    esc(); tab(false);
+    // 설정 창(시작 화면)
+    const sb = D.$('[data-act="settings"]');
+    sb.focus();
+    D.tap(sb, '설정');
+    await D.until(() => D.$('.set-overlay'), 2000, '설정 창');
+    if (!D.$('.st').hasAttribute('inert')) D.bad('설정: 뒤 화면(.st)이 inert가 아님');
+    trap(D.$('.set-panel'), '설정');
+    D.tapSel('[data-act="settings-close"]', '설정 닫기');
+    if (d.querySelector('[inert]')) D.bad('설정을 닫았는데 inert가 남음');
+    if (d.activeElement !== D.$('[data-act="settings"]')) D.bad('설정을 닫은 뒤 초점이 여는 단추로 돌아오지 않음');
+    // 덮어쓰기 확인(진행 장이 있음)
+    const bg = D.$('[data-act="begin"]');
+    bg.focus();
+    D.tap(bg, '감수 시작');
+    await D.until(() => D.$('.st-confirm'), 2000, '덮어쓰기 확인');
+    if (!D.$('.st').hasAttribute('inert')) D.bad('덮어쓰기 확인: 뒤 화면이 inert가 아님');
+    trap(D.$('.st-confirm'), '덮어쓰기 확인');
+    D.tapSel('[data-act="overwrite-no"]', '그만두기');
+    if (d.querySelector('[inert]')) D.bad('덮어쓰기 확인을 닫았는데 inert가 남음');
+    if (d.activeElement !== D.$('[data-act="begin"]')) D.bad('덮어쓰기 확인을 닫은 뒤 초점이 [감수 시작]으로 돌아오지 않음');
+    return D.take();
+  }));
+  ${fin('eh')}
+} finally { await closeTab(h1); }
+`);
+
 step('심화 단계 경계 없음 · 닮은 칸은 기본 단계만', `
 ${open('e1', 1280, 800)}
 try {
@@ -444,6 +657,17 @@ try {
     const G = D.G();
     await D.toReview(2, { seed: 12, grade: 'h1' });
     D.targets(MIN, tag + ' 처음'); D.noScroll(tag + ' 처음'); D.noBad(tag);
+    // 그림 자리(빈 틀 — 명세 §14): 감수실 · 아나운서. 글 없이 aria-label만, 휴대폰 세로에서는 숨김
+    ['room', 'announcer'].forEach((k) => {
+      const n = D.$('.rw-art-' + k);
+      if (!n) { D.bad(tag + ': 그림 자리 없음 ' + k); return; }
+      if (n.getAttribute('role') !== 'img' || n.getAttribute('aria-label') !== D.T().images[k] || n.textContent.trim()) D.bad(tag + ': 그림 자리 이름 · 글 ' + k);
+      if (PHONE ? D.visible(n) : !D.visible(n)) D.bad(tag + ': 그림 자리 ' + k + (PHONE ? '가 휴대폰 세로에서 보임' : '가 안 보임'));
+    });
+    if (!PHONE) {
+      const pr = D.box(D.$('.rw-prompter')), an = D.box(D.$('.rw-art-announcer'));
+      if (pr.width < an.width * 2) D.bad(tag + ': 아나운서 그림 자리가 프롬프터 자리를 빼앗음 ' + Math.round(pr.width) + ' / ' + Math.round(an.width));
+    }
     await D.load('맏며느리');
     const bk = D.$('.rw-blocks .bk');
     await D.wait(150);
@@ -460,6 +684,12 @@ try {
     // 넣을 음운 고르기
     D.mark('insert'); D.gap(1); await D.until(() => D.sheet() && D.$('.rw-ins'), 2000, tag + ' 넣을 음운');
     D.targets(MIN, tag + ' 넣을 음운'); D.noScroll(tag + ' 넣을 음운');
+    // '넣을 음운을 골라 주세요'는 한 줄 자리에 한 번만 보인다(고르기 묶음의 제목은 읽기 이름으로만)
+    const ask = D.T().review.prompt.insertPick;
+    const seen = D.$$('.rw *').filter((e) => !e.children.length && e.textContent.trim() === ask && D.visible(e) && !e.closest('.sr-only'));
+    if (seen.length !== 1 || !seen[0].closest('.rw-say')) D.bad(tag + ': 넣을 음운 안내가 ' + seen.length + '번 보임');
+    const pickBox = D.$('.rw-ins-pick'), lab = pickBox && D.d().getElementById(pickBox.getAttribute('aria-labelledby') || '');
+    if (!lab || lab.textContent.trim() !== ask) D.bad(tag + ': 넣을 음운 고르기 묶음의 읽기 이름');
     D.tapSel('.rw-sheet .rw-sheet-close', tag + ' 넣을 음운 닫기');
     // 송출 · 도움
     await D.send(tag);

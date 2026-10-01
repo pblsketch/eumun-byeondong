@@ -23,7 +23,7 @@
 //   장 이름 · '준비 중' · '장 고르기')을 보인다. 'start'는 이 파일이 그린다(등록으로 바꾸지 않는다).
 //   mount가 객체를 돌려주고 그 객체에 destroy()가 있으면 떠날 때 그것도 부른다(음운 해전 방식과 같이).
 //   값(value) 약속: 'guide' · 'review' · 'reveal'은 { run: ChapterRun }(js/core/save.js 머리 주석 — 저장소에서 다시 읽은 정리본).
-//     'result'의 값은 그 화면 작업(T10)이 정한다. 화면은 값이 없으면 G.save.loadChapter()로 읽어도 된다.
+//     'result'도 { run }(원고 7개가 끝난 진행 장 — js/game/result.js 머리 주석). 화면은 값이 없으면 G.save.loadChapter()로 읽어도 된다.
 //
 // ── 장 시작 · 이어 하기(다른 화면도 쓰는 도우미) ─────────────────────────────────
 //   G.app.beginChapter({ ch, level?, grade?, skipGuide?, seed? }) → ChapterRun
@@ -165,12 +165,12 @@ G.app = (function () {
   // ── 설정 창(명세 §5-6) ─────────────────────────────────
   //   켜기/끄기 두 단추(누른 쪽 aria-pressed) + 음량 막대(0~100). 바꾸면 곧바로 G.save.setSettings(저장 + 적용).
   //   root 안에 덮개를 붙인다(화면을 떠나면 함께 사라짐). 닫기 · 바깥 누르기 · Esc로 닫힌다. → { close }
+  //   모달(G.util.modal): 열린 동안 뒤 화면은 inert, Tab은 창 안에서 돌고, 닫으면 여는 단추로 초점이 돌아간다.
   let settingsCur = null;
   function openSettings(parent, onClose) {
     if (settingsCur) settingsCur.close();
     const S = T().settings;
     const syncs = [];
-    const prevFocus = document.activeElement;
     function toggle(key, label) {
       const on = el('button', { type: 'button', class: 'app-seg-btn', 'data-v': 'on', onclick: () => set(true) }, S.on);
       const off = el('button', { type: 'button', class: 'app-seg-btn', 'data-v': 'off', onclick: () => set(false) }, S.off);
@@ -215,6 +215,7 @@ G.app = (function () {
     function onKey(e) { if (e.key === 'Escape') { e.stopPropagation(); close(); } }
     document.addEventListener('keydown', onKey, true);
     (parent || document.body).appendChild(overlay);
+    const release = U.modal(overlay, panel); // 뒤 화면 inert · Tab은 창 안에서 · 닫으면 여는 단추로 초점
     syncs.forEach((f) => f());
     try { panel.querySelector('button').focus({ preventScroll: true }); } catch (e) { /* 무시 */ }
     let closed = false;
@@ -224,7 +225,7 @@ G.app = (function () {
       document.removeEventListener('keydown', onKey, true);
       overlay.remove();
       if (settingsCur === handle) settingsCur = null;
-      try { if (prevFocus && prevFocus.focus && document.contains(prevFocus)) prevFocus.focus({ preventScroll: true }); } catch (e) { /* 무시 */ }
+      release();
       if (typeof onClose === 'function') onClose();
     }
     const handle = { el: overlay, close };
@@ -245,7 +246,7 @@ G.app = (function () {
       let info = G.save.chapterInfo();
       if (info && ACTIVE.indexOf(info.ch) >= 0) chosenCh = info.ch;
       if (ACTIVE.indexOf(chosenCh) < 0) chosenCh = ACTIVE[0];
-      let confirmEl = null;
+      let confirmEl = null, releaseConfirm = null;
       let pendingStart = null;
 
       const wrap = el('div', { class: 'st' });
@@ -384,11 +385,13 @@ G.app = (function () {
             ]),
           ]));
         root.appendChild(confirmEl);
+        releaseConfirm = U.modal(confirmEl, confirmEl.firstChild); // 뒤 화면 inert · Tab은 창 안에서 · 닫으면 여는 단추로 초점
         try { noBtn.focus({ preventScroll: true }); } catch (e) { /* 무시 */ }
       }
       function closeConfirm() {
         pendingStart = null;
         if (confirmEl) { confirmEl.remove(); confirmEl = null; }
+        if (releaseConfirm) { releaseConfirm(); releaseConfirm = null; }
       }
       function onKey(e) { if (e.key === 'Escape' && confirmEl) { e.stopPropagation(); closeConfirm(); } }
       document.addEventListener('keydown', onKey, true);

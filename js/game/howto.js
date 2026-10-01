@@ -3,6 +3,7 @@
 // 게임 방법 G.howto — 시작 화면과 감수 화면의 '게임 방법' 단추로 여는 안내 창(명세 §4 · §5-5)
 // ───────────────────────────────────────────────────────────────
 //   출처: 「음운 해전」 pblsketch/sori-haejeon js/game/howto.js 의 창 틀(덮개 · 닫기 셋 · 초점 되돌리기 · 한 번에 창 하나)을 가져왔다.
+//   모달: G.util.modal — 열린 동안 뒤 화면(#app 등)은 inert, Tab · Shift+Tab은 창 안에서 돌고, 닫으면 여는 단추로 초점이 돌아간다.
 //   바꾼 것: 바다 탭 · 보기 칩 · 신호 · 배 그림을 빼고, TEXT.howto.sections를 차례대로 번호 카드로 그린다.
 //   불러오는 순서: util → data(text) → core(save) → 이 파일. 모양은 css/howto.css.
 //   화면의 설명은 한 줄 자리 하나지만, 이 창은 학생이 스스로 여는 안내라서 여러 줄을 담는다(명세 §13).
@@ -33,8 +34,6 @@
     const H = window.TEXT.howto;
     const grade = o.grade === 'h1' ? 'h1' : 'm3';
     const sections = G.text.get('howto.sections', grade) || [];
-    const prevFocus = document.activeElement;
-
     const body = el('div', { class: 'howto-body' }, sections.map((s, i) => card(i + 1, s)));
     const closeX = el('button', { type: 'button', class: 'howto-x', 'aria-label': H.closeX, onclick: () => close() }, U.glyph('close', 'howto-x-ico'));
     const okBtn = el('button', { type: 'button', class: 'howto-ok', onclick: () => close() }, H.close);
@@ -52,6 +51,7 @@
     function onKey(e) { if (e.key === 'Escape') { e.stopPropagation(); close(); } }
     document.addEventListener('keydown', onKey, true);
     document.body.appendChild(root);
+    const release = U.modal(root, panel);
     try { if (G.save && G.save.setSeenHowto) G.save.setSeenHowto(true); } catch (e) { /* 저장이 막혀도 창은 열린다 */ }
     try { okBtn.focus({ preventScroll: true }); } catch (e) { /* 무시 */ }
 
@@ -62,7 +62,7 @@
       document.removeEventListener('keydown', onKey, true);
       root.remove();
       if (cur === handle) cur = null;
-      try { if (prevFocus && prevFocus.focus && document.contains(prevFocus)) prevFocus.focus({ preventScroll: true }); } catch (e) { /* 무시 */ }
+      release(); // inert를 떼고 여는 단추로 초점
       if (typeof o.onClose === 'function') o.onClose();
     }
     const handle = { el: root, close, grade };
