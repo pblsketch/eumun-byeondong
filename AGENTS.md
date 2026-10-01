@@ -7,7 +7,7 @@
 ## 먼저 읽을 것
 
 1. `발음 감수실 — 음운 변동 학습 게임 기획안 v0.md` — 게임 전체 설계.
-2. `docs/tracking/decisions/` — 확정된 결정과 선생님 확인이 필요한 결정(0006, 0007).
+2. `docs/tracking/decisions/` — 확정된 결정과 선생님 확인이 필요한 결정(0006 대결 방식).
 3. `design/research/02_교육과정과_음운변동_내용.md`, `03_반모음_처리와_규범_검증.md` — 내용의 진실(조항·예시·오개념). **03이 02의 조항 표보다 우선**한다(원문 대조본).
 4. `design/research/01_선행작_설계원리와_도구.md` — 시리즈 설계 원리와 도구.
 5. 시리즈 관례의 원본: `pblsketch/sori-haejeon`의 `CLAUDE.md`, `docs/standards.md`, `docs/contracts.md`, `js/core/rules.js` 머리 주석, `tests/`.
@@ -24,4 +24,4 @@
 
 ## 다음 할 일
 
-`docs/tracking/status.md`의 '남은 것' 2번(구현 2단계: 감수 화면 세로 조각, 1·2장 플레이 가능)부터. 시작 전에 0006·0007과 findings F1·F3의 선생님 확인 여부를 본다.
+`docs/tracking/status.md`의 '남은 것' 2번(구현 2단계: 감수 화면 세로 조각, 1·2장 플레이 가능)부터. 형태소 경계는 교과서처럼 '+'로 그리고 심화 단계에서는 숨기기만 한다(0007, 한자어는 findings F3).

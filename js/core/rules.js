@@ -10,9 +10,9 @@
 //             gl: 'j'|'w'|null,        // 반모음(결정 0004: 음운으로 센다)
 //             nu: 단모음|'ㅢ'|null,    // 중성. 'ㅢ'는 나누지 않는 이중 모음(음운 2개로 셈, 결정 0009)
 //             co: [자음 0~2개] }],     // 종성. 겹받침은 두 자음(닭: ['ㄹ','ㄱ']), 쌍받침 ㄲ·ㅆ은 한 음운
-//     cuts: [칼집…],                   // 음절 사이(길이 = 음절 수 − 1): 'formal'(뒤가 형식 형태소: 조사·어미·접미사)
+//     cuts: [형태소 경계…],             // 음절 사이(길이 = 음절 수 − 1): 'formal'(뒤가 형식 형태소: 조사·어미·접미사)
 //                                      //   | 'content'(뒤가 실질 형태소: 합성어·파생어의 어근) | 'space'(띄어 쓴 두 단어) | null(경계 아님·표시 안 함)
-//     marks: { lateralExc: [칼집 번호] } // 낱말 예외 표시: 그 음절 사이의 'ㄴㄹ'은 유음화 대신 ㄹ→[ㄴ](제20항 다만)
+//     marks: { lateralExc: [경계 번호] } // 낱말 예외 표시: 그 음절 사이의 'ㄴㄹ'은 유음화 대신 ㄹ→[ㄴ](제20항 다만)
 //   }
 //   상태는 표기의 음절 자리를 그대로 둔다. 연음은 교정이 아니라 읽을 때 저절로 일어난다(reading, 결정 0002).
 //
@@ -125,10 +125,10 @@ G.rules = (function () {
       syl.push({ on: p.on, gl: d ? d[0] : null, nu: d ? d[1] : p.v, co: p.co });
     }
     const cuts = script.cuts ? script.cuts.slice() : syl.slice(1).map(() => null);
-    if (cuts.length !== syl.length - 1) throw new Error('칼집 수가 음절 사이 수와 다름: ' + script.text);
+    if (cuts.length !== syl.length - 1) throw new Error('형태소 경계 수가 음절 사이 수와 다름: ' + script.text);
     cuts.forEach((c, i) => {
-      if (c !== null && !(c in CUT_RANK)) throw new Error('모르는 칼집: ' + c + ' (' + script.text + ')');
-      if ((c === 'space') !== spaceGaps.includes(i)) throw new Error('띄어쓰기와 space 칼집이 어긋남: ' + script.text);
+      if (c !== null && !(c in CUT_RANK)) throw new Error('모르는 형태소 경계: ' + c + ' (' + script.text + ')');
+      if ((c === 'space') !== spaceGaps.includes(i)) throw new Error('띄어쓰기와 space 경계가 어긋남: ' + script.text);
     });
     const marks = clone(script.marks || {});
     (marks.lateralExc || []).forEach((g) => { if (!(g >= 0 && g < cuts.length)) throw new Error('예외 표시 자리가 틀림: ' + script.text); });
@@ -197,7 +197,7 @@ G.rules = (function () {
   const fits = (slot, id) => (slot === 'gl' ? isGlide(id) : slot === 'nu' ? isNucleus(id) : isConsonant(id));
   function put(y, p, id) { if (p.slot === 'co') y.co[p.k] = id; else y[p.slot] = id; }
   function remove(y, p) { if (p.slot === 'co') y.co.splice(p.k, 1); else y[p.slot] = null; }
-  // 아무 음운도 남지 않은 음절은 지우고, 양쪽 칼집 가운데 더 큰 것을 남긴다
+  // 아무 음운도 남지 않은 음절은 지우고, 양쪽 형태소 경계 가운데 더 큰 것을 남긴다
   function tidy(st) {
     for (let i = st.syl.length - 1; i >= 0 && st.syl.length > 1; i--) {
       const y = st.syl[i];

@@ -78,13 +78,13 @@ for (const s of SC) {
   check(Array.isArray(s.src) && s.src.length > 0 && s.src.every((x) => SRC.test(x)), `${n} 출처가 대조본 형식(${J(s.src)})`);
   check(TRAPS.includes(s.trap), `${n} 함정 종류`);
   check(s.steps.every((st) => RULE_IDS.includes(st[0])), `${n} 풀이 과정의 규칙 id를 엔진이 앎`);
-  // 형태소 분석과 칼집이 맞음
+  // 형태소 분석과 형태소 경계가 맞음
   const syl = Array.from(s.text.replace(/ /g, ''));
   check(s.morphs.replace(/[-+ ]/g, '') === syl.join(''), `${n} 형태소 분석의 음절 = 표기`);
   const gaps = new Set();
   let i = -1;
   for (const ch of s.morphs) { if (ch === '+' || ch === ' ') gaps.add(i); else if (ch !== '-') i++; }
-  eq(s.cuts.map((c, k) => (c !== null ? k : -1)).filter((k) => k >= 0), [...gaps].sort((a, b) => a - b), `${n} 형태소 경계 = 칼집 자리`);
+  eq(s.cuts.map((c, k) => (c !== null ? k : -1)).filter((k) => k >= 0), [...gaps].sort((a, b) => a - b), `${n} 형태소 분석의 경계 = cuts 자리`);
   (s.nonstandard || []).forEach(([p]) => check(R.strip(p) !== R.strip(s.pron), `${n} 비표준 발음 ${p}은 표준 발음과 다름`));
   if (s.trap === 'link' || s.trap === 'nonstandard') check(s.steps.length === 0, `${n} ${s.trap} 함정은 교정 0회`);
   if (s.trap === 'nonstandard') check((s.nonstandard || []).length > 0, `${n} 비표준 함정에 비표준 발음이 있음`);
@@ -227,8 +227,8 @@ eq(R.reading(R.start(script('강아지'))), '강아지', '종성 /ㅇ/은 연음
   check(throws(() => R.check(st, { op: 'cut', at: '0.co' })), '모르는 교정 부호는 오류');
   check(throws(() => R.check(st, rep('zz', 'ㄱ'))), '자리 모양이 틀리면 오류');
   check(throws(() => R.check(st, rep('0.co', 'Q'))), '모르는 음운은 오류');
-  check(throws(() => R.start(script('옷이', { cuts: [] }))), '칼집 수가 틀리면 오류');
-  check(throws(() => R.start(script('옷 위', { cuts: [null] }))), '띄어쓰기와 space 칼집이 어긋나면 오류');
+  check(throws(() => R.start(script('옷이', { cuts: [] }))), '형태소 경계 수가 틀리면 오류');
+  check(throws(() => R.start(script('옷 위', { cuts: [null] }))), '띄어쓰기와 space 경계가 어긋나면 오류');
 }
 {
   // 넣음표·합침표·음절 지우기도 막지 않는다(규칙은 뒤 장에서)
