@@ -1,0 +1,225 @@
+/* 앱 뼈대 — js/game/app.js
+   시작 화면 · 설정 창 · 덮어쓰기 확인 · 자리 화면 · '세로로 돌려 주세요' 덮개, 그리고 모든 화면이 함께 쓰는 단추(.app-btn · .app-seg).
+   출처: 「음운 해전」 pblsketch/sori-haejeon css/app.css 의 단추 · 설정 줄 · 묻기 창 · 세로 안내 모양을 가져와
+   밝은 감수실 분위기(종이 바탕 · 흰 카드 · 청록 선택)로 바꾸고 시작 화면을 새로 짰다(참고: design/mockups/mockup-2-start.png).
+   글씨 크기는 화면 너비로 정한다(container app): 휴대폰 세로 · 태블릿/노트북 · 전자칠판(1600 이상).
+   세로 배치 기준 (max-width: 760px), (orientation: portrait) — base.css · app.js PORTRAIT_Q와 같은 값.
+   --app-h: 화면 하나의 높이(보통 창 높이). */
+:root { --app-h: 100vh; --app-pad: clamp(16px, 2.6vw, 48px); }
+@supports (height: 100dvh) { :root { --app-h: 100dvh; } }
+
+/* ── 화면 한 장(G.app.go가 #app 안에 붙이는 <section class="screen screen-이름">) ── */
+.screen {
+  --app-h1-fs: 30px; --app-h2-fs: 21px; --app-body-fs: 18px; --app-btn-fs: 19px;
+  position: relative; min-height: var(--app-h); container: app / inline-size;
+}
+@container app (min-width: 1600px) {
+  .screen > * { --app-h1-fs: 42px; --app-h2-fs: 27px; --app-body-fs: 24px; --app-btn-fs: 23px; }
+}
+.app-h1 { font-family: var(--font-title); font-size: var(--app-h1-fs); font-weight: 800; line-height: 1.2; margin: 0; color: var(--ink); }
+.app-h2 { font-size: var(--app-h2-fs); font-weight: 700; line-height: 1.25; margin: 0; color: var(--ink); }
+
+/* ── 단추(모든 화면 공용) ── */
+.app-btn {
+  min-height: var(--touch); min-width: var(--touch);
+  padding: 0 22px; border-radius: var(--r-btn); cursor: pointer;
+  border: 2px solid var(--control-line); background: var(--surface); color: var(--ink);
+  font-family: var(--font-body); font-weight: 600; font-size: var(--app-btn-fs, 19px); line-height: 1.2;
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); text-align: center;
+  word-break: keep-all; touch-action: manipulation;
+  transition: background-color var(--t-pick), border-color var(--t-pick), color var(--t-pick);
+}
+.app-btn:hover { background: var(--accent-soft); }
+.app-btn:active { transform: translateY(1px); }
+.app-btn.is-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 700; }
+.app-btn.is-primary:hover { background: var(--accent-2); border-color: var(--accent-2); }
+.app-btn.is-big { min-height: max(var(--touch), 72px); font-size: calc(var(--app-btn-fs, 19px) + 3px); padding: 0 32px; }
+.app-btn .glyph { width: 1.1em; height: 1.1em; }
+
+/* 두 갈래 고르기(학년 · 단계 · 켜기/끄기): 누른 쪽 = 청록 채움 */
+.app-seg { display: inline-flex; border: 2px solid var(--control-line); border-radius: var(--r-btn); overflow: hidden; background: var(--surface); flex: none; }
+.app-seg-btn {
+  min-height: var(--touch); min-width: 92px; padding: 0 18px; border: 0; border-radius: 0; cursor: pointer;
+  background: transparent; color: var(--ink); font-family: var(--font-body); font-weight: 600; font-size: var(--app-btn-fs, 19px);
+  touch-action: manipulation; transition: background-color var(--t-pick), color var(--t-pick);
+}
+.app-seg-btn + .app-seg-btn { border-left: 2px solid var(--control-line); }
+.app-seg-btn:hover { background: var(--accent-soft); }
+.app-seg-btn[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); font-weight: 700; }
+
+/* ── 시작 화면 ── */
+.st {
+  min-height: var(--app-h); max-width: 1760px; margin: 0 auto;
+  display: flex; flex-direction: column; gap: clamp(12px, 1.6cqw, 28px);
+  padding: clamp(16px, 2cqw, 40px) var(--app-pad) clamp(16px, 2cqw, 40px);
+}
+.st-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--s4); flex-wrap: wrap; }
+.st-brand { min-width: 0; }
+.st-title-row { display: flex; align-items: center; gap: var(--s4); flex-wrap: wrap; }
+.st-title { margin: 0; font-family: var(--font-title); font-weight: 800; line-height: 1.05; font-size: clamp(36px, 3.6cqw, 72px); color: var(--ink); letter-spacing: -0.01em; }
+/* ON AIR 램프(장식 — 반복 깜박임 없음) */
+.st-lamp {
+  display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 8px;
+  background: var(--onair-lamp); color: #fff; font-weight: 800; font-size: clamp(14px, 1.1cqw, 22px); letter-spacing: .06em;
+  box-shadow: 0 0 0 3px rgba(214, 58, 46, .18);
+}
+.st-tagline { margin: 6px 0 0; font-size: clamp(16px, 1.25cqw, 24px); color: var(--ink-2); font-weight: 500; }
+.st-tools { display: flex; gap: var(--s3); flex-wrap: wrap; }
+.st-tool { padding: 0 18px; gap: var(--s2); }
+.st-tool-ico { display: inline-flex; width: 1.4em; height: 1.4em; color: var(--accent); }
+.st-tool-ico .glyph { width: 100%; height: 100%; }
+.st-tool-text { display: inline-flex; flex-direction: column; align-items: flex-start; line-height: 1.15; }
+.st-howto.is-fresh { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.st-howto-hint { font-size: .72em; font-weight: 700; color: var(--accent-2); }
+
+.st-main { flex: 1 1 auto; display: grid; grid-template-columns: minmax(0, 1fr) clamp(240px, 26cqw, 540px); gap: clamp(16px, 2cqw, 40px); align-items: stretch; }
+.st-col { min-width: 0; display: flex; flex-direction: column; gap: clamp(12px, 1.3cqw, 24px); }
+.st-row { display: flex; align-items: center; gap: var(--s3) var(--s4); flex-wrap: wrap; }
+.st-label { margin: 0; font-size: var(--app-h2-fs); font-weight: 700; color: var(--ink); white-space: nowrap; }
+.st-hint { margin: 0; font-size: calc(var(--app-body-fs) - 2px); color: var(--ink-2); font-weight: 500; min-width: 0; }
+
+/* 이어 하기 카드 */
+.st-resume {
+  display: flex; align-items: center; gap: var(--s3) var(--s4); flex-wrap: wrap;
+  padding: var(--s3) var(--s4); border: 2px solid var(--accent); border-radius: var(--r-panel); background: var(--accent-soft);
+}
+.st-resume-ico { display: inline-flex; width: 40px; height: 40px; color: var(--accent-2); flex: none; }
+.st-resume-ico .glyph { width: 100%; height: 100%; }
+.st-resume-text { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.st-resume-title { font-size: var(--app-h2-fs); font-weight: 700; color: var(--accent-2); }
+.st-resume-sum { font-size: var(--app-body-fs); font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+.st-resume-btns { display: flex; gap: var(--s3); flex-wrap: wrap; }
+
+/* 장 8개 */
+.st-chapters { display: flex; flex-direction: column; gap: var(--s2); }
+.st-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: clamp(8px, 1cqw, 16px); }
+.st-ch {
+  position: relative; min-width: 0; min-height: clamp(104px, 9cqw, 168px);
+  display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto 1fr auto; column-gap: var(--s2); align-items: start;
+  padding: var(--s3) var(--s3) var(--s3) var(--s4); border-radius: var(--r-btn); text-align: left;
+  border: 2px solid var(--divider); background: var(--surface); color: var(--ink);
+  font-family: var(--font-body); touch-action: manipulation;
+}
+button.st-ch { cursor: pointer; transition: border-color var(--t-pick), background-color var(--t-pick); }
+button.st-ch:hover { border-color: var(--accent); }
+.st-ch.is-on { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); }
+.st-ch-no { grid-row: 1; grid-column: 1; font-size: clamp(26px, 2.2cqw, 44px); font-weight: 800; line-height: 1; color: var(--accent-2); }
+.st-ch-name { grid-row: 1; grid-column: 2; align-self: center; font-size: clamp(18px, 1.45cqw, 28px); font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
+.st-ch-topic { grid-row: 2; grid-column: 1 / -1; margin-top: 6px; font-size: clamp(14px, 1.05cqw, 20px); font-weight: 500; line-height: 1.3; color: var(--ink-2); overflow-wrap: anywhere; }
+.st-ch-tag {
+  grid-row: 3; grid-column: 1 / -1; justify-self: start; margin-top: var(--s2);
+  display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 999px;
+  font-size: clamp(13px, .95cqw, 18px); font-weight: 700; line-height: 1.4;
+}
+.st-ch-tag.is-rec { background: var(--accent-soft); color: var(--accent-2); box-shadow: inset 0 0 0 1px var(--accent); }
+.st-ch.is-on .st-ch-tag.is-rec { background: var(--surface); }
+.st-ch-tag.is-soon { background: var(--bg); color: var(--ink-2); }
+.st-ch-tag .glyph { width: .9em; height: .9em; }
+.st-ch.is-soon { border-style: dashed; background: var(--surface-2); }
+.st-ch.is-soon .st-ch-no, .st-ch.is-soon .st-ch-name { color: var(--ink-2); }
+
+/* 단계 · 감수 시작 */
+.st-level { justify-content: space-between; }
+.st-level-pick { display: flex; align-items: center; gap: var(--s3) var(--s4); flex-wrap: wrap; min-width: 0; flex: 1 1 auto; }
+.st-begin { min-width: clamp(220px, 16cqw, 320px); }
+.st-begin-ico { width: .9em; height: .9em; }
+
+/* 그림 자리(이번에는 빈 틀 — 명세 §14) */
+.st-art {
+  min-height: 240px; border: 2px dashed var(--divider); border-radius: var(--r-panel); background: var(--surface-2);
+  display: flex; align-items: center; justify-content: center; color: var(--divider);
+}
+.st-art-ico { display: inline-flex; width: clamp(64px, 6cqw, 120px); height: clamp(64px, 6cqw, 120px); }
+.st-art-ico .glyph { width: 100%; height: 100%; }
+
+/* 덮어쓰기 확인 */
+.st-confirm-wrap { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; padding: var(--s4); background: var(--scrim); }
+.st-confirm { background: var(--surface); border-radius: var(--r-panel); padding: var(--s5); width: min(560px, 100%); box-shadow: var(--shadow-float); text-align: center; }
+.st-confirm-ask { margin: 0; font-size: var(--app-h2-fs); font-weight: 700; color: var(--ink); }
+.st-confirm-what { margin: var(--s2) 0 0; color: var(--ink-2); font-weight: 500; }
+.st-confirm-btns { display: flex; flex-wrap: wrap; gap: var(--s3); justify-content: center; margin-top: var(--s5); }
+.st-confirm-btns .app-btn { min-width: 160px; }
+
+/* ── 설정 창 ── */
+.set-overlay { position: fixed; inset: 0; z-index: 45; display: flex; align-items: center; justify-content: center; padding: var(--s4); background: var(--scrim); }
+.set-panel {
+  width: min(760px, 100%); max-height: 100%; overflow-y: auto; overscroll-behavior: contain;
+  display: flex; flex-direction: column; gap: var(--s3);
+  background: var(--bg); border-radius: var(--r-panel); box-shadow: var(--shadow-float); padding: var(--s5);
+}
+.set-head { display: flex; align-items: center; gap: var(--s3); }
+.set-head-ico { display: inline-flex; width: 32px; height: 32px; color: var(--accent); }
+.set-head-ico .glyph { width: 100%; height: 100%; }
+.set-title { margin: 0; font-size: 26px; font-weight: 800; }
+.set-row {
+  display: flex; align-items: center; gap: var(--s3) var(--s4); flex-wrap: wrap;
+  padding: var(--s3) var(--s4); background: var(--surface); border-radius: var(--r-btn); border: 1px solid var(--divider);
+}
+.set-name { flex: 0 0 7.5em; font-size: 20px; font-weight: 700; }
+.set-ctl { flex: 1 1 300px; min-width: 0; display: flex; align-items: center; gap: var(--s3) var(--s4); flex-wrap: wrap; }
+.set-ctl .app-seg-btn { font-size: 18px; min-width: 88px; }
+.set-hint { flex: 1 1 100%; margin: 0; font-size: 16px; color: var(--ink-2); }
+.set-vol { flex: 1 1 180px; min-width: 0; display: flex; align-items: center; gap: var(--s3); min-height: var(--touch); }
+.set-vol-name { color: var(--ink-2); font-weight: 600; white-space: nowrap; }
+.set-range { flex: 1 1 auto; min-width: var(--touch); height: var(--touch); margin: 0; accent-color: var(--accent); cursor: pointer; }
+.set-row.is-off .set-vol { opacity: .45; }
+.set-saved { margin: 0; font-size: 16px; color: var(--ink-2); text-align: center; }
+.set-foot { display: flex; justify-content: center; }
+.set-foot .app-btn { min-width: 200px; }
+
+/* ── 자리 화면(아직 만들지 않은 화면) ── */
+.screen-stub { min-height: var(--app-h); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--s4); padding: var(--app-pad); text-align: center; }
+.screen-stub-note { margin: 0; color: var(--ink-2); font-size: var(--app-body-fs); }
+
+/* ── 휴대폰 세로(세로로 둔 태블릿 포함) ── */
+@media (max-width: 760px), (orientation: portrait) {
+  .screen { --app-h1-fs: 26px; --app-h2-fs: 18px; --app-body-fs: 16px; --app-btn-fs: 17px; }
+  .st { padding: var(--s3) var(--s4) calc(var(--s4) + env(safe-area-inset-bottom, 0px)); gap: var(--s3); }
+  .st-head { gap: var(--s3); }
+  .st-brand { flex: 1 1 100%; }
+  .st-title { font-size: 32px; }
+  .st-lamp { font-size: 13px; padding: 2px 8px; }
+  .st-tagline { font-size: 15px; margin-top: 4px; }
+  .st-tools { flex: 1 1 100%; }
+  .st-tool { flex: 1 1 0; min-width: 0; padding: 0 10px; font-size: 16px; }
+  .st-howto { flex-grow: 2; }
+  .st-main { grid-template-columns: minmax(0, 1fr); }
+  .st-art { display: none; }
+  .st-row { gap: var(--s2) var(--s3); }
+  .st-grade .st-hint { flex: 1 1 100%; }
+  .st-resume { padding: var(--s3); }
+  .st-resume-ico { width: 28px; height: 28px; }
+  .st-resume-btns { flex: 1 1 100%; }
+  .st-resume-btns .app-btn { flex: 1 1 0; padding: 0 10px; }
+  .st-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s2); }
+  .st-ch { min-height: 88px; padding: var(--s2) var(--s2) var(--s2) var(--s3); }
+  .st-ch-no { font-size: 24px; }
+  .st-ch-name { font-size: 17px; }
+  .st-ch-topic { font-size: 13px; margin-top: 2px; }
+  .st-ch-tag { font-size: 12px; margin-top: 4px; padding: 1px 8px; }
+  .st-level-pick { flex: 1 1 100%; }
+  .st-level-pick .st-hint { flex: 1 1 100%; }
+  .app-seg-btn { min-width: 76px; padding: 0 14px; }
+  .st-begin { flex: 1 1 100%; min-width: 0; }
+  .st-confirm { padding: var(--s5) var(--s4); }
+  .st-confirm-btns .app-btn { flex: 1 1 100%; min-width: 0; }
+  .set-overlay { padding: 0; align-items: stretch; }
+  .set-panel { width: 100%; max-height: none; height: 100%; border-radius: 0; padding: var(--s4); }
+  .set-name { flex-basis: 100%; font-size: 18px; }
+  .set-ctl { flex-basis: 100%; }
+  .set-foot .app-btn { flex: 1 1 auto; min-width: 0; }
+}
+
+/* ── '세로로 돌려 주세요': 가로로 눕힌 휴대폰처럼 높이가 낮은 화면(조정값 — app.js LOW_Q와 같이) ── */
+.app-rotate {
+  display: none; position: fixed; inset: 0; z-index: 1000;
+  flex-direction: column; align-items: center; justify-content: center; gap: var(--s3);
+  background: var(--ink); color: #fff; text-align: center; padding: var(--s4);
+}
+.app-rotate p { margin: 0; font-weight: 700; font-size: 26px; }
+.app-rotate-ico { width: 72px; height: 72px; display: block; }
+.app-rotate-ico .glyph { width: 100%; height: 100%; }
+@media (orientation: landscape) and (max-height: 500px) {
+  .app-rotate { display: flex; }
+  html:has(.app-rotate) body { overflow: hidden; }
+}
