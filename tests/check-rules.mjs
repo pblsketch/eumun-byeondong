@@ -71,13 +71,14 @@ eq(H.join('ㄹ', 'ㅏ', ['ㄴ', 'ㄹ']), 'ㄹㅏㄴㄹ', '음절로 적을 수 �
 
 // ───────────────────────── 3. 원고 데이터 모양 ─────────────────────────
 const RULE_IDS = Object.keys(R.RULES);
-const TRAPS = [undefined, 'link', 'exception', 'nonstandard'];
+// 함정 종류: 1·2장 셋 + 3~8장 둘(blocked: 조건이 맞지 않아 변동 없음 · contrast: 이 장 부호가 아닌 다른 부호가 정답 — 결정 D0-2)
+const TRAPS = [undefined, 'link', 'exception', 'nonstandard', 'blocked', 'contrast'];
 const SRC = /^(표준|지공1|지공1지도|지화언) \d+$/;
 check(SC.length > 0, '원고가 있음');
 eq(SC.length, new Set(SC.map((s) => s.id)).size, '원고 id가 모두 다름');
 for (const s of SC) {
   const n = `[${s.id}]`;
-  check([1, 2].includes(s.ch), `${n} 장은 1·2`);
+  check([1, 2, 3, 4, 5, 6, 7, 8].includes(s.ch), `${n} 장은 1~8`);
   check(typeof s.text === 'string' && typeof s.pron === 'string' && Array.isArray(s.steps) && Array.isArray(s.count) && s.count.length === 2, `${n} 필수 필드`);
   check(Array.isArray(s.articles) && s.articles.length > 0, `${n} 근거 조항이 있음`);
   check(Array.isArray(s.src) && s.src.length > 0 && s.src.every((x) => SRC.test(x)), `${n} 출처가 대조본 형식(${J(s.src)})`);
@@ -91,12 +92,20 @@ for (const s of SC) {
   for (const ch of s.morphs) { if (ch === '+' || ch === ' ') gaps.add(i); else if (ch !== '-') i++; }
   eq(s.cuts.map((c, k) => (c !== null ? k : -1)).filter((k) => k >= 0), [...gaps].sort((a, b) => a - b), `${n} 형태소 분석의 경계 = cuts 자리`);
   (s.nonstandard || []).forEach(([p]) => check(R.strip(p) !== R.strip(s.pron), `${n} 비표준 발음 ${p}은 표준 발음과 다름`));
-  if (s.trap === 'link' || s.trap === 'nonstandard') check(s.steps.length === 0, `${n} ${s.trap} 함정은 교정 0회`);
+  // 연음·변동 없음 함정은 교정 0회. 표준 아님 함정은 1·2장(감기)에서는 0회였지만 7장 넓히고처럼 교정이 정답인 것도 있다.
+  if (s.trap === 'link' || s.trap === 'blocked') check(s.steps.length === 0, `${n} ${s.trap} 함정은 교정 0회`);
+  if (s.trap === 'nonstandard' && s.ch <= 2) check(s.steps.length === 0, `${n} 1·2장 표준 아님 함정은 교정 0회`);
+  if (s.trap === 'contrast') check(s.steps.length > 0, `${n} contrast 함정은 다른 부호의 교정이 정답`);
   if (s.trap === 'nonstandard') check((s.nonstandard || []).length > 0, `${n} 비표준 함정에 비표준 발음이 있음`);
-  if (s.trap === 'exception') check(((s.marks || {}).lateralExc || []).length > 0, `${n} 예외 함정에 예외 표시가 있음`);
-  // 한자어 구성 경계 'sino'는 제20항 다만 낱말의 예외 자리에만(결정 0007)
+  // 예외 함정은 다만 조항을 근거로 둔다(2장 제20항 다만은 낱말 예외 표시 lateralExc까지)
+  if (s.trap === 'exception') check((s.articles || []).some((a) => /-다만$/.test(a)), `${n} 예외 함정의 근거에 다만 조항이 있음`);
+  if (s.trap === 'exception' && (s.articles || []).includes('20-다만')) check(((s.marks || {}).lateralExc || []).length > 0, `${n} 제20항 다만 함정에 예외 표시가 있음`);
+  // 한자어 구성 경계 'sino'는 제20항 다만 낱말의 예외 자리(결정 0007)와 제26항 자리(받침 /ㄹ/ + /ㄷ·ㅅ·ㅈ/, 결정 D4-3)에만
   const exc = (s.marks || {}).lateralExc || [];
-  s.cuts.forEach((c, k) => { if (c === 'sino') check(exc.includes(k), `${n} sino 경계는 예외 표시 자리에만`); });
+  let sylS = [];
+  try { sylS = R.start(s).syl; } catch (e) { /* 처음 상태 오류는 4절에서 알림 */ }
+  const is26 = (k) => !!sylS[k + 1] && J(sylS[k].co) === '["ㄹ"]' && ['ㄷ', 'ㅅ', 'ㅈ'].includes(sylS[k + 1].on);
+  s.cuts.forEach((c, k) => { if (c === 'sino') check(exc.includes(k) || is26(k), `${n} sino 경계는 다만 예외 자리나 제26항 자리에만`); });
   exc.forEach((k) => check(s.cuts[k] === 'sino', `${n} 예외 표시 자리는 sino 경계로 보임(의견+란)`));
 }
 
@@ -151,11 +160,26 @@ for (const s of SC) {
   const b = R.broadcast(s, parsed);
   c0(b.kind === 'onair' && b.outOfRule.length === 0, `${n} 풀이 과정대로 송출하면 온에어 성공 (${b.kind})`);
   c0(b.before === s.count[0] && b.after === s.count[1] && J(nonzero(b.change)) === J(s.change), `${n} 송출 결과의 음운 수·변동 횟수`);
+  // 교정 없이 송출: 교정이 필요하면 n곳이 다름. 다만 허용 발음이 표기대로 읽은 것과 같으면(제29항 다만 야금야금[야그먀금]) 온에어
   const b0 = R.broadcast(s, []);
-  c0(b0.kind === (s.steps.length ? 'diff' : 'onair'), `${n} 교정 없이 송출: ${b0.kind}`);
+  const plainOk = [s.pron].concat(s.allowed || []).map(R.strip).includes(R.reading(st0));
+  c0(b0.kind === (s.steps.length && !plainOk ? 'diff' : 'onair'), `${n} 교정 없이 송출: ${b0.kind}`);
+  // ⑤ 허용 규칙(제22항 반모음 첨가 등)만 쓰는 길: 닿는 발음은 모두 표준이나 허용 발음
+  const seenA = new Set(), endsA = new Set();
+  const walkA = (x, depth) => {
+    const key = J(x);
+    if (seenA.has(key) || depth > 20) return;
+    seenA.add(key);
+    const cs = R.applicable(x).concat(R.allowable ? R.allowable(x) : []);
+    if (!R.applicable(x).length) endsA.add(R.reading(x));
+    cs.forEach((c) => walkA(R.apply(x, c), depth + 1));
+  };
+  walkA(st0, 0);
+  const okEnds = [s.pron].concat(s.allowed || []).map(R.strip);
+  c0([...endsA].every((e) => okEnds.includes(e)), `${n} 허용 규칙까지 쓴 모든 길의 끝 발음 ${J([...endsA])}이 표준·허용 안`);
   if (!failsBefore.length) engineOk++;
 }
-console.log(`  원고 ${SC.length}개 중 엔진 대조 통과 ${engineOk}개 (1장 ${SC.filter((s) => s.ch === 1).length} · 2장 ${SC.filter((s) => s.ch === 2).length})`);
+console.log(`  원고 ${SC.length}개 중 엔진 대조 통과 ${engineOk}개 (${[1, 2, 3, 4, 5, 6, 7, 8].map((c) => c + '장 ' + SC.filter((s) => s.ch === c).length).join(' · ')})`);
 
 // ───────────────────────── 5. 함정과 규칙 밖 교정 ─────────────────────────
 const byId = Object.fromEntries(SC.map((s) => [s.id, s]));
@@ -221,7 +245,8 @@ const byId = Object.fromEntries(SC.map((s) => [s.id, s]));
   // 놓는: ㅎ→ㄷ→ㄴ 교체 2회(결정 0010). ㅎ→ㄴ 한 번에는 규칙 밖
   const s = byId['놓는'];
   check(!R.check(R.start(s), rep('0.co', 'ㄴ')).ok, '놓는: /ㅎ/→/ㄴ/ 한 번에는 규칙 밖');
-  eq(R.applicable(R.start(script('놓고', { cuts: ['formal'] }))), [], '받침 ㅎ의 끝소리 규칙은 /ㄴ/ 앞에서만 열림(축약·탈락은 뒤 장)');
+  // 받침 ㅎ의 끝소리 규칙은 /ㄴ/ 앞에서만 열림. 3단계에서 7장 거센소리되기(합침)가 들어와 놓고에는 합침 후보 하나만 있다(findings F4).
+  eq(R.applicable(R.start(script('놓고', { cuts: ['formal'] }))).map((c) => c.rule + ' ' + c.op), ['aspirate merge'], '놓고: 받침 ㅎ 끝소리 규칙 없이 합침만(F4)');
 }
 eq(R.reading(R.start(script('강아지'))), '강아지', '종성 /ㅇ/은 연음하지 않음');
 
@@ -344,7 +369,7 @@ const poolJ = J(SC);
   check(throws(() => R.draw(2, SC, ['감기'], 1)), '2장 감기가 없으면 오류');
   check(throws(() => R.draw(2, SC, ids(2).filter((id) => R.kindOf(byId[id]) === 'r-nasal'), 1)), '2장 ㄹ의 비음화 원고가 없으면 오류');
   check(throws(() => R.draw(1, SC, ids(1).filter((id) => !byId[id].trap).slice(3), 1)), '1장 일반 원고가 5개보다 적으면 오류');
-  check(throws(() => R.draw(3, SC, [], 1)), '뽑기 조건이 없는 장은 오류');
+  check(throws(() => R.draw(9, SC, [], 1)), '뽑기 조건이 없는 장은 오류(3~8장은 3단계에서 조건을 더함)');
   check(J(SC) === poolJ, '뽑기가 원고 풀을 바꾸지 않음');
 }
 
@@ -369,9 +394,14 @@ eq(R.exampleIds([{ examples: [{ id: '옷' }, { id: '꽃' }] }, { examples: [{ id
   check(R.twins(byId['의견란'], SC, []).every((id) => byId[id].trap === 'exception'), '다만 낱말의 쌍둥이는 다만 낱말');
   check(!R.twins(byId['먹는'], SC, []).includes('짓는'), '규칙 차례가 다르면 쌍둥이 아님(먹는·짓는)');
   eq(R.twin(byId['옷이'], SC, []), tl[0], 'twin = 후보 가운데 원고 풀 차례로 첫째');
+  // 뽑힌 원고와 표준 발음이 같은 원고도 쌍둥이가 아님(도움 ③이 뽑힌 원고의 답을 보이면 안 됨)
+  const to0 = R.twins(byId['옷'], SC, []), to1 = R.twins(byId['옷'], SC, ['옷', '낮']);
+  check(to0.includes('낯') && to0.includes('낱') && !to1.includes('낯') && !to1.includes('낱') && !to1.includes('낮'),
+    `옷: 낮이 뽑혔으면 같은 발음 [낟]의 낯·낱도 쌍둥이가 아님 (${J(to1)})`);
+  check(to1.every((id) => !['옷', '낮'].map((x) => R.strip(byId[x].pron)).includes(R.strip(byId[id].pron))), '쌍둥이의 표준 발음은 뽑힌 어느 원고와도 다름');
 }
 
-// 7-5 지침 채점·예시 검증(가짜 지침 — 실제 지침 데이터 검증은 T3)
+// 7-5 지침 채점·예시 검증(가짜 지침 — 실제 지침 데이터 검증은 8절, 명세 §7-3)
 const G_NASAL = {
   id: 'f-nasal', articles: ['18'], rules: ['nasal'],
   text: { m3: '받침 {b1} 뒤에 {b2}가 오면 같은 자리의 콧소리로', h1: '받침 {b1}은 {b2} 앞에서 비음으로' },
@@ -556,7 +586,7 @@ const G_LAT = {
     check(n >= 3 && n <= 4, `[${g.id}] 예시 3~4개 (${n})`);
     check((g.examples || []).every((e) => byId[e.id] && byId[e.id].ch === ch), `[${g.id}] 예시는 그 장 원고`);
   }));
-  // 지침 내용(명세 §7-1, 계획 T3): 1장 ②는 홑·쌍받침 연음과 겹받침 연음, ③은 제15항 원고, 2장 ③은 다만 낱말
+  // 지침 내용(명세 §7-1): 1장 ②는 홑·쌍받침 연음과 겹받침 연음, ③은 제15항 원고, 2장 ③은 다만 낱말
   {
     const ex = (g) => (g.examples || []).map((e) => byId[e.id]).filter(Boolean);
     const [c1a, c1b, c1c] = GD[1], [, , c2c] = GD[2];
@@ -624,6 +654,7 @@ const G_LAT = {
   {
     const FILE = 'js/data/guides.js';
     const src = fs.readFileSync(path.join(ROOT, FILE), 'utf8');
+    // TODO(병합 때): tests/lib/words.mjs의 FORBIDDEN·BROADCASTERS를 가져와 이 목록을 바꾼다(2단계 가지에 있음 — 방송사 이름이 빠져 있음)
     const FORBIDDEN = ['글자', '훈민정음', '해례', '제자 원리', '제자원리', '상형', '가획', '중세', '조선 수군', '조선',
       '판옥선', '협선', '척후선', '게임오버', '게임 오버'];
     const HAN = /\p{Script=Han}/u;
@@ -658,5 +689,309 @@ const G_LAT = {
   check(J(GD) === gdJ && J(SC) === poolJ, '지침 점검이 지침과 원고를 바꾸지 않음');
   console.log(`  지침 예시(뽑기에서 뺌) 1장 ${ex1.join(', ')} · 2장 ${ex2.join(', ')}`);
 }
+
+// ───────────────────────── 9. 3~8장 규칙(구현 3단계) ─────────────────────────
+// 원고가 없으면 그 단계만 실패로 알리고 넘어간다(점검이 먼저 쓰이고 원고·규칙이 뒤에 들어옴).
+const has3 = (ids) => { const miss = ids.filter((id) => !byId[id]); check(!miss.length, `원고가 있음: ${miss.join(', ')}`); return !miss.length; };
+const del = (at) => ({ op: 'delete', at });
+const ins = (at, to) => ({ op: 'insert', at, to });
+const mrg = (a, b, to) => ({ op: 'merge', at: [a, b], to });
+const okAs = (id, c, rule, article, label) => {
+  const r = R.check(R.start(byId[id]), c);
+  check(r.ok && r.rule === rule && (!article || r.article === article), `${label}: 규칙 안 ${rule}${article ? ' 제' + article + '항' : ''} (${r.ok} ${r.rule} ${r.article})`);
+};
+const outOf = (id, c, label) => check(!R.check(R.start(byId[id]), c).ok, `${label}: 규칙 밖`);
+const sendKind = (id, cs) => R.broadcast(byId[id], cs);
+const NEW_RULES = ['palatal', 'tense', 'tense-stem', 'tense-sino', 'tense-adn', 'tense-cmp', 'tense-link', 'simplify', 'h-drop', 'n-insert', 'glide-insert', 'aspirate'];
+NEW_RULES.forEach((r) => check(!!R.RULES[r], `규칙 id ${r}가 엔진에 있음`));
+check(typeof R.allowable === 'function', 'G.rules.allowable(허용 규칙 후보) 있음');
+// 장 배정은 누적(결정 D0-1): N장 원고는 1~N장 규칙만 쓴다
+SC.forEach((s) => (s.steps || []).forEach((st) => {
+  const r = R.RULES[st[0]];
+  check(!!r && r.ch <= s.ch, `[${s.id}] ${st[0]}은 ${r && r.ch}장 규칙 — ${s.ch}장 원고에 쓸 수 있음`);
+}));
+
+// 9-1 구개음화(제17항, 받침 자리를 고침 — D3-1)
+if (has3(['굳이', '밭이', '벼훑이', '잔디', '마디', '곧이어', '곁에서', '굳히다'])) {
+  okAs('굳이', rep('0.co', 'ㅈ'), 'palatal', '17', '굳이 /ㄷ/→/ㅈ/');
+  okAs('밭이', rep('0.co', 'ㅊ'), 'palatal', '17', '밭이 /ㅌ/→/ㅊ/');
+  okAs('벼훑이', rep('1.co1', 'ㅊ'), 'palatal', '17', '벼훑이 겹받침 /ㄾ/의 /ㅌ/만');
+  outOf('벼훑이', rep('1.co', 'ㅈ'), '벼훑이 /ㄹ/을 고침');
+  outOf('굳이', rep('1.on', 'ㅈ'), '굳이 뒤 음절 빈 초성에 고침(받침 자리를 고침)');
+  eq(R.applicable(R.start(byId['잔디'])), [], '잔디: 한 형태소 안 /ㄷ/+/ㅣ/ — 구개음화 없음');
+  eq(R.applicable(R.start(byId['마디'])), [], '마디: 구개음화 없음');
+  eq(R.applicable(R.start(byId['곧이어'])), [], '곧이어: 실질 형태소 앞 — 구개음화도 ㄴ 첨가도 없음');
+  eq(R.applicable(R.start(byId['곁에서'])), [], '곁에서: /ㅣ/가 아닌 모음 앞 — 구개음화 없음');
+  eq(sendKind('곁에서', [rep('0.co', 'ㅊ')]).kind, 'nonstandard', '곁에서 [겨체서]로 송출 → 표준 아님');
+  eq(sendKind('잔디', [rep('1.on', 'ㅈ')]).kind, 'diff', '잔디 /ㄷ/→/ㅈ/ 송출 → 다름');
+  // [붙임]: 합쳐서 생긴 /ㅌ/만 뒤 음절 초성에서(8장)
+  const s = byId['굳히다'];
+  check(!R.check(R.start(s), rep('1.on', 'ㅊ')).ok, '굳히다: 합치기 전 /ㅎ/→/ㅊ/은 규칙 밖');
+  const m = R.apply(R.start(s), mrg('0.co', '1.on', 'ㅌ'));
+  check(R.check(R.start(s), mrg('0.co', '1.on', 'ㅌ')).rule === 'aspirate', '굳히다: /ㄷ/+/ㅎ/→/ㅌ/ 합침이 먼저');
+  check(R.check(m, rep('1.on', 'ㅊ')).rule === 'palatal', '굳히다: 합친 뒤 /ㅌ/→/ㅊ/ 구개음화([붙임])');
+}
+
+// 9-2 된소리되기(제23~28항, 제14항 괄호)
+if (has3(['깎다', '국밥', '신고', '안기다', '감기다', '갈등', '허허실실', '할 것을', '문고리', '볶음밥', '값을', '값이', '할수록'])) {
+  outOf('깎다', rep('1.on', 'ㄸ'), '깎다: 끝소리 규칙 전 된소리(받침 /ㄲ/ — D4-1)');
+  const k1 = R.apply(R.start(byId['깎다']), rep('0.co', 'ㄱ'));
+  check(R.check(k1, rep('1.on', 'ㄸ')).rule === 'tense', '깎다: /ㄲ/→/ㄱ/ 뒤 된소리(제23항)');
+  okAs('국밥', rep('1.on', 'ㅃ'), 'tense', '23', '국밥');
+  check(!R.applicable(R.start(script('국 그릇', { cuts: ['space', null] }))).some((c) => c.rule === 'tense'), '띄어 쓴 두 단어 사이는 제23항 된소리 없음');
+  okAs('신고', rep('1.on', 'ㄲ'), 'tense-stem', '24', '신고(어간 + 어미)');
+  eq(R.applicable(R.start(byId['안기다'])), [], '안기다: 피동·사동 -기-는 된소리 없음(제24항 다만)');
+  eq(R.applicable(R.start(byId['감기다'])), [], '감기다: 된소리 없음');
+  eq(sendKind('안기다', [rep('1.on', 'ㄲ')]).kind, 'diff', '안기다 /ㄱ/→/ㄲ/ 송출 → 다름');
+  okAs('갈등', rep('1.on', 'ㄸ'), 'tense-sino', '26', '갈등(한자어 /ㄹ/ + /ㄷ/)');
+  eq(R.applicable(R.start(byId['허허실실'])), [], '허허실실: 같은 한자가 겹침 — 된소리 없음(제26항 다만)');
+  okAs('할 것을', rep('1.on', 'ㄲ'), 'tense-adn', '27', '할 것을(관형사형 -ㄹ 뒤, 띄어 써도)');
+  okAs('할수록', rep('1.on', 'ㅆ'), 'tense-adn', '27', '할수록(-ㄹ로 시작하는 어미)');
+  okAs('문고리', rep('1.on', 'ㄲ'), 'tense-cmp', '28', '문고리(사잇소리 합성어)');
+  eq(R.applicable(R.start(byId['볶음밥'])), [], '볶음밥: 사잇소리 없는 합성어');
+  eq(sendKind('볶음밥', [rep('2.on', 'ㅃ')]).kind, 'nonstandard', '볶음밥 [보끔빱] → 표준 아님');
+  okAs('값을', rep('0.co1', 'ㅆ'), 'tense-link', '14', '값을 /ㅅ/→/ㅆ/(제14항 괄호)');
+  const v = sendKind('값이', [del('0.co1')]);
+  check(v.kind === 'nonstandard' && v.reading === '가비', `값이: /ㅅ/을 빼면 [가비] 표준 아님 (${v.kind} ${v.reading})`);
+}
+
+// 9-3 자음군 단순화(제10·11항, 다만)와 ㅎ 탈락(제12항 4·3 [붙임]) — 차례(D5-1)
+if (has3(['닭', '넋', '여덟', '밟다', '맑게', '넓다', '맑다', '값지다', '닭 앞에', '통닭을', '낳은', '않네', '않은', '닳는', '놓는', '넓고'])) {
+  okAs('닭', del('0.co'), 'simplify', '11', '닭: /ㄺ/은 앞 /ㄹ/을 뺌');
+  outOf('닭', del('0.co1'), '닭: /ㄱ/을 빼면');
+  okAs('넋', del('0.co1'), 'simplify', '10', '넋: /ㄳ/은 뒤 /ㅅ/을 뺌');
+  okAs('여덟', del('1.co1'), 'simplify', '10', '여덟: /ㄼ/은 뒤 /ㅂ/을 뺌');
+  okAs('밟다', del('0.co'), 'simplify', '10-다만', '밟다: /ㄼ/인데 앞 /ㄹ/을 뺌(제10항 다만)');
+  outOf('밟다', del('0.co1'), '밟다: /ㅂ/을 빼면');
+  okAs('닭 앞에', del('0.co'), 'simplify', '15', '닭 앞에: 다음 단어 앞 겹받침(제15항 [붙임])');
+  outOf('통닭을', del('1.co'), '통닭을: 형식 형태소 앞 겹받침은 연음(뺌 없음)');
+  // 맑게(제11항 다만): 된소리가 먼저 — 겹받침 /ㄺ/이 있을 때(D5-1)
+  okAs('맑게', rep('1.on', 'ㄲ'), 'tense', '23', '맑게: /ㄺ/이 있을 때 된소리');
+  outOf('맑게', del('0.co1'), '맑게: 된소리 전에 /ㄱ/을 빼면(된소리 조건을 없앰)');
+  outOf('맑게', del('0.co'), '맑게: /ㄹ/을 빼면(다만: /ㄱ/ 앞 /ㄺ/은 [ㄹ])');
+  const g1 = R.apply(R.start(byId['맑게']), rep('1.on', 'ㄲ'));
+  check(R.check(g1, del('0.co1')).article === '11-다만', '맑게: 된소리 뒤 /ㄱ/ 뺌은 제11항 다만');
+  eq(sendKind('맑게', [del('0.co1')]).kind, 'diff', '맑게: 뺌만 하고 송출 → 다름');
+  eq(sendKind('맑게', [rep('1.on', 'ㄲ'), del('0.co1')]).kind, 'onair', '맑게: 된소리 ▸ 뺌 → 온에어');
+  // 넓다(제25항): 같은 차례
+  outOf('넓다', del('0.co1'), '넓다: 된소리 전에 /ㅂ/을 빼면');
+  eq(sendKind('넓다', [del('0.co1')]).kind, 'diff', '넓다: 뺌만 하면 [널다]에서 멈춤(다름)');
+  const nb = sendKind('넓다', [del('0.co1'), rep('1.on', 'ㄸ')]);
+  check(nb.kind === 'offrule' && J(nb.outOfRule) === '[0,1]', `넓다: 뺌 ▸ 된소리는 둘 다 규칙 밖(남은 /ㄹ/ 뒤 된소리 조건 없음) (${nb.kind} ${J(nb.outOfRule)})`);
+  eq(sendKind('넓다', [rep('1.on', 'ㄸ'), del('0.co1')]).kind, 'onair', '넓다: 된소리 ▸ 뺌 → 온에어');
+  // 맑다·값지다: 어느 차례든 규칙 안
+  eq(sendKind('맑다', [del('0.co'), rep('1.on', 'ㄸ')]).kind, 'onair', '맑다: 뺌 ▸ 된소리 온에어');
+  eq(sendKind('맑다', [rep('1.on', 'ㄸ'), del('0.co')]).kind, 'onair', '맑다: 된소리 ▸ 뺌 온에어');
+  eq(sendKind('값지다', [rep('1.on', 'ㅉ'), del('0.co1')]).kind, 'onair', '값지다: 된소리 ▸ 뺌도 온에어(교과서는 뺌 먼저)');
+  eq(sendKind('넓고', [del('0.co'), rep('1.on', 'ㄲ')]).kind, 'nonstandard', '넓고 [넙꼬] → 표준 아님');
+  okAs('낳은', del('0.co'), 'h-drop', '12-4', '낳은: 모음 앞 /ㅎ/ 탈락');
+  okAs('않은', del('0.co1'), 'h-drop', '12-4', '않은: /ㄶ/의 /ㅎ/ 탈락');
+  okAs('않네', del('0.co1'), 'h-drop', '12-3', '않네: /ㄶ/ + /ㄴ/ — ㅎ 탈락(D5-3)');
+  outOf('닳는', rep('1.on', 'ㄹ'), '닳는: /ㅎ/을 빼기 전 유음화');
+  check(!R.check(R.start(byId['놓는']), del('0.co')).ok, '놓는: 홑받침 /ㅎ/ + /ㄴ/은 탈락이 아님(결정 0010, 교체 2회)');
+  // F4: 어말 /ㅎ/과 /ㅎ/+/ㅅ/은 아직 닫혀 있음
+  eq(R.applicable(R.start(script('히읗', { cuts: [null] }))), [], '히읗: 어말 받침 /ㅎ/은 닫혀 있음(F4)');
+  eq(R.applicable(R.start(script('닿소', { cuts: ['formal'] }))), [], '닿소: /ㅎ/+/ㅅ/은 닫혀 있음(D7-4)');
+}
+
+// 9-4 ㄴ 첨가(제29항, [붙임 1] 두 단계)와 반모음 첨가(제22항, 허용)
+if (has3(['솜이불', '송별연', '등용문', '금요일', '절약', '담임', '솔잎', '피어', '야금야금', '옷 입다'])) {
+  okAs('솜이불', ins('1.on', 'ㄴ'), 'n-insert', '29', '솜이불: /ㄴ/ 첨가');
+  ['송별연', '등용문', '금요일'].forEach((id) => eq(R.applicable(R.start(byId[id])), [], `${id}: ㄴ 첨가 없음(예외 표시)`));
+  ['절약', '담임'].forEach((id) => eq(R.applicable(R.start(byId[id])), [], `${id}: 한 형태소 안 — ㄴ 첨가 없음`));
+  eq(sendKind('금요일', [ins('1.on', 'ㄴ')]).kind, 'nonstandard', '금요일 [금뇨일] → 표준 아님');
+  outOf('옷이', ins('1.on', 'ㄴ'), '옷이: 형식 형태소 앞 /ㄴ/ 첨가');
+  outOf('솔잎', ins('1.on', 'ㄹ'), '솔잎: /ㄹ/을 바로 넣기(첨가 ▸ 유음화 두 단계 — D6-4)');
+  const so = R.apply(R.start(byId['솔잎']), ins('1.on', 'ㄴ'));
+  check(R.check(so, rep('1.on', 'ㄹ')).rule === 'lateral', '솔잎: 넣은 /ㄴ/ → /ㄹ/ 유음화');
+  // 제22항: 원칙 [피어]도 허용 [피여]도 온에어, 엔진은 원칙을 도출
+  eq(R.applicable(R.start(byId['피어'])), [], '피어: 반드시 걸리는 규칙 없음(반모음 첨가는 허용)');
+  eq(R.allowable(R.start(byId['피어'])).map((c) => [c.rule, c.op, c.at.s, c.at.slot, c.to].join(' ')), ['glide-insert insert 1 gl j'], '피어: 허용 규칙 후보 = /j/ 첨가');
+  eq(R.derive(byId['피어']).pron, '피어', '피어: 엔진 도출은 원칙 [피어]');
+  const pa = sendKind('피어', [ins('1.gl', 'j')]);
+  check(pa.kind === 'onair' && pa.reading === '피여' && pa.change.insert === 1, `피어: /j/ 첨가 송출 → 허용 [피여] 온에어 (${pa.kind} ${pa.reading})`);
+  eq(sendKind('피어', []).kind, 'onair', '피어: 교정 없이 원칙 [피어] 온에어');
+  eq(sendKind('야금야금', []).kind, 'onair', '야금야금: 표기대로 [야그먀금](허용) 온에어');
+  // 첨가 ▸ 비음화(8장): 끝소리 고침과 첨가의 차례는 자유
+  eq(sendKind('옷 입다', [ins('1.on', 'ㄴ'), rep('0.co', 'ㄷ'), rep('0.co', 'ㄴ'), rep('2.on', 'ㄸ')]).kind, 'onair', '옷 입다: 첨가 ▸ 끝소리 ▸ 비음화 ▸ 된소리 온에어');
+}
+
+// 9-5 거센소리되기(제12항 1·[붙임 1·2] — 합침표)와 ㅎ 탈락의 대비, /ㅈ/+/ㅎ/(D7-2)
+if (has3(['놓고', '많고', '놓아', '많아', '꽂히다', '낮 한때', '숱하다', '옷 한 벌', '밝히다', '넓히고', '각하'])) {
+  okAs('놓고', mrg('0.co', '1.on', 'ㅋ'), 'aspirate', '12-1', '놓고: /ㅎ/+/ㄱ/→/ㅋ/');
+  okAs('많고', mrg('0.co1', '1.on', 'ㅋ'), 'aspirate', '12-1', '많고: /ㄶ/의 /ㅎ/+/ㄱ/');
+  okAs('밝히다', mrg('0.co1', '1.on', 'ㅋ'), 'aspirate', '12-1', '밝히다: /ㄺ/의 /ㄱ/+/ㅎ/');
+  outOf('밝히다', del('0.co'), '밝히다: /ㅎ/ 앞 겹받침 뺌');
+  okAs('각하', mrg('0.co', '1.on', 'ㅋ'), 'aspirate', '12-1', '각하');
+  okAs('놓아', del('0.co'), 'h-drop', '12-4', '놓아: 모음 앞은 합침이 아니라 뺌');
+  okAs('많아', del('0.co1'), 'h-drop', '12-4', '많아: 뺌');
+  check(R.check(R.start(byId['놓아']), mrg('0.co', '1.nu', 'ㅏ')).ok === false, '놓아: 합침표는 규칙 밖');
+  check(!R.touchedLink(byId['놓아'], [del('0.co')]), '놓아: 규칙 안 /ㅎ/ 뺌은 연음 안내 없음');
+  // 꽂히다: /ㅈ/+/ㅎ/은 곧바로 /ㅊ/(제12항 [붙임 1]) — 끝소리 /ㅈ/→/ㄷ/은 규칙 밖(D7-2)
+  okAs('꽂히다', mrg('0.co', '1.on', 'ㅊ'), 'aspirate', '12-1', '꽂히다: /ㅈ/+/ㅎ/→/ㅊ/');
+  outOf('꽂히다', rep('0.co', 'ㄷ'), '꽂히다: /ㅎ/ 앞 /ㅈ/→/ㄷ/');
+  const kk = sendKind('꽂히다', [rep('0.co', 'ㄷ'), mrg('0.co', '1.on', 'ㅌ'), rep('1.on', 'ㅊ')]);
+  check(kk.kind === 'offrule' && J(kk.outOfRule) === '[0]', `꽂히다: /ㅈ/→/ㄷ/ ▸ 합침 ▸ 구개음화는 규칙 밖이 섞임 (${kk.kind} ${J(kk.outOfRule)})`);
+  // 낮 한때·옷 한 벌·숱하다: 끝소리 규칙이 먼저([붙임 2])
+  okAs('낮 한때', rep('0.co', 'ㄷ'), 'coda', '9', '낮 한때: 다음 단어 앞 /ㅈ/→/ㄷ/');
+  outOf('낮 한때', mrg('0.co', '1.on', 'ㅊ'), '낮 한때: /ㅈ/+/ㅎ/ 바로 합침');
+  outOf('옷 한 벌', mrg('0.co', '1.on', 'ㅌ'), '옷 한 벌: /ㅅ/+/ㅎ/ 바로 합침');
+  outOf('숱하다', mrg('0.co', '1.on', 'ㅌ'), '숱하다: /ㅌ/+/ㅎ/ 바로 합침');
+  eq(sendKind('넓히고', [del('0.co'), rep('1.on', 'ㅍ')]).kind, 'nonstandard', '넓히고 [넙피고] → 표준 아님');
+  eq(sendKind('넓히고', [mrg('0.co1', '1.on', 'ㅍ')]).kind, 'onair', '넓히고: /ㅂ/+/ㅎ/ 합침 한 번 → 온에어');
+}
+
+// 9-6 연쇄(8장): 다음 차례는 상태가 정한다
+if (has3(['흙만', '읊는', '값있는', '결단력'])) {
+  outOf('흙만', rep('0.co1', 'ㅇ'), '흙만: 겹받침에는 비음화가 걸리지 않음(뺌이 먼저)');
+  okAs('흙만', del('0.co'), 'simplify', '11', '흙만: 뺌이 먼저');
+  eq(R.derive(byId['읊는']).steps.map((c) => c.rule), ['simplify', 'coda', 'nasal'], '읊는: 뺌 ▸ 끝소리 ▸ 비음화');
+  okAs('값있는', del('0.co1'), 'simplify', '15', '값있는: 실질 형태소 앞 겹받침 뺌(제15항 [붙임])');
+  okAs('결단력', rep('1.on', 'ㄸ'), 'tense-sino', '26', '결단력: 결+단 한자어 /ㄹ/+/ㄷ/');
+  okAs('결단력', rep('2.on', 'ㄴ'), 'r-nasal-exc', '20-다만', '결단력: 단+력 다만');
+}
+
+// 9-7 연음 안내: 연음 자리의 규칙 안 교정(구개음화·제14항 된소리·ㅎ 탈락)에는 뜨지 않음(D3-1, D4-7)
+if (has3(['굳이', '값을', '낳은', '밭이'])) {
+  check(!R.touchedLink(byId['굳이'], [rep('0.co', 'ㅈ')]), '굳이 /ㄷ/→/ㅈ/(규칙 안) → 연음 안내 없음');
+  check(R.touchedLink(byId['굳이'], [rep('0.co', 'ㅊ')]), '굳이 /ㄷ/→/ㅊ/(규칙 밖) → 연음 안내');
+  check(!R.touchedLink(byId['값을'], [rep('0.co1', 'ㅆ')]), '값을 /ㅅ/→/ㅆ/(규칙 안) → 연음 안내 없음');
+  check(R.touchedLink(byId['값을'], [del('0.co1')]), '값을 /ㅅ/ 뺌(규칙 밖) → 연음 안내');
+  check(!R.touchedLink(byId['낳은'], [del('0.co')]), '낳은 /ㅎ/ 뺌(규칙 안) → 연음 안내 없음');
+  check(R.touchedLink(byId['밭이'], [rep('0.co', 'ㄷ')]), '밭이 /ㅌ/→/ㄷ/(규칙 밖) → 연음 안내');
+  // 1·2장 행동은 그대로
+  check(R.touchedLink(byId['옷이'], [rep('0.co', 'ㄷ')]) && !R.touchedLink(byId['겉옷'], [rep('0.co', 'ㄷ')]) && R.touchedLink(byId['닭이'], [del('0.co')]), '옷이·겉옷·닭이는 1·2장과 같음');
+}
+
+// 9-8 원고 갈래: 함정 종류 / 그 장 규칙 가운데 첫째 / 허용 규칙
+{
+  const pairs = [['굳이', 'palatal'], ['깎다', 'tense'], ['신고', 'tense-stem'], ['갈등', 'tense-sino'], ['할 것을', 'tense-adn'], ['문고리', 'tense-cmp'],
+    ['값을', 'tense-link'], ['넓다', 'simplify'], ['낳은', 'h-drop'], ['솔잎', 'n-insert'], ['피어', 'glide-insert'], ['콧날', 'nasal'], ['놓고', 'aspirate'],
+    ['잔디', 'blocked'], ['놓아', 'contrast'], ['맑게', 'exception']];
+  if (has3(pairs.map((p) => p[0]))) eq(pairs.map((p) => R.kindOf(byId[p[0]])), pairs.map((p) => p[1]), '3~8장 원고 갈래');
+}
+
+// 9-9 조건 낱말(새 어휘)
+if (has3(['신고', '안기다', '할 것을', '문고리', '볶음밥', '밟다', '넓다', '송별연', '솜이불', '갈등', '허허실실', '잔디', '굳이', '곧이어', '깻잎', '같이'])) {
+  const hv = (id, w) => R.hasCondition(byId[id], w);
+  check(hv('신고', 'stem') && !hv('안기다', 'stem'), 'stem: 어간 + 어미 표시');
+  check(hv('할 것을', 'adn') && !hv('신고', 'adn'), 'adn: 관형사형 -ㄹ 표시');
+  check(hv('문고리', 'sai') && !hv('볶음밥', 'sai'), 'sai: 사잇소리 합성어 표시');
+  check(hv('밟다', 'cexc') && !hv('넓다', 'cexc'), 'cexc: 제10항 다만 겹받침 표시');
+  check(hv('송별연', 'noins') && !hv('솜이불', 'noins'), 'noins: ㄴ 첨가 없음 표시');
+  check(hv('갈등', 'gap:sino') && !hv('허허실실', 'gap:sino') && !hv('갈등', 'cut:sino'), 'gap: 받침 뒤 경계 종류(뒤 초성이 있어도)');
+  check(hv('문고리', 'gap:content') && hv('할 것을', 'gap:space'), 'gap: content·space');
+  check(hv('잔디', 'cv:ㄷㅣ') && !hv('굳이', 'cv:ㄷㅣ') && !hv('곧이어', 'cv:ㄷㅣ') && hv('같이', 'cv:ㅊㅣ') === false, 'cv: 한 형태소 안 자음 + 모음');
+  check(hv('솜이불', 'vowelI') && hv('깻잎', 'vowelI') && !hv('문고리', 'vowelI'), 'vowelI: 받침 뒤 빈 초성 + /ㅣ/·/j/');
+  check(throws(() => R.hasCondition(byId['신고'], 'gap:foo')) && throws(() => R.hasCondition(byId['신고'], 'cv:ㄷ')), '모르는 새 낱말은 오류');
+}
+
+// 9-10 원고 뽑기 3~8장(결정 D0-2·D8-1): 시드 200개, 조건, 지침 예시를 뺀 여유
+{
+  const chIds = (ch) => SC.filter((s) => s.ch === ch);
+  const firstRule = (s) => ((s.steps || [])[0] || [])[0];
+  const seqOf = (s) => (s.steps || []).map((x) => x[0]);
+  const ORDER8 = {
+    'delete-first': (s) => ((s.steps || [])[0] || [])[1] === 'delete',
+    'coda-first': (s) => firstRule(s) === 'coda',
+    'aspirate-first': (s) => firstRule(s) === 'aspirate',
+    'insert-then-nasal': (s) => { const q = seqOf(s), i = q.indexOf('n-insert'); return i >= 0 && q.indexOf('nasal', i + 1) > i; },
+  };
+  const NEEDS = {
+    3: [['palatal']], 4: [['tense'], ['tense-stem'], ['tense-sino', 'tense-adn', 'tense-cmp']], 5: [['simplify'], ['h-drop']],
+    6: [['n-insert']], 7: [['aspirate']],
+  };
+  // 지침이 아직 없다(GUIDES에 3~8장 없음) — 연구 자료의 지침 초안 예시를 뺀 원고 풀로도 뽑혀야 한다(지침 2~3개 × 예시 최대 4)
+  const DRAFT_EX = {
+    3: ['굳이', '밭이', '해돋이', '같이', '곧이', '곧이어', '잔디', '벼훑이', '곁에서'],
+    4: ['국밥', '곱돌', '꽃다발', '국수', '신고', '삼고', '안기다', '감기다', '갈등', '할 것을', '문고리', '볶음밥'],
+    5: ['넋', '여덟', '닭', '삶', '밟다', '맑게', '맑다', '낳은', '쌓이다', '않은', '닳아'],
+    6: ['솜이불', '담요', '맨입', '송별연', '솔잎', '물약', '한 일', '할 일', '콧날', '뱃머리', '깻잎', '나뭇잎'],
+    // 7장 함정은 셋뿐(놓아·많아·넓히고) — 함정 2개를 뽑으려면 지침 예시로는 하나까지만 쓸 수 있다
+    7: ['놓고', '좋던', '쌓지', '많고', '각하', '맏형', '좁히다', '숱하다', '놓아'],
+    8: [],
+  };
+  const ok3to7 = (ch, out, ex) => {
+    const ss = out.map((id) => byId[id]);
+    const traps = ss.filter((s) => s.trap), kinds = ss.filter((s) => !s.trap).map((s) => R.kindOf(s));
+    const trapKinds = new Set(chIds(ch).filter((s) => s.trap && !ex.includes(s.id)).map((s) => s.trap));
+    return out.length === 7 && new Set(out).size === 7 && ss.every((s) => s && s.ch === ch && !ex.includes(s.id)) && traps.length === 2 &&
+      (trapKinds.size < 2 || traps[0].trap !== traps[1].trap) && NEEDS[ch].every((k) => kinds.some((x) => k.includes(x)));
+  };
+  const ok8 = (out) => {
+    const ss = out.map((id) => byId[id]);
+    const hasExc = SC.some((s) => s.ch === 8 && s.trap === 'exception');
+    return out.length === 7 && new Set(out).size === 7 && ss.every((s) => s && s.ch === 8) &&
+      ss.filter((s) => s.trap === 'exception').length === (hasExc ? 1 : 0) && ss.every((s) => !s.trap || s.trap === 'exception') &&
+      Object.values(ORDER8).every((f) => ss.some((s) => !s.trap && f(s)));
+  };
+  for (let ch = 3; ch <= 8; ch++) {
+    if (!chIds(ch).length) { check(false, `${ch}장 원고가 있음`); continue; }
+    let bad = 0, badEx = 0, err = '';
+    const sameSeed = J(R.draw(ch, SC, [], 5)) === J(R.draw(ch, SC, [], 5));
+    check(sameSeed, `${ch}장 같은 시드 → 같은 뽑기`);
+    const firsts = new Set();
+    for (let sd = 0; sd < 200; sd++) {
+      try {
+        const a = R.draw(ch, SC, [], sd);
+        firsts.add(a[0]);
+        if (!(ch === 8 ? ok8(a) : ok3to7(ch, a, []))) bad++;
+      } catch (e) { bad++; err = err || e.message; }
+      try {
+        const ex = DRAFT_EX[ch];
+        const b = R.draw(ch, SC, ex, sd);
+        if (!(ch === 8 ? ok8(b) : ok3to7(ch, b, ex))) badEx++;
+      } catch (e) { badEx++; err = err || e.message; }
+    }
+    check(bad === 0, `${ch}장 시드 200개 모두 조건을 지킴 (어긋남 ${bad}) ${err}`);
+    check(badEx === 0, `${ch}장 지침 초안 예시를 빼도 시드 200개 모두 뽑힘 (어긋남 ${badEx}) ${err}`);
+    check(firsts.size >= 4, `${ch}장 차례가 무작위`);
+    // 여유: 예시를 뺀 뒤 남는 일반 원고(갈래별)와 함정(종류별)
+    const left = chIds(ch).filter((s) => !DRAFT_EX[ch].includes(s.id));
+    const tally2 = (list, f) => list.reduce((o, s) => { const k = f(s); o[k] = (o[k] || 0) + 1; return o; }, {});
+    console.log(`  ${ch}장 원고 ${chIds(ch).length}개(일반 ${chIds(ch).filter((s) => !s.trap).length}·함정 ${chIds(ch).filter((s) => s.trap).length}) · 초안 예시 ${DRAFT_EX[ch].length}개를 빼면 일반 ${J(tally2(left.filter((s) => !s.trap), R.kindOf))} 함정 ${J(tally2(left.filter((s) => s.trap), (s) => s.trap))}`);
+  }
+  // 조건을 채울 수 없으면 오류
+  const trapIds = (ch) => chIds(ch).filter((s) => s.trap).map((s) => s.id);
+  check(throws(() => R.draw(3, SC, trapIds(3).slice(1), 1)), '3장 함정이 1개뿐이면 오류');
+  check(throws(() => R.draw(7, SC, ['놓아', '많아'], 1)), '7장 함정 둘을 지침 예시로 쓰면 오류(함정이 1개만 남음)');
+  check(throws(() => R.draw(5, SC, chIds(5).filter((s) => R.kindOf(s) === 'h-drop').map((s) => s.id), 1)), '5장 ㅎ 탈락 원고가 없으면 오류');
+  check(throws(() => R.draw(8, SC, chIds(8).filter((s) => ORDER8['insert-then-nasal'](s)).map((s) => s.id), 1)), '8장 첨가 ▸ 비음화 원고가 없으면 오류');
+  check(!throws(() => R.draw(8, SC, trapIds(8), 1)) && R.draw(8, SC, trapIds(8), 1).every((id) => !byId[id].trap), '8장 예외 함정이 없으면 일반 7개');
+  check(J(SC) === poolJ, '3~8장 뽑기가 원고 풀을 바꾸지 않음');
+}
+
+// 9-11 쌍둥이(새 장)
+if (has3(['굳히다', '닫히다', '피어', '놓아', '많아'])) {
+  check(R.twins(byId['굳히다'], SC, []).includes('닫히다'), '굳히다: 쌍둥이에 닫히다(합침 ▸ 구개음화)');
+  check(R.twins(byId['피어'], SC, []).length > 0 && R.twins(byId['피어'], SC, []).every((id) => byId[id].steps.length === 0 && !byId[id].trap), '피어: 쌍둥이는 다른 제22항 원고');
+  eq(R.twin(byId['놓아'], SC, []), '많아', '놓아: 쌍둥이는 많아(contrast)');
+}
+
+// 9-12 공개 조항 차례: 다만·하위 번호는 그 조항 바로 뒤(번호 순)
+eq(R.revealArticles([{ articles: ['12-4', '10-다만', '12'] }], [{ articles: ['10', '12-1', '29-다만', '29', '11-다만', '11', '12-3'] }]),
+  ['10', '10-다만', '11', '11-다만', '12', '12-1', '12-3', '12-4', '29', '29-다만'], '공개 조항: 10 < 10-다만 < 11 … 12 < 12-1 < 12-3 < 12-4');
+
+// 9-12b 음절이 지워지면 낱말 표시도 새 번호로(경계 표시·음절 표시 모두, 사라진 자리의 표시는 버림)
+if (has3(['생산량', '껴안다', '만날 사람', '할 것을'])) {
+  const wipe = (id, s, slots) => slots.reduce((st, sl) => R.apply(st, { op: 'delete', at: s + '.' + sl }), R.start(byId[id]));
+  const sa = wipe('생산량', 0, ['co', 'nu', 'on']);
+  check(sa.syl.length === 2 && J(sa.cuts) === '["sino"]' && J(sa.marks.lateralExc) === '[0]', `생산량 첫 음절을 지우면 다만 표시도 경계 0으로 (${J(sa.cuts)} ${J(sa.marks)})`);
+  eq(R.similarCell(sa, '1.on'), 'ㄴ', '생산량 첫 음절을 지운 뒤 /ㄹ/: 여전히 다만(/ㄴ/ 칸)');
+  check(R.applicable(sa).some((c) => c.rule === 'r-nasal-exc') && !R.applicable(sa).some((c) => c.rule === 'lateral'), '생산량 첫 음절을 지운 뒤: 유음화가 아니라 다만');
+  const ka = wipe('껴안다', 0, ['nu', 'gl', 'on']);
+  check(J(ka.marks.stem) === '[0]' && R.applicable(ka).some((c) => c.rule === 'tense-stem'), `껴안다 첫 음절을 지우면 어간 표시도 경계 0으로 (${J(ka.marks)})`);
+  const ms = wipe('만날 사람', 0, ['co', 'nu', 'on']);
+  check(J(ms.marks.adn) === '[0]' && R.applicable(ms).some((c) => c.rule === 'tense-adn'), `만날 사람 첫 음절을 지우면 관형사형 표시도 음절 0으로 (${J(ms.marks)})`);
+  const hg = wipe('할 것을', 0, ['co', 'nu', 'on']);
+  check(J(hg.marks.adn) === '[]' && !R.applicable(hg).some((c) => c.rule === 'tense-adn'), `할 것을 표시된 음절을 지우면 표시도 사라짐 (${J(hg.marks)})`);
+  const mid = wipe('생산량', 1, ['co', 'nu', 'on']);
+  check(J(mid.marks.lateralExc) === '[0]' && J(mid.cuts) === '["sino"]', `생산량 가운데 음절을 지우면 남긴 경계(sino) 쪽 표시만 남음 (${J(mid.cuts)} ${J(mid.marks)})`);
+  check(J(R.start(byId['생산량']).marks.lateralExc) === '[1]', '원고 처음 상태는 그대로');
+}
+
+// 9-13 모르는 낱말 표시는 오류, 표시 자리 검사
+check(throws(() => R.start(script('신고', { cuts: ['formal'], marks: { stem: [3] } }))), '표시 자리가 경계 밖이면 오류');
+check(throws(() => R.start(script('신고', { cuts: ['formal'], marks: { what: [0] } }))), '모르는 낱말 표시는 오류');
 
 done('규칙 점검');
