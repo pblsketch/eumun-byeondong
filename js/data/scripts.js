@@ -4,8 +4,9 @@
 //
 //   text     표기(원고에 적힌 그대로). 띄어 쓴 두 단어는 cuts의 그 자리가 'space'.
 //   morphs   형태소 분석(사람이 읽는 것): '+' 형태소 경계, '-' 어간·어미·접사 표시, 띄어쓰기 = 단어 경계.
-//            한자어 한 단어 안의 경계는 나누지 않는다(판정에 쓰이지 않음 — findings 참고).
-//   cuts     음절 사이 형태소 경계(화면에서는 교과서처럼 '+', 결정 0007): 'formal'(뒤가 형식 형태소) | 'content'(뒤가 실질 형태소) | 'space' | null
+//            한자어 한 단어 안의 경계는 나누지 않는다. 예외: 제20항 다만 낱말은 '의견+란'처럼 나눈다(결정 0007).
+//   cuts     음절 사이 형태소 경계(화면에서는 교과서처럼 '+', 결정 0007): 'formal'(뒤가 형식 형태소) | 'content'(뒤가 실질 형태소)
+//            | 'space' | 'sino'(한자어 구성 경계 — 제20항 다만 낱말만, 교과서 설명 '2음절 한자어 + ㄹ로 시작하는 한자'대로) | null
 //   marks    낱말 예외 표시. lateralExc: [경계 번호] = 그 사이의 'ㄴㄹ'은 [ㄴㄴ](제20항 다만)
 //   pron     표준 발음(원문 그대로, 장음 ː 포함 — 엔진은 장음을 비교하지 않음)
 //   nonstandard  [[흔하지만 표준이 아닌 발음, 조항]] → 송출하면 '표준 아님' 신호
@@ -102,15 +103,15 @@ window.SCRIPTS = [
   { id: '실내화', ch: 2, text: '실내화', morphs: '실내화', cuts: [null, null], pron: '실래화', steps: [['lateral', 'replace', '1.on', 'ㄹ']], count: [8, 8], change: { replace: 1 }, articles: ['20'], src: ['지공1 114'] },
   { id: '물난리', ch: 2, text: '물난리', morphs: '물+난리', cuts: ['content', null], pron: '물랄리', steps: [['lateral', 'replace', '1.on', 'ㄹ'], ['lateral', 'replace', '1.co', 'ㄹ']], count: [8, 8], change: { replace: 2 }, articles: ['20'], src: ['지공1 108', '지공1지도 132'] },
   // 함정: 제20항 다만 — 'ㄴㄹ'을 [ㄴㄴ]으로
-  { id: '의견란', ch: 2, text: '의견란', morphs: '의견란', cuts: [null, null], marks: { lateralExc: [1] }, pron: '의ː견난', steps: [['r-nasal-exc', 'replace', '2.on', 'ㄴ']], count: [9, 9], change: { replace: 1 }, articles: ['20-다만'], trap: 'exception', src: ['표준 20', '지공1 108'] },
-  { id: '임진란', ch: 2, text: '임진란', morphs: '임진란', cuts: [null, null], marks: { lateralExc: [1] }, pron: '임ː진난', steps: [['r-nasal-exc', 'replace', '2.on', 'ㄴ']], count: [8, 8], change: { replace: 1 }, articles: ['20-다만'], trap: 'exception', src: ['지공1지도 132'] },
-  { id: '생산량', ch: 2, text: '생산량', morphs: '생산량', cuts: [null, null], marks: { lateralExc: [1] }, pron: '생산냥', steps: [['r-nasal-exc', 'replace', '2.on', 'ㄴ']], count: [10, 10], change: { replace: 1 }, articles: ['20-다만'], trap: 'exception', src: ['표준 20', '지공1 108'] },
-  { id: '동원령', ch: 2, text: '동원령', morphs: '동원령', cuts: [null, null], marks: { lateralExc: [1] }, pron: '동ː원녕', steps: [['r-nasal-exc', 'replace', '2.on', 'ㄴ']], count: [10, 10], change: { replace: 1 }, articles: ['20-다만'], trap: 'exception', src: ['지공1지도 132'] },
-  { id: '상견례', ch: 2, text: '상견례', morphs: '상견례', cuts: [null, null], marks: { lateralExc: [1] }, pron: '상견녜', steps: [['r-nasal-exc', 'replace', '2.on', 'ㄴ']], count: [10, 10], change: { replace: 1 }, articles: ['20-다만'], trap: 'exception', src: ['표준 20', '지공1지도 132'] },
-  { id: '횡단로', ch: 2, text: '횡단로', morphs: '횡단로', cuts: [null, null], marks: { lateralExc: [1] }, pron: '횡단노', steps: [['r-nasal-exc', 'replace', '2.on', 'ㄴ']], count: [8, 8], change: { replace: 1 }, articles: ['20-다만'], trap: 'exception', src: ['지공1지도 132'] },
-  { id: '이원론', ch: 2, text: '이원론', morphs: '이원론', cuts: [null, null], marks: { lateralExc: [1] }, pron: '이ː원논', steps: [['r-nasal-exc', 'replace', '2.on', 'ㄴ']], count: [7, 7], change: { replace: 1 }, articles: ['20-다만'], trap: 'exception', src: ['지공1지도 132', '지화언 32'] },
-  { id: '입원료', ch: 2, text: '입원료', morphs: '입원료', cuts: [null, null], marks: { lateralExc: [1] }, pron: '이붠뇨', steps: [['r-nasal-exc', 'replace', '2.on', 'ㄴ']], count: [8, 8], change: { replace: 1 }, articles: ['20-다만'], trap: 'exception', src: ['지공1지도 132', '지화언 32'] },
-  { id: '구근류', ch: 2, text: '구근류', morphs: '구근류', cuts: [null, null], marks: { lateralExc: [1] }, pron: '구근뉴', steps: [['r-nasal-exc', 'replace', '2.on', 'ㄴ']], count: [8, 8], change: { replace: 1 }, articles: ['20-다만'], trap: 'exception', src: ['지공1지도 132'] },
+  { id: '의견란', ch: 2, text: '의견란', morphs: '의견+란', cuts: [null, 'sino'], marks: { lateralExc: [1] }, pron: '의ː견난', steps: [['r-nasal-exc', 'replace', '2.on', 'ㄴ']], count: [9, 9], change: { replace: 1 }, articles: ['20-다만'], trap: 'exception', src: ['표준 20', '지공1 108'] },
+  { id: '임진란', ch: 2, text: '임진란', morphs: '임진+란', cuts: [null, 'sino'], marks: { lateralExc: [1] }, pron: '임ː진난', steps: [['r-nasal-exc', 'replace', '2.on', 'ㄴ']], count: [8, 8], change: { replace: 1 }, articles: ['20-다만'], trap: 'exception', src: ['지공1지도 132'] },
+  { id: '생산량', ch: 2, text: '생산량', morphs: '생산+량', cuts: [null, 'sino'], marks: { lateralExc: [1] }, pron: '생산냥', steps: [['r-nasal-exc', 'replace', '2.on', 'ㄴ']], count: [10, 10], change: { replace: 1 }, articles: ['20-다만'], trap: 'exception', src: ['표준 20', '지공1 108'] },
+  { id: '동원령', ch: 2, text: '동원령', morphs: '동원+령', cuts: [null, 'sino'], marks: { lateralExc: [1] }, pron: '동ː원녕', steps: [['r-nasal-exc', 'replace', '2.on', 'ㄴ']], count: [10, 10], change: { replace: 1 }, articles: ['20-다만'], trap: 'exception', src: ['지공1지도 132'] },
+  { id: '상견례', ch: 2, text: '상견례', morphs: '상견+례', cuts: [null, 'sino'], marks: { lateralExc: [1] }, pron: '상견녜', steps: [['r-nasal-exc', 'replace', '2.on', 'ㄴ']], count: [10, 10], change: { replace: 1 }, articles: ['20-다만'], trap: 'exception', src: ['표준 20', '지공1지도 132'] },
+  { id: '횡단로', ch: 2, text: '횡단로', morphs: '횡단+로', cuts: [null, 'sino'], marks: { lateralExc: [1] }, pron: '횡단노', steps: [['r-nasal-exc', 'replace', '2.on', 'ㄴ']], count: [8, 8], change: { replace: 1 }, articles: ['20-다만'], trap: 'exception', src: ['지공1지도 132'] },
+  { id: '이원론', ch: 2, text: '이원론', morphs: '이원+론', cuts: [null, 'sino'], marks: { lateralExc: [1] }, pron: '이ː원논', steps: [['r-nasal-exc', 'replace', '2.on', 'ㄴ']], count: [7, 7], change: { replace: 1 }, articles: ['20-다만'], trap: 'exception', src: ['지공1지도 132', '지화언 32'] },
+  { id: '입원료', ch: 2, text: '입원료', morphs: '입원+료', cuts: [null, 'sino'], marks: { lateralExc: [1] }, pron: '이붠뇨', steps: [['r-nasal-exc', 'replace', '2.on', 'ㄴ']], count: [8, 8], change: { replace: 1 }, articles: ['20-다만'], trap: 'exception', src: ['지공1지도 132', '지화언 32'] },
+  { id: '구근류', ch: 2, text: '구근류', morphs: '구근+류', cuts: [null, 'sino'], marks: { lateralExc: [1] }, pron: '구근뉴', steps: [['r-nasal-exc', 'replace', '2.on', 'ㄴ']], count: [8, 8], change: { replace: 1 }, articles: ['20-다만'], trap: 'exception', src: ['지공1지도 132'] },
   // 함정: 위치 동화는 표준이 아님(제21항) — 아무 교정도 하지 않는 것이 정답
   { id: '감기', ch: 2, text: '감기', morphs: '감기', cuts: [null], pron: '감ː기', nonstandard: [['강ː기', '21']], steps: [], count: [5, 5], change: {}, articles: ['21'], trap: 'nonstandard', src: ['표준 21'] },
 ];

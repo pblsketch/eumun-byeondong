@@ -7,7 +7,7 @@
 ## 먼저 읽을 것
 
 1. `발음 감수실 — 음운 변동 학습 게임 기획안 v0.md` — 게임 전체 설계.
-2. `docs/tracking/decisions/` — 확정된 결정과 선생님 확인이 필요한 결정(0006 대결 방식).
+2. `docs/tracking/decisions/` — 확정된 결정(0001~0012). 지금 선생님 확인을 기다리는 결정은 없다.
 3. `design/research/02_교육과정과_음운변동_내용.md`, `03_반모음_처리와_규범_검증.md` — 내용의 진실(조항·예시·오개념). **03이 02의 조항 표보다 우선**한다(원문 대조본).
 4. `design/research/01_선행작_설계원리와_도구.md` — 시리즈 설계 원리와 도구.
 5. 시리즈 관례의 원본: `pblsketch/sori-haejeon`의 `CLAUDE.md`, `docs/standards.md`, `docs/contracts.md`, `js/core/rules.js` 머리 주석, `tests/`.

@@ -89,6 +89,10 @@ for (const s of SC) {
   if (s.trap === 'link' || s.trap === 'nonstandard') check(s.steps.length === 0, `${n} ${s.trap} 함정은 교정 0회`);
   if (s.trap === 'nonstandard') check((s.nonstandard || []).length > 0, `${n} 비표준 함정에 비표준 발음이 있음`);
   if (s.trap === 'exception') check(((s.marks || {}).lateralExc || []).length > 0, `${n} 예외 함정에 예외 표시가 있음`);
+  // 한자어 구성 경계 'sino'는 제20항 다만 낱말의 예외 자리에만(결정 0007)
+  const exc = (s.marks || {}).lateralExc || [];
+  s.cuts.forEach((c, k) => { if (c === 'sino') check(exc.includes(k), `${n} sino 경계는 예외 표시 자리에만`); });
+  exc.forEach((k) => check(s.cuts[k] === 'sino', `${n} 예외 표시 자리는 sino 경계로 보임(의견+란)`));
 }
 
 // ───────────────────────── 4. 원고마다 엔진 대조 ─────────────────────────

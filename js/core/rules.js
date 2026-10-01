@@ -11,7 +11,9 @@
 //             nu: 단모음|'ㅢ'|null,    // 중성. 'ㅢ'는 나누지 않는 이중 모음(음운 2개로 셈, 결정 0009)
 //             co: [자음 0~2개] }],     // 종성. 겹받침은 두 자음(닭: ['ㄹ','ㄱ']), 쌍받침 ㄲ·ㅆ은 한 음운
 //     cuts: [형태소 경계…],             // 음절 사이(길이 = 음절 수 − 1): 'formal'(뒤가 형식 형태소: 조사·어미·접미사)
-//                                      //   | 'content'(뒤가 실질 형태소: 합성어·파생어의 어근) | 'space'(띄어 쓴 두 단어) | null(경계 아님·표시 안 함)
+//                                      //   | 'content'(뒤가 실질 형태소: 합성어·파생어의 어근) | 'space'(띄어 쓴 두 단어)
+//                                      //   | 'sino'(한자어 구성 경계: 교과서 설명에 쓰이는 곳만 — 제20항 다만의 '2음절 한자어 + 한자', 결정 0007)
+//                                      //   | null(경계 아님·표시 안 함). 화면은 모두 '+'로 그린다.
 //     marks: { lateralExc: [경계 번호] } // 낱말 예외 표시: 그 음절 사이의 'ㄴㄹ'은 유음화 대신 ㄹ→[ㄴ](제20항 다만)
 //   }
 //   상태는 표기의 음절 자리를 그대로 둔다. 연음은 교정이 아니라 읽을 때 저절로 일어난다(reading, 결정 0002).
@@ -57,7 +59,7 @@ G.rules = (function () {
   const clone = (x) => JSON.parse(JSON.stringify(x));
   const SLOTS = ['on', 'gl', 'nu', 'co'];
   const OPS = ['replace', 'delete', 'insert', 'merge'];
-  const CUT_RANK = { space: 3, content: 2, formal: 1 };
+  const CUT_RANK = { space: 3, content: 2, sino: 2, formal: 1 }; // sino는 판정에 쓰지 않는다(한자음 받침은 ㄱㄴㄹㅁㅂㅇ뿐이라 끝소리 규칙이 걸리지 않음)
 
   const RULES = {
     'coda': { op: 'replace', article: '9' },
