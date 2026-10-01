@@ -1,0 +1,59 @@
+/* 조항 공개 화면 — js/game/reveal.js (명세 §9 · §14, 결정 0001)
+   머리 문장(게임 쪽 말)은 종이 바탕에 크게, 조항 원문은 흰 카드에 '원문' 표시를 달아 나눈다.
+   '원문' 표시는 남색 잉크 테두리 표지(신호 색 · 선택 색과 섞지 않음). 넓은 화면에서는 카드를 두 단으로.
+   글씨 크기는 화면 너비(container app — css/app.css). 세로 배치 기준은 base.css · app.js PORTRAIT_Q와 같음. */
+.rv {
+  max-width: 1400px; margin: 0 auto;
+  display: flex; flex-direction: column; gap: clamp(12px, 1.4cqw, 24px);
+  padding: clamp(16px, 2cqw, 40px) var(--app-pad) clamp(24px, 3cqw, 48px);
+}
+@container app (min-width: 1600px) { .rv { max-width: 1680px; } }
+.rv-head { display: flex; flex-direction: column; gap: 4px; }
+.rv-kicker { margin: 0; font-size: calc(var(--app-body-fs) - 2px); font-weight: 600; color: var(--ink-2); }
+.rv-heading { margin: 0; font-size: calc(var(--app-h2-fs) + 3px); font-weight: 800; line-height: 1.45; color: var(--ink); overflow-wrap: anywhere; }
+.rv-note { margin: 0; display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; font-size: calc(var(--app-body-fs) - 1px); color: var(--ink-2); font-weight: 600; }
+
+/* '원문' 표시 */
+.rv-orig {
+  flex: none; display: inline-flex; align-items: center; padding: 1px 10px; border-radius: 999px;
+  border: 2px solid var(--ink); color: var(--ink); background: var(--surface);
+  font-size: calc(var(--app-body-fs) - 3px); font-weight: 800; line-height: 1.4; letter-spacing: .04em; white-space: nowrap;
+}
+
+/* 조항 카드 */
+.rv-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(12px, 1.4cqw, 24px); align-items: start; }
+.rv-art { min-width: 0; background: var(--surface); border: 1px solid var(--divider); border-left: 6px solid var(--ink); border-radius: var(--r-panel); padding: clamp(14px, 1.5cqw, 26px); }
+.rv-art-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); margin-bottom: var(--s3); }
+.rv-art-name { margin: 0; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; font-size: var(--app-h2-fs); font-weight: 800; color: var(--ink); }
+.rv-art-src { font-size: .8em; font-weight: 700; color: var(--ink-2); }
+.rv-art-body { display: flex; flex-direction: column; gap: var(--s3); }
+.rv-part { display: flex; flex-direction: column; gap: var(--s2); }
+.rv-part-text { margin: 0; font-size: var(--app-body-fs); line-height: 1.65; color: var(--ink); overflow-wrap: anywhere; }
+.rv-part-label { margin: 0; font-weight: 700; color: var(--ink-2); }
+.rv-ex-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 8px; }
+.rv-ex {
+  display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 4px; min-width: 0;
+  padding: 2px 10px; border-radius: var(--r-cell); background: var(--surface-2); border: 1px solid var(--divider);
+  font-size: calc(var(--app-body-fs) - 1px); line-height: 1.45;
+}
+.rv-ex-text { font-weight: 700; color: var(--ink); }
+.rv-ex-pron { font-family: var(--font-pron); font-weight: 700; color: var(--ink); }
+.rv-ex-wrong { color: var(--ink-2); font-weight: 600; }
+
+.rv-foot { display: flex; justify-content: flex-end; }
+.rv-next { min-width: clamp(220px, 18cqw, 320px); }
+.rv-next-ico { width: .9em; height: .9em; }
+
+@container app (max-width: 1100px) {
+  .rv-list { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 760px), (orientation: portrait) {
+  .rv { padding: var(--s3) var(--s4) calc(var(--s5) + env(safe-area-inset-bottom, 0px)); gap: var(--s3); }
+  .rv-heading { font-size: 20px; }
+  .rv-list { grid-template-columns: minmax(0, 1fr); gap: var(--s3); }
+  .rv-art { padding: var(--s3); }
+  .rv-art-name { font-size: 18px; }
+  .rv-part-text { font-size: 16px; }
+  .rv-ex { font-size: 15px; padding: 2px 8px; }
+  .rv-next { flex: 1 1 100%; min-width: 0; }
+}

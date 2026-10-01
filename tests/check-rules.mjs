@@ -2,11 +2,16 @@
 //   node tests/check-rules.mjs
 // 1 음운 데이터 · 2 한글 나누기/합치기 · 3 원고 데이터 모양 · 4 원고마다 엔진 대조(도출 발음 = 표준 발음, 풀이 과정이 규칙 안,
 // 음운 수·변동 횟수, 모든 규칙 순서가 같은 발음에 닿음, 송출 신호) · 5 함정과 규칙 밖 교정 · 6 막지 않는 오답과 입력 보존
-import { loadScripts, check, done } from './lib/load.mjs';
+// · 7 판 진행 함수(원고 갈래·뽑기·쌍둥이·지침 채점과 예시 검증(가짜 지침)·공개 조항·연음 자리·닮은 칸·원고 결과·장 합계)
+// · 8 실제 감수 지침(js/data/guides.js): 예시 검증·채점·예시를 뺀 뽑기·지침 문구 규칙
+import fs from 'node:fs';
+import path from 'node:path';
+import { loadScripts, check, done, ROOT } from './lib/load.mjs';
 
 let ctx;
 try {
-  ctx = loadScripts(['js/core/util.js', 'js/data/sounds.js', 'js/data/scripts.js', 'js/core/hangul.js', 'js/core/rules.js']);
+  ctx = loadScripts(['js/core/util.js', 'js/data/sounds.js', 'js/data/scripts.js', 'js/data/articles.js', 'js/data/guides.js',
+    'js/core/hangul.js', 'js/core/rules.js']);
 } catch (e) {
   check(false, '스크립트 불러오기 실패: ' + e.message);
   done('규칙 점검');
@@ -259,6 +264,399 @@ eq(R.reading(R.start(script('강아지'))), '강아지', '종성 /ㅇ/은 연음
   check(plain(st) && plain(R.broadcast(s, [])), '상태·송출 결과는 JSON으로 옮길 수 있는 평범한 값');
   eq(R.start(script('여')).syl[0], { on: null, gl: 'j', nu: 'ㅓ', co: [] }, '이중 모음은 반모음 + 단모음');
   eq(R.reading(R.start(script('입원'))), '이붠', '반모음이 있는 음절 앞에서도 연음');
+}
+
+// ───────────────────────── 7. 판 진행 함수(구현 2단계, 명세 §17) ─────────────────────────
+// 원고 풀은 scripts.js 전체를 그대로 쓴다(원고가 더해져도 통과하도록 원고 수를 박지 않는다).
+const NEW_FNS = ['kindOf', 'draw', 'exampleIds', 'twin', 'twins', 'gradeGuides', 'hasCondition', 'checkGuide', 'checkGuides',
+  'revealArticles', 'linkSites', 'touchedLink', 'similarCell', 'scriptResult', 'chapterTotals'];
+NEW_FNS.forEach((f) => check(typeof R[f] === 'function', `G.rules.${f} 있음`));
+if (NEW_FNS.some((f) => typeof R[f] !== 'function')) done('규칙 점검');
+const plainV = (x) => x === null || ['string', 'boolean'].includes(typeof x) || (typeof x === 'number' && isFinite(x)) ||
+  (Array.isArray(x) && x.every(plainV)) || (typeof x === 'object' && !Array.isArray(x) && Object.values(x).every((v) => v !== undefined && plainV(v)));
+const poolJ = J(SC);
+
+// 7-1 원고 갈래(§6): 끝소리가 아닌 첫 규칙 / 끝소리 / 함정 종류
+{
+  const k = (id) => R.kindOf(byId[id]);
+  eq(['짓는', '놓는', '책 넣는다', '막론', '협력', '물난리', '옷', '겉옷', '먹는'].map(k),
+    ['nasal', 'nasal', 'nasal', 'r-nasal', 'r-nasal', 'lateral', 'coda', 'coda', 'nasal'], '원고 갈래: 끝소리가 아닌 첫 규칙, 끝소리만이면 coda');
+  eq(['옷이', '닭이', '의견란', '감기'].map(k), ['link', 'link', 'exception', 'nonstandard'], '원고 갈래: 함정은 함정 종류');
+  check(SC.every((s) => typeof R.kindOf(s) === 'string'), '모든 원고에 갈래가 있음');
+}
+
+// 7-2 원고 뽑기(§6): 시드 결정적, 조건, 뺄 원고
+{
+  const ids = (ch) => SC.filter((s) => s.ch === ch).map((s) => s.id);
+  eq(R.draw(1, SC, [], 7), R.draw(1, SC, [], 7), '같은 시드 → 같은 뽑기(1장)');
+  eq(R.draw(2, SC, [], 123), R.draw(2, SC, [], 123), '같은 시드 → 같은 뽑기(2장)');
+  check(new Set([1, 2, 3, 4, 5, 6].map((sd) => J(R.draw(2, SC, [], sd)))).size > 1, '시드가 다르면 뽑기가 달라짐');
+  {
+    let k = 0;
+    const seqRand = () => ((k = (k * 37 + 11) % 101) / 101);
+    const a = R.draw(1, SC, [], seqRand);
+    check(a.length === 7, '난수 함수를 줘도 뽑힘');
+  }
+  // 1장: 연음 함정 2 + 끝소리 일반 5, 일반에 제15항 원고 ≥1(남아 있으면)
+  const is15 = (s) => (s.articles || []).includes('15');
+  const check1 = (out, ex, label) => {
+    const ss = out.map((id) => byId[id]);
+    return out.length === 7 && new Set(out).size === 7 && ss.every((s) => s && s.ch === 1) &&
+      ss.filter((s) => s.trap === 'link').length === 2 && ss.filter((s) => !s.trap && R.kindOf(s) === 'coda').length === 5 &&
+      ss.every((s) => !ex.includes(s.id)) &&
+      (!SC.some((s) => s.ch === 1 && !s.trap && is15(s) && !ex.includes(s.id)) || ss.some((s) => !s.trap && is15(s)));
+  };
+  // 2장: 다만 1 + 감기 1 + 일반 5(비음화·ㄹ의 비음화·유음화 각 ≥1)
+  const check2 = (out, ex) => {
+    const ss = out.map((id) => byId[id]);
+    const kinds = ss.filter((s) => !s.trap).map((s) => R.kindOf(s));
+    return out.length === 7 && new Set(out).size === 7 && ss.every((s) => s && s.ch === 2) &&
+      ss.filter((s) => s.trap === 'exception').length === 1 && ss.filter((s) => s.trap === 'nonstandard').length === 1 &&
+      kinds.length === 5 && ['nasal', 'r-nasal', 'lateral'].every((x) => kinds.includes(x)) && ss.every((s) => !ex.includes(s.id));
+  };
+  // 가짜 지침 예시처럼 뺄 원고(함정 일부 · 제15항 원고 일부 · 갈래마다 일부)
+  const ex1 = ['옷', '꽃', '밖', '겉옷', '옷이', '닭이', '흙을'];
+  const ex1All15 = ex1.concat(SC.filter((s) => s.ch === 1 && is15(s)).map((s) => s.id));
+  const ex2 = ['먹는', '닫는', '잡는', '담력', '막론', '난로', '칼날', '의견란', '생산량'];
+  let bad1 = 0, bad1b = 0, bad1c = 0, bad2 = 0, bad2b = 0;
+  const trapAt = new Set(), firstIds = new Set();
+  for (let sd = 0; sd < 200; sd++) {
+    const a = R.draw(1, SC, [], sd);
+    if (!check1(a, [])) bad1++;
+    if (!check1(R.draw(1, SC, ex1, sd), ex1)) bad1b++;
+    if (!check1(R.draw(1, SC, ex1All15, sd), ex1All15)) bad1c++;
+    const b = R.draw(2, SC, [], sd);
+    if (!check2(b, [])) bad2++;
+    if (!check2(R.draw(2, SC, ex2, sd), ex2)) bad2b++;
+    b.forEach((id, i) => { if (byId[id].trap === 'nonstandard') trapAt.add(i); });
+    firstIds.add(a[0]);
+  }
+  check(bad1 === 0, `1장 시드 200개 모두 조건을 지킴 (어긋남 ${bad1})`);
+  check(bad1b === 0, `1장 뺄 원고를 주면 뽑지 않고 조건을 지킴 (어긋남 ${bad1b})`);
+  check(bad1c === 0, `1장 제15항 원고가 모두 빠져도 뽑힘 (어긋남 ${bad1c})`);
+  check(bad2 === 0, `2장 시드 200개 모두 조건을 지킴 (어긋남 ${bad2})`);
+  check(bad2b === 0, `2장 뺄 원고를 주면 뽑지 않고 조건을 지킴 (어긋남 ${bad2b})`);
+  check(trapAt.size >= 5, `함정 위치도 무작위 (감기가 놓인 자리 ${[...trapAt].sort()})`);
+  check(firstIds.size >= 5, '차례도 무작위');
+  // 조건을 채울 수 없으면 오류(데이터 잘못)
+  const noLink = ids(1).filter((id) => byId[id].trap === 'link').slice(1);
+  check(throws(() => R.draw(1, SC, noLink, 1)), '1장 연음 함정이 1개뿐이면 오류');
+  check(throws(() => R.draw(2, SC, ['감기'], 1)), '2장 감기가 없으면 오류');
+  check(throws(() => R.draw(2, SC, ids(2).filter((id) => R.kindOf(byId[id]) === 'r-nasal'), 1)), '2장 ㄹ의 비음화 원고가 없으면 오류');
+  check(throws(() => R.draw(1, SC, ids(1).filter((id) => !byId[id].trap).slice(3), 1)), '1장 일반 원고가 5개보다 적으면 오류');
+  check(throws(() => R.draw(3, SC, [], 1)), '뽑기 조건이 없는 장은 오류');
+  check(J(SC) === poolJ, '뽑기가 원고 풀을 바꾸지 않음');
+}
+
+// 7-3 지침 예시 id(뺄 원고) — 지침이 없으면 빈 목록
+eq(R.exampleIds(undefined), [], '지침이 없으면 뺄 원고 없음');
+eq(R.exampleIds([{ examples: [{ id: '옷' }, { id: '꽃' }] }, { examples: [{ id: '옷이' }, { id: '옷' }] }]), ['옷', '꽃', '옷이'], '지침 예시 id 모으기(겹치면 한 번)');
+
+// 7-4 쌍둥이 원고(§8-4): 규칙 차례·함정 종류가 같고 표준 발음이 다른 원고, 뽑힌 것은 빼고
+{
+  eq(R.twin(byId['감기'], SC, []), null, '감기: 쌍둥이 원고 없음');
+  const tl = R.twins(byId['옷이'], SC, []);
+  check(tl.length > 0 && tl.every((id) => byId[id].trap === 'link' && byId[id].ch === 1 && id !== '옷이' && R.strip(byId[id].pron) !== '오시'), `옷이: 쌍둥이는 다른 연음 함정 (${J(tl)})`);
+  const picked = ['옷이', tl[0]];
+  const t2 = R.twin(byId['옷이'], SC, picked);
+  check(t2 !== null && !picked.includes(t2) && byId[t2].trap === 'link', '뽑힌 원고는 쌍둥이 후보가 아님');
+  eq(R.twin(byId['옷이'], SC, tl), null, '후보를 모두 빼면 없음');
+  const tn = R.twins(byId['낮'], SC, []);
+  check(tn.length > 0 && !tn.includes('낯') && !tn.includes('낱') && tn.every((id) => J(byId[id].steps.map((x) => x[0])) === '["coda"]' && !byId[id].trap),
+    `낮: 표준 발음이 같은 낯·낱은 쌍둥이가 아님 (${J(tn)})`);
+  const tm = R.twins(byId['막론'], SC, []);
+  check(tm.length > 0 && tm.every((id) => J(byId[id].steps.map((x) => x[0])) === '["r-nasal","nasal"]'), `막론: 규칙 차례가 같은 원고 (${J(tm)})`);
+  check(R.twins(byId['의견란'], SC, []).every((id) => byId[id].trap === 'exception'), '다만 낱말의 쌍둥이는 다만 낱말');
+  check(!R.twins(byId['먹는'], SC, []).includes('짓는'), '규칙 차례가 다르면 쌍둥이 아님(먹는·짓는)');
+  eq(R.twin(byId['옷이'], SC, []), tl[0], 'twin = 후보 가운데 원고 풀 차례로 첫째');
+}
+
+// 7-5 지침 채점·예시 검증(가짜 지침 — 실제 지침 데이터 검증은 T3)
+const G_NASAL = {
+  id: 'f-nasal', articles: ['18'], rules: ['nasal'],
+  text: { m3: '받침 {b1} 뒤에 {b2}가 오면 같은 자리의 콧소리로', h1: '받침 {b1}은 {b2} 앞에서 비음으로' },
+  blanks: {
+    b1: { options: ['/ㄱ/·/ㄷ/·/ㅂ/', '/ㄴ/·/ㅁ/·/ㅇ/'], answer: 0, members: ['coda:ㄱ', 'coda:ㄷ', 'coda:ㅂ'] },
+    b2: { options: ['/ㄴ/·/ㅁ/', '/ㄹ/', '모음'], answer: 0, members: ['onset:ㄴ', 'onset:ㅁ'] },
+  },
+  examples: [
+    { id: '먹는', shows: { b1: 'coda:ㄱ', b2: 'onset:ㄴ' } },
+    { id: '닫는', shows: { b1: 'coda:ㄷ' } },
+    { id: '밥물', shows: { b1: 'coda:ㅂ', b2: ['onset:ㅁ'] } },
+  ],
+};
+const G_LINK = {
+  id: 'f-link', articles: ['13', '14'], rules: [],
+  text: { m3: '받침은 {b1} 앞에서 그대로 옮겨요. 겹받침은 {b2}만', h1: '{b1} 앞에서 연음, 겹받침은 {b2}' },
+  blanks: {
+    b1: { options: ['모음으로 시작하는 뒤에 붙는 말', '자음'], answer: 0, members: ['cut:formal', 'link'] },
+    b2: { options: ['뒤엣것', '앞엣것'], answer: 0, members: ['coda2:ㄹㄱ', 'coda:ㅅ'] },
+  },
+  examples: [
+    { id: '옷이', trap: 'link', shows: { b1: ['cut:formal', 'link'], b2: 'coda:ㅅ' } },
+    { id: '닭이', trap: 'link', shows: { b2: 'coda2:ㄹㄱ' } },
+  ],
+};
+const G_LAT = {
+  id: 'f-lat', articles: ['20', '20-다만'], rules: ['lateral'],
+  text: { m3: '{b1}', h1: '{b1}' },
+  blanks: { b1: { options: ['/ㄹ/', '/ㄴ/'], answer: 1, members: ['exc', 'before:ㄴ'] } },
+  examples: [
+    { id: '난로', shows: { b1: 'before:ㄴ' } },
+    { id: '의견란', trap: 'exception', shows: { b1: 'exc' } },
+  ],
+};
+{
+  const all = [G_NASAL, G_LINK, G_LAT];
+  const allJ = J(all);
+  const right = { 'f-nasal': { b1: 0, b2: 0 }, 'f-link': { b1: 0, b2: 0 }, 'f-lat': { b1: 1 } };
+  eq(R.gradeGuides(all, right), 0, '지침 채점: 다 맞으면 0칸');
+  eq(R.gradeGuides(all, { 'f-nasal': { b1: 0, b2: 1 }, 'f-link': { b1: 1, b2: 0 }, 'f-lat': { b1: 1 } }), 2, '지침 채점: 틀린 칸 수만');
+  eq(R.gradeGuides(all, { 'f-nasal': { b1: 0 } }), 4, '지침 채점: 고르지 않은 칸도 틀린 칸');
+  eq(R.gradeGuides(all, {}), 5, '지침 채점: 아무것도 안 고르면 모든 칸');
+  eq(R.gradeGuides(all, { 'f-lat': { b1: 0 }, 'f-nasal': { b1: 0, b2: 0 }, 'f-link': { b1: 0, b2: 0 } }), 1, '지침 채점: 답 번호 0도 바르게 셈');
+
+  eq(R.checkGuide(G_NASAL, SC), [], '가짜 비음화 지침: 예시가 빈칸 조건을 모두 보임');
+  eq(R.checkGuide(G_LINK, SC), [], '가짜 연음 지침(규칙 없음, 함정 예시만): 통과');
+  eq(R.checkGuide(G_LAT, SC), [], '가짜 유음화 지침(일반 예시 + 다만 함정 예시): 통과');
+  eq(R.checkGuides(all, SC), [], '한 장의 지침 묶음: 통과');
+  check(R.checkGuides([G_NASAL, G_NASAL], SC).length > 0, '장 안에서 지침 id가 겹치면 문제');
+  check(J(all) === allJ && J(SC) === poolJ, '채점·검증이 지침과 원고를 바꾸지 않음');
+
+  const mut = (g, f) => { const c = JSON.parse(J(g)); f(c); return c; };
+  const bad = (g, label) => { const r = R.checkGuide(g, SC); check(Array.isArray(r) && r.length > 0 && r.every((m) => typeof m === 'string'), `${label} → 문제로 알림 (${J(r)})`); };
+  bad(mut(G_NASAL, (g) => { g.examples[0].id = '없는원고'; }), '예시 id가 원고에 없음');
+  bad(mut(G_NASAL, (g) => { g.examples[2] = { id: '난로', shows: { b1: 'coda:ㅂ' } }; }), '일반 예시가 지침 규칙을 쓰지 않음');
+  bad(mut(G_NASAL, (g) => { g.examples.pop(); }), '빈칸 members를 예시가 다 덮지 못함(coda:ㅂ·onset:ㅁ)');
+  bad(mut(G_NASAL, (g) => { g.examples[1].shows.b1 = 'coda:ㄱ'; g.examples[0].shows.b1 = 'coda:ㄷ'; }), '선언한 shows가 원고에 실제로 없음');
+  bad(mut(G_NASAL, (g) => { g.examples[1].shows.b1 = 'coda:Q'; }), '어휘에 없는 조건 낱말');
+  bad(mut(G_NASAL, (g) => { g.blanks.b1.members.push('nasal:ㄱ'); }), 'members에 어휘 밖 낱말');
+  bad(mut(G_NASAL, (g) => { g.examples[1].shows.b3 = 'coda:ㄷ'; }), 'shows가 없는 빈칸을 가리킴');
+  bad(mut(G_NASAL, (g) => { g.examples[0].shows.b2 = ['onset:ㄴ', 'coda:ㄱ']; }), 'shows 낱말이 그 빈칸 members에 없음');
+  bad(mut(G_NASAL, (g) => { g.examples[0].trap = 'link'; }), '함정이 아닌 원고를 함정 예시로 적음');
+  bad(mut(G_LINK, (g) => { delete g.examples[0].trap; }), '함정 원고를 일반 예시로 적음(규칙 없는 지침)');
+  bad(mut(G_LAT, (g) => { g.examples[1].trap = 'link'; }), '함정 종류가 원고와 다름');
+  bad(mut(G_NASAL, (g) => { g.blanks.b1.answer = 2; }), '답 번호가 보기 밖');
+  bad(mut(G_NASAL, (g) => { g.blanks.b2.options = ['/ㄴ/']; }), '보기가 2개보다 적음');
+  bad(mut(G_NASAL, (g) => { g.blanks.b2.options = ['a', 'b', 'c', 'd', 'e']; }), '보기가 4개보다 많음');
+  bad(mut(G_NASAL, (g) => { g.text.h1 = '받침 {b1}'; }), '학년별 문장의 빈칸 자리가 다름');
+  bad(mut(G_NASAL, (g) => { g.rules = ['nasal', 'velar']; }), '모르는 규칙 id');
+  bad(mut(G_NASAL, (g) => { g.articles = []; }), '공개할 조항이 없음');
+  bad({ id: 'x' }, '모양이 크게 틀린 지침도 오류 없이 문제 목록');
+  // 조건 낱말 어휘: 원고에서 엔진으로 확인
+  const has = (id, w) => R.hasCondition(byId[id], w);
+  check(has('밖', 'coda:ㄲ') && !has('밖', 'coda:ㄱ'), 'coda: 처음 상태 종성(쌍받침은 한 음운)');
+  check(has('닭이', 'coda2:ㄹㄱ') && !has('닭이', 'coda:ㄱ') && !has('옷이', 'coda2:ㄹㄱ'), 'coda2: 겹받침');
+  check(has('국물', 'onset:ㅁ') && !has('국물', 'onset:ㄴ') && !has('옷 위', 'onset:ㅇ'), 'onset: 받침 바로 뒤 초성');
+  check(has('담력', 'before:ㅁ') && has('백리', 'before:ㄱ') && !has('먹는', 'before:ㄱ'), 'before: 받침 /X/ + 뒤 /ㄹ/');
+  check(has('옷이', 'cut:formal') && has('겉옷', 'cut:content') && has('옷 위', 'cut:space') && !has('국물', 'cut:content'), 'cut: 받침과 빈 초성 사이 경계 종류');
+  check(has('옷이', 'link') && has('불놀이', 'link') && !has('겉옷', 'link') && !has('옷', 'link'), 'link: 연음 자리가 있음');
+  check(has('의견란', 'exc') && !has('진로', 'exc'), 'exc: 제20항 다만 표시');
+  check(throws(() => R.hasCondition(byId['옷'], 'coda:')), '모르는 조건 낱말은 오류');
+}
+
+// 7-6 공개할 조항(§9): 지침 조항 + 뽑힌 원고 조항, 번호 순, '20-다만'은 '20' 바로 뒤
+{
+  const ss = ['놓는', '감기', '난로', '담력', '먹는', '의견란', '물난리'].map((id) => byId[id]);
+  eq(R.revealArticles([{ articles: ['18'] }, { articles: ['19'] }, { articles: ['20', '20-다만'] }], ss), ['12', '18', '19', '20', '20-다만', '21'], '2장 공개 조항(놓는이 뽑히면 제12항)');
+  eq(R.revealArticles([{ articles: ['20-다만'] }, { articles: ['21', '20'] }], []), ['20', '20-다만', '21'], '다만은 제20항 바로 뒤');
+  eq(R.revealArticles(undefined, [byId['옷이'], byId['겉옷'], byId['닭이']]), ['9', '13', '14', '15'], '지침 없이 원고 조항만(번호 순, 9 < 13)');
+}
+
+// 7-7 연음 자리(§8-3-4)
+{
+  const st = (id) => R.start(byId[id]);
+  eq(R.linkSites(st('옷이')), [{ s: 0, slot: 'co', k: 0 }], '옷이: /ㅅ/이 연음 자리');
+  eq(R.linkSites(st('닭이')), [{ s: 0, slot: 'co', k: 0 }, { s: 0, slot: 'co', k: 1 }], '닭이: /ㄹ/·/ㄱ/ 둘 다 연음 자리');
+  eq(R.linkSites(st('불놀이')), [{ s: 1, slot: 'co', k: 0 }], '불놀이: 놀|이의 /ㄹ/만(불|놀은 아님)');
+  eq(R.linkSites(st('부엌이')), [{ s: 1, slot: 'co', k: 0 }], '부엌이: 형식 형태소 앞 /ㅋ/');
+  eq(R.linkSites(st('겉옷')), [], '겉옷: 실질 형태소 앞은 연음 자리 아님');
+  eq(R.linkSites(st('옷 위')), [], '옷 위: 다음 단어 앞은 연음 자리 아님');
+  eq(R.linkSites(R.start(script('강아지'))), [], '종성 /ㅇ/은 연음 자리 아님');
+  eq(R.linkSites(R.start(script('입원'))), [{ s: 0, slot: 'co', k: 0 }], '경계 없음(null) + 빈 초성도 연음 자리');
+  check(R.touchedLink(byId['옷이'], [rep('0.co', 'ㄷ')]), '옷이 /ㅅ/ 고침 → 연음 자리 받침을 건드림');
+  check(!R.touchedLink(byId['겉옷'], [rep('0.co', 'ㄷ')]), '겉옷 /ㅌ/ 고침 → 안 건드림');
+  check(R.touchedLink(byId['닭이'], [{ op: 'delete', at: '0.co' }]), '닭이 /ㄹ/ 뺌 → 건드림');
+  check(R.touchedLink(byId['닭이'], [{ op: 'delete', at: '0.co1' }]), '닭이 /ㄱ/ 뺌 → 건드림');
+  check(!R.touchedLink(byId['옷이'], []), '교정 없음 → 안 건드림');
+  check(!R.touchedLink(byId['옷이'], [rep('1.nu', 'ㅔ')]), '옷이 모음 고침 → 안 건드림');
+  check(!R.touchedLink(byId['옷이'], [{ op: 'delete', at: '0.co1' }]), '할 수 없는 교정(빈 자리 빼기)은 건드린 것이 아님');
+  check(R.touchedLink(byId['불놀이'], [rep('1.on', 'ㄹ'), rep('1.co', 'ㄷ')]), '불놀이: 규칙 교정 뒤 놀|이의 받침 고침 → 건드림');
+  check(!R.touchedLink(byId['불놀이'], [rep('1.on', 'ㄹ')]), '불놀이: 풀이 과정대로면 안 건드림');
+  const sJ = J(byId['닭이']);
+  R.touchedLink(byId['닭이'], [{ op: 'delete', at: '0.co' }]);
+  check(J(byId['닭이']) === sJ, '연음 자리 판정이 원고를 바꾸지 않음');
+}
+
+// 7-8 닮은 칸(§8-2): 지금 상태에서 그 자리에 걸리는 규칙의 결과 음운만
+{
+  const st = (id) => R.start(byId[id]);
+  eq(R.similarCell(st('감기'), '0.co'), null, '감기 /ㅁ/: 닮은 칸 없음');
+  eq(R.similarCell(st('막론'), '0.co'), null, '막론 /ㄱ/ 먼저: 닮은 칸 없음');
+  eq(R.similarCell(st('막론'), '1.on'), 'ㄴ', '막론 /ㄹ/: /ㄴ/ 칸');
+  eq(R.similarCell(R.apply(st('막론'), rep('1.on', 'ㄴ')), { s: 0, slot: 'co' }), 'ㅇ', '막론 /ㄹ/→/ㄴ/ 뒤 /ㄱ/: /ㅇ/ 칸');
+  eq(R.similarCell(st('짓는'), '0.co'), 'ㄷ', '짓는 /ㅅ/: 끝소리 규칙의 /ㄷ/ 칸(/ㄴ/ 아님)');
+  eq(R.similarCell(st('난로'), '0.co'), 'ㄹ', '난로 /ㄴ/: /ㄹ/ 칸');
+  eq(R.similarCell(st('의견란'), '1.co'), null, '의견란 /ㄴ/: 유음화 칸 없음(다만)');
+  eq(R.similarCell(st('의견란'), '2.on'), 'ㄴ', '의견란 /ㄹ/: /ㄴ/ 칸');
+  eq(R.similarCell(st('옷이'), '0.co'), null, '옷이 /ㅅ/: 연음 자리라 칸 없음');
+  eq(R.similarCell(st('먹는'), '0.nu'), null, '모음 자리: 칸 없음');
+  eq(R.similarCell(st('먹는'), '5.co'), null, '없는 자리: 칸 없음');
+}
+
+// 7-9 원고 결과(§8-5)
+{
+  eq(R.scriptResult([]), 'skip', '송출 안 함 → 넘김');
+  eq(R.scriptResult(['diff', 'onair', 'diff']), 'onair', '온에어가 한 번이라도 → 온에어');
+  eq(R.scriptResult(['diff', 'offrule']), 'offrule', '성공 없고 마지막이 규칙 밖 → 규칙 밖');
+  eq(R.scriptResult(['offrule', 'diff']), 'skip', '마지막이 다름 → 넘김');
+  eq(R.scriptResult(['nonstandard']), 'skip', '마지막이 표준 아님 → 넘김');
+  eq(R.scriptResult([{ kind: 'diff' }, { kind: 'offrule' }]), 'offrule', '송출 결과 객체도 받음');
+  eq(R.scriptResult(undefined), 'skip', '기록이 없으면 넘김');
+}
+
+// 7-10 장 정답 합계(§10): 원고 change·count의 합(학생 교정은 세지 않음)
+{
+  const ss = ['짓는', '막론', '감기', '물난리', '난로', '의견란', '먹는'].map((id) => byId[id]);
+  const t = R.chapterTotals(ss);
+  eq(t, { change: { replace: 9, delete: 0, insert: 0, merge: 0 }, count: [6 + 6 + 5 + 8 + 5 + 9 + 6, 6 + 6 + 5 + 8 + 5 + 9 + 6] }, '장 정답 합계');
+  eq(R.chapterTotals([]), { change: { replace: 0, delete: 0, insert: 0, merge: 0 }, count: [0, 0] }, '원고가 없으면 0');
+  check(plainV(t), '장 정답 합계는 평범한 값');
+}
+
+// 7-11 새 함수의 반환값은 JSON으로 옮길 수 있는 평범한 값, 입력을 바꾸지 않음
+{
+  const st = R.start(byId['닭이']), stJ = J(st);
+  const outs = [R.draw(1, SC, [], 3), R.draw(2, SC, [], 3), R.twins(byId['옷이'], SC, []), R.linkSites(st), R.similarCell(st, '0.co'),
+    R.revealArticles([G_NASAL], [byId['짓는']]), R.checkGuide(G_NASAL, SC), R.gradeGuides([G_NASAL], {}), R.kindOf(byId['옷']), R.scriptResult(['onair'])];
+  check(outs.every(plainV), '새 함수 반환값이 평범한 값');
+  check(J(st) === stJ && J(SC) === poolJ, '상태·원고 풀을 바꾸지 않음');
+}
+
+// ───────────────────────── 8. 실제 감수 지침(js/data/guides.js, 명세 §7·§6·§13) ─────────────────────────
+{
+  const GD = ctx.GUIDES, A = ctx.ARTICLES;
+  check(!!GD && typeof GD === 'object', 'window.GUIDES 있음');
+  check(!!GD && Array.isArray(GD[1]) && GD[1].length === 3, '1장 지침 3개');
+  check(!!GD && Array.isArray(GD[2]) && GD[2].length === 3, '2장 지침 3개');
+  if (!GD || !Array.isArray(GD[1]) || !Array.isArray(GD[2])) done('규칙 점검');
+  const gdJ = J(GD);
+
+  // 8-1 지침마다 공개할 조항(명세 §7-1) · 조항 원문 데이터에 있는 조항
+  eq(GD[1].map((g) => g.articles), [['8', '9'], ['13', '14'], ['15']], '1장 지침 조항: ①제8·9항 ②제13·14항 ③제15항');
+  eq(GD[2].map((g) => g.articles), [['18'], ['19'], ['20', '20-다만']], '2장 지침 조항: ①제18항 ②제19항 ③제20항·다만');
+  [1, 2].forEach((ch) => GD[ch].forEach((g) => (g.articles || []).forEach((a) =>
+    check(!!A && a in A, `[${g.id}] 조항 ${a}가 조항 원문 데이터에 있음`))));
+
+  // 8-2 예시 검증(엔진): 예시가 빈칸 조건을 모두 보이고, 원고가 있고, 함정 표시가 맞음
+  eq(R.checkGuides(GD[1], SC), [], '1장 지침 예시 검증 통과');
+  eq(R.checkGuides(GD[2], SC), [], '2장 지침 예시 검증 통과');
+  [1, 2].forEach((ch) => GD[ch].forEach((g) => {
+    const n = (g.examples || []).length;
+    check(n >= 3 && n <= 4, `[${g.id}] 예시 3~4개 (${n})`);
+    check((g.examples || []).every((e) => byId[e.id] && byId[e.id].ch === ch), `[${g.id}] 예시는 그 장 원고`);
+  }));
+  // 지침 내용(명세 §7-1, 계획 T3): 1장 ②는 홑·쌍받침 연음과 겹받침 연음, ③은 제15항 원고, 2장 ③은 다만 낱말
+  {
+    const ex = (g) => (g.examples || []).map((e) => byId[e.id]).filter(Boolean);
+    const [c1a, c1b, c1c] = GD[1], [, , c2c] = GD[2];
+    check(ex(c1a).every((s) => !s.trap), '1장 ①: 예시는 함정 아닌 끝소리 원고');
+    check(ex(c1b).every((s) => s.trap === 'link'), '1장 ②: 예시는 모두 연음 함정');
+    check(ex(c1b).some((s) => R.start(s).syl.some((y) => y.co.length === 1)) && ex(c1b).some((s) => R.start(s).syl.some((y) => y.co.length === 2)),
+      '1장 ②: 홑받침·쌍받침 연음과 겹받침 연음 예시가 함께 있음');
+    check(ex(c1c).every((s) => !s.trap && (s.articles || []).includes('15')), '1장 ③: 예시는 제15항 원고');
+    check(ex(c2c).some((s) => s.trap === 'exception') && ex(c2c).some((s) => !s.trap && R.kindOf(s) === 'lateral'), '2장 ③: 유음화 예시와 다만 낱말 예시가 함께 있음');
+  }
+
+  // 8-3 채점: 정답이면 0칸, 칸마다 하나씩 틀리면 1칸, 모두 틀리면 빈칸 수
+  [1, 2].forEach((ch) => {
+    const gs = GD[ch];
+    const answers = (f) => Object.fromEntries(gs.map((g) => [g.id, Object.fromEntries(Object.keys(g.blanks).map((b) => [b, f(g, b)]))]));
+    const wrongOf = (g, b) => (g.blanks[b].answer + 1) % g.blanks[b].options.length;
+    const total = gs.reduce((n, g) => n + Object.keys(g.blanks).length, 0);
+    eq(R.gradeGuides(gs, answers((g, b) => g.blanks[b].answer)), 0, `${ch}장 지침: 정답을 모두 고르면 0칸`);
+    let oneOk = 0;
+    gs.forEach((g) => Object.keys(g.blanks).forEach((b) => {
+      const p = answers((gg, bb) => gg.blanks[bb].answer);
+      p[g.id][b] = wrongOf(g, b);
+      if (R.gradeGuides(gs, p) === 1) oneOk++;
+    }));
+    check(oneOk === total, `${ch}장 지침: 빈칸 하나만 틀리면 1칸 (${oneOk}/${total})`);
+    eq(R.gradeGuides(gs, answers(wrongOf)), total, `${ch}장 지침: 모두 틀리면 빈칸 수 ${total}`);
+    eq(R.gradeGuides(gs, {}), total, `${ch}장 지침: 아무것도 안 고르면 빈칸 수`);
+  });
+
+  // 8-4 예시를 뺀 원고 풀로 뽑기(명세 §6): 시드 0~199 모두 성공, 예시는 안 뽑힘, 함정 2개, 제15항·갈래 조건
+  const is15 = (s) => (s.articles || []).includes('15');
+  const ex1 = R.exampleIds(GD[1]), ex2 = R.exampleIds(GD[2]);
+  {
+    let fail1 = 0, fail2 = 0, err = '';
+    for (let sd = 0; sd < 200; sd++) {
+      let a, b;
+      try { a = R.draw(1, SC, ex1, sd); } catch (e) { fail1++; err = err || e.message; continue; }
+      const ss = a.map((id) => byId[id]);
+      const ok1 = a.length === 7 && new Set(a).size === 7 && ss.every((s) => s && s.ch === 1 && !ex1.includes(s.id)) &&
+        ss.filter((s) => s.trap === 'link').length === 2 && ss.filter((s) => s.trap).length === 2 &&
+        ss.filter((s) => !s.trap).every((s) => R.kindOf(s) === 'coda') && ss.some((s) => !s.trap && is15(s));
+      if (!ok1) fail1++;
+      try { b = R.draw(2, SC, ex2, sd); } catch (e) { fail2++; err = err || e.message; continue; }
+      const tt = b.map((id) => byId[id]);
+      const kinds = tt.filter((s) => !s.trap).map((s) => R.kindOf(s));
+      const ok2 = b.length === 7 && new Set(b).size === 7 && tt.every((s) => s && s.ch === 2 && !ex2.includes(s.id)) &&
+        tt.filter((s) => s.trap === 'exception').length === 1 && tt.filter((s) => s.id === '감기').length === 1 &&
+        tt.filter((s) => s.trap).length === 2 && kinds.length === 5 && ['nasal', 'r-nasal', 'lateral'].every((k) => kinds.includes(k));
+      if (!ok2) fail2++;
+    }
+    check(fail1 === 0, `1장: 지침 예시를 빼고 시드 200개 모두 뽑힘 — 연음 함정 2 + 끝소리 5(제15항 ≥1) (어긋남 ${fail1}) ${err}`);
+    check(fail2 === 0, `2장: 지침 예시를 빼고 시드 200개 모두 뽑힘 — 다만 1 + 감기 1 + 갈래 셋 (어긋남 ${fail2}) ${err}`);
+  }
+  // 예시로 쓰고도 뽑을 원고가 남음(제15항 원고 ≥1, 연음 함정 ≥2, 다만 ≥1, 감기는 예시가 아님)
+  {
+    const left = (ch, ex, f) => SC.filter((s) => s.ch === ch && !ex.includes(s.id) && f(s)).length;
+    check(left(1, ex1, (s) => !s.trap && is15(s)) >= 1, `1장 감수에 쓸 제15항 원고가 남음 (${left(1, ex1, (s) => !s.trap && is15(s))}개)`);
+    check(left(1, ex1, (s) => s.trap === 'link') >= 2, '1장 연음 함정이 2개 이상 남음');
+    check(left(2, ex2, (s) => s.trap === 'exception') >= 1, '2장 다만 낱말이 남음');
+    check(!ex2.includes('감기'), '감기는 지침 예시가 아님');
+    ['nasal', 'r-nasal', 'lateral'].forEach((k) => check(left(2, ex2, (s) => !s.trap && R.kindOf(s) === k) >= 1, `2장 ${k} 갈래 원고가 남음`));
+  }
+
+  // 8-5 지침 문구 규칙(명세 §3-6·§13): 금지 낱말·한자 없음, 학년 키 구조 같음, 빗금 표기, 대괄호(발음 표시) 없음
+  {
+    const FILE = 'js/data/guides.js';
+    const src = fs.readFileSync(path.join(ROOT, FILE), 'utf8');
+    const FORBIDDEN = ['글자', '훈민정음', '해례', '제자 원리', '제자원리', '상형', '가획', '중세', '조선 수군', '조선',
+      '판옥선', '협선', '척후선', '게임오버', '게임 오버'];
+    const HAN = /\p{Script=Han}/u;
+    const JAMO = '\\u3131-\\u318E\\u1100-\\u11FF';
+    const slashed = new RegExp(`/[${JAMO}]/`, 'g');
+    const lone = new RegExp(`[${JAMO}]`);
+    const shown = []; // 화면에 보이는 문구: 지침 문장(두 학년)과 보기
+    [1, 2].forEach((ch) => GD[ch].forEach((g) => {
+      const t = g.text || {};
+      check(Object.keys(t).sort().join() === 'h1,m3', `[${g.id}] 문장은 학년 키 m3·h1 둘`);
+      const holes = (s) => J([...new Set(String(s).match(/\{\w+\}/g) || [])].sort());
+      check(holes(t.m3) === holes(t.h1), `[${g.id}] 두 학년의 빈칸 자리가 같음`);
+      check(J((String(t.m3).match(/\{\w+\}/g) || [])) === J(String(t.h1).match(/\{\w+\}/g) || []), `[${g.id}] 빈칸이 한 번씩, 같은 차례`);
+      ['m3', 'h1'].forEach((gr) => shown.push([`${g.id}.text.${gr}`, t[gr]]));
+      Object.keys(g.blanks || {}).forEach((b) => (g.blanks[b].options || []).forEach((o, i) => shown.push([`${g.id}.${b}.${i}`, o])));
+    }));
+    check(shown.length > 20, `지침 문구 수 ${shown.length}`);
+    for (const [p, s] of shown) {
+      check(typeof s === 'string' && s.trim() === s && s.length > 0, `지침 문구가 빈칸·앞뒤 공백 없음: ${p}`);
+      check(!lone.test(String(s).replace(slashed, '')), `지침 문구의 음운은 빗금 표기: ${p} = ${s}`);
+      check(!/[\[\]]/.test(s), `지침 문구에 대괄호(발음 표시) 없음: ${p} = ${s}`);
+      check(!/[\r\n]/.test(s), `지침 문구는 한 줄: ${p}`);
+    }
+    for (const w of FORBIDDEN) {
+      check(!shown.some(([, s]) => String(s).includes(w)), `지침 문구에 금지 낱말 '${w}' 없음`);
+      check(!src.includes(w), `지침 파일에 금지 낱말 '${w}' 없음(주석 포함)`);
+    }
+    const hanLines = src.split('\n').map((l, i) => [i + 1, l]).filter(([, l]) => HAN.test(l));
+    check(!hanLines.length, `지침 파일에 한자 없음 ${hanLines.map(([n]) => n + '행').join(', ')}`);
+    check(!/\bdocument\b|localStorage|setTimeout|setInterval/.test(src.replace(/\/\/.*$/gm, '')), '지침 파일은 DOM·저장소·타이머를 쓰지 않음');
+  }
+  check(J(GD) === gdJ && J(SC) === poolJ, '지침 점검이 지침과 원고를 바꾸지 않음');
+  console.log(`  지침 예시(뽑기에서 뺌) 1장 ${ex1.join(', ')} · 2장 ${ex2.join(', ')}`);
 }
 
 done('규칙 점검');

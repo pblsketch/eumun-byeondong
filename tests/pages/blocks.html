@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>점검 — 음절 블록</title>
+  <!-- 점검 전용 페이지(tests/check-blocks.mjs): 음절 블록 부품 G.blocks만 불러 띄운다. 게임 화면이 아니다.
+       점검 대본이 #host 안에 G.blocks.create(…)로 블록을 만든다. 크기별 점검은 tests/pages/frame.html 안에서 연다. -->
+  <link rel="stylesheet" href="../../css/base.css">
+  <link rel="stylesheet" href="../../css/fonts.css">
+  <link rel="stylesheet" href="../../css/blocks.css">
+  <link rel="stylesheet" href="../../css/app.css">
+  <style>.t8-wrap { padding: var(--app-pad); }</style>
+</head>
+<body>
+  <div id="app"><section class="screen"><div class="t8-wrap"><div id="host"></div></div></section></div>
+  <script src="../../js/core/util.js"></script>
+  <script src="../../js/data/sounds.js"></script>
+  <script src="../../js/data/scripts.js"></script>
+  <script src="../../js/data/text.js"></script>
+  <script src="../../js/core/hangul.js"></script>
+  <script src="../../js/core/rules.js"></script>
+  <script src="../../js/game/blocks.js"></script>
+</body>
+</html>

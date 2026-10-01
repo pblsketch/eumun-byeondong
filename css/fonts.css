@@ -1,0 +1,16 @@
+/* 이 파일은 tools/build_fonts.py가 만든다. 손으로 고치지 말고 스크립트를 다시 돌리세요.
+ * 글꼴: Pretendard(OFL 1.1)에서 이름을 바꾼 두 파일(예약 글꼴 이름을 쓰지 않음).
+ *   GamsuPron = pron-700(700, 현대 한글 음절 11,172자 전부): 음절 블록·프롬프터·발음 표기·제목.
+ *   GamsuUI   = ui-500(500, 쓰인 글자만) + 굵은 글씨(600~900)는 pron-700을 함께 쓴다.
+ * 쓰는 법: index.html에서 css/base.css 다음에 이 파일을 불러온다.
+ *   base.css의 :root가 --font-body/--font-title/--font-pron을 기기 글꼴로 먼저 정하고,
+ *   아래 :root가 같은 변수를 덮어써 동봉 글꼴을 맨 앞에 더한다(뒤에 불러온 쪽이 이김). 변수의 주인은 base.css다.
+ * 굵기 설명자를 범위로 두어 적힌 굵기 밖의 값에서도 가짜 굵게가 생기지 않게 했다. */
+@font-face { font-family: 'GamsuPron'; src: url('../assets/fonts/pron-700.woff2') format('woff2'); font-weight: 400 900; font-style: normal; font-display: swap; }
+@font-face { font-family: 'GamsuUI'; src: url('../assets/fonts/pron-700.woff2') format('woff2'); font-weight: 600 900; font-style: normal; font-display: swap; }
+@font-face { font-family: 'GamsuUI'; src: url('../assets/fonts/ui-500.woff2') format('woff2'); font-weight: 400 500; font-style: normal; font-display: swap; }
+:root {
+  --font-body: 'GamsuUI', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif;
+  --font-title: 'GamsuPron', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif;
+  --font-pron: 'GamsuPron', 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', sans-serif;
+}

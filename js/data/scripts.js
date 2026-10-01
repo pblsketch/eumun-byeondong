@@ -48,6 +48,12 @@ window.SCRIPTS = [
   { id: '닭이', ch: 1, text: '닭이', morphs: '닭+이', cuts: ['formal'], pron: '달기', nonstandard: [['다기', '14']], steps: [], count: [5, 5], change: {}, articles: ['14'], trap: 'link', src: ['지화언 29', '지화언 35'] },
   { id: '흙을', ch: 1, text: '흙을', morphs: '흙+을', cuts: ['formal'], pron: '흘글', nonstandard: [['흐글', '14']], steps: [], count: [6, 6], change: {}, articles: ['14'], trap: 'link', src: ['지화언 29', '지화언 35'] },
   { id: '여덟을', ch: 1, text: '여덟을', morphs: '여덟+을', cuts: [null, 'formal'], pron: '여덜블', nonstandard: [['여더를', '14']], steps: [], count: [8, 8], change: {}, articles: ['14'], trap: 'link', src: ['지화언 29', '지화언 35'] },
+  // 제15항 원문 예시(실질 형태소·다음 단어 앞: 끝소리 규칙 뒤 연음) — 2단계에 더함(03 §5-3). 맛없다·[붙임] 낱말은 자음군 단순화가 걸려 아직 넣지 않음
+  { id: '밭 아래', ch: 1, text: '밭 아래', morphs: '밭 아래', cuts: ['space', null], pron: '바다래', steps: [['coda', 'replace', '0.co', 'ㄷ']], count: [6, 6], change: { replace: 1 }, articles: ['15'], src: ['표준 15', '지공1지도 139'] },
+  { id: '늪 앞', ch: 1, text: '늪 앞', morphs: '늪 앞', cuts: ['space'], pron: '느밥', steps: [['coda', 'replace', '0.co', 'ㅂ'], ['coda', 'replace', '1.co', 'ㅂ']], count: [5, 5], change: { replace: 2 }, articles: ['9', '15'], src: ['표준 15', '지공1지도 139'] },
+  { id: '젖어미', ch: 1, text: '젖어미', morphs: '젖+어미', cuts: ['content', null], pron: '저더미', steps: [['coda', 'replace', '0.co', 'ㄷ']], count: [6, 6], change: { replace: 1 }, articles: ['15'], src: ['표준 15', '지공1지도 139'] },
+  { id: '헛웃음', ch: 1, text: '헛웃음', morphs: '헛-+웃-+-음', cuts: ['content', 'formal'], pron: '허두슴', steps: [['coda', 'replace', '0.co', 'ㄷ']], count: [7, 7], change: { replace: 1 }, articles: ['15'], src: ['표준 15', '지공1지도 139'] },
+  { id: '꽃 위', ch: 1, text: '꽃 위', morphs: '꽃 위', cuts: ['space'], pron: '꼬뒤', steps: [['coda', 'replace', '0.co', 'ㄷ']], count: [4, 4], change: { replace: 1 }, articles: ['15'], src: ['표준 15', '지공1지도 139'] },
 
   // ───────────── 2장 닮은 소리: 비음화, ㄹ의 비음화, 유음화 ─────────────
   // 비음화(제18항)

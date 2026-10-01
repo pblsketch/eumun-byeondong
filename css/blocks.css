@@ -1,0 +1,88 @@
+/* 음절 블록 · 형태소 경계 — js/game/blocks.js (명세 §8-1 · §14)
+   음절마다 위 줄 초성 · (반모음) · 중성, 아래 줄 종성. 칸 하나 = 누르는 단추 하나(가로 배치 64px, 휴대폰 세로 48px 이상 — --touch).
+   색의 역할(css/base.css): 음운 · 칸은 잉크, 고른 칸 · 지금 고를 것은 선택 색(--accent), 형태소 경계는 경계 종류 색(--cut-*)만.
+   경계 '+'는 종류마다 굵기 · 모양도 다르다(formal 가는 + · content 굵은 + · sino 네모 안 +) — 색만으로 가르지 않는다.
+   계속 움직이는 장식은 없다. 크기: --bk-cell 칸 한 변, --bk-fs 음운 글씨. */
+.bk {
+  --bk-cell: var(--touch);
+  --bk-fs: calc(var(--bk-cell) * .44);
+  --bk-pad: 3px;
+  --bk-border: 2px;            /* 음절 테두리 */
+  --bk-in: 2px;              /* 칸 사이 */
+  display: flex; flex-direction: column; align-items: center; gap: var(--s3);
+  width: 100%; min-width: 0;
+  font-family: var(--font-pron); font-weight: 700; color: var(--ink);
+  -webkit-user-select: none; user-select: none;
+}
+@media (min-width: 1600px) { .bk { --bk-cell: 84px; } }   /* 전자칠판: 뒷자리에서도 보이게 */
+
+.bk-line { display: flex; align-items: stretch; justify-content: center; max-width: 100%; }
+
+/* 음절 하나 */
+.bk-syl {
+  flex: none; display: flex; flex-direction: column; gap: var(--bk-in);
+  padding: var(--bk-pad); border: var(--bk-border) solid var(--control-line); border-radius: var(--r-cell);
+  background: var(--surface);
+}
+.bk-cap {
+  height: calc(var(--bk-fs) * 1.15); line-height: calc(var(--bk-fs) * 1.15);
+  font-size: calc(var(--bk-fs) * .82); color: var(--ink-2); text-align: center; white-space: nowrap; overflow: hidden;
+}
+.bk-top, .bk-bot { display: flex; gap: var(--bk-in); }
+
+/* 칸(음운 자리) */
+.bk-slot {
+  flex: 1 0 var(--bk-cell); min-width: var(--bk-cell); min-height: var(--bk-cell); margin: 0; padding: 0 2px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1.5px solid var(--divider); border-radius: 6px; background: var(--surface-2); color: var(--ink);
+  font-family: var(--font-pron); font-weight: 700; font-size: var(--bk-fs); line-height: 1;
+  cursor: pointer; touch-action: manipulation; white-space: nowrap;
+  transition: background-color var(--t-pick), border-color var(--t-pick), box-shadow var(--t-pick);
+}
+.bk-slot:hover { background: var(--accent-soft); }
+.bk-sl { color: var(--ink-2); font-weight: 500; font-size: .72em; padding: 0 .04em; }
+.bk-slot[data-slot="gl"] .bk-ph { font-family: var(--font-body); font-style: italic; }
+.bk-slot.is-empty { background: transparent; border-style: dashed; border-color: var(--control-line); color: var(--ink-2); }
+.bk-slot.is-empty:hover { background: var(--accent-soft); }
+.bk-zero { font-size: .9em; font-weight: 500; }
+.bk-hole { display: block; width: 40%; height: 0; border-top: 2px dotted var(--divider); }
+/* 고른 칸(합침표 첫 음운 · 고침표로 누른 칸) */
+.bk-slot.is-picked { background: var(--accent-soft); border-color: var(--accent); box-shadow: inset 0 0 0 2px var(--accent); }
+
+/* 틈(음절 사이 · 넣음표 자리) */
+.bk-gap {
+  flex: none; width: var(--bk-cell); min-height: var(--bk-cell); align-self: stretch; margin: 0; padding: 2px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  background: transparent; border: 0; border-radius: var(--r-cell); color: var(--ink-2);
+  font: inherit; cursor: pointer; touch-action: manipulation;
+  transition: background-color var(--t-pick), box-shadow var(--t-pick);
+}
+.bk-gap:hover { background: var(--accent-soft); }
+.bk-plus { width: calc(var(--bk-cell) * .42); height: calc(var(--bk-cell) * .42); flex: none; }
+.bk-space { width: calc(var(--bk-cell) * .5); height: calc(var(--bk-cell) * .3); flex: none; color: var(--ink-2); }
+.bk-cut {
+  max-width: 100%; font-family: var(--font-body); font-weight: 700; font-size: 13px; line-height: 1.15;
+  text-align: center; word-break: keep-all; overflow-wrap: anywhere;
+}
+@media (min-width: 1600px) { .bk-cut { font-size: 16px; } }
+.bk-gap.cut-formal { color: var(--cut-formal); }
+.bk-gap.cut-content { color: var(--cut-content); }
+.bk-gap.cut-sino { color: var(--cut-sino); }
+
+/* 지금 고를 것을 돋보이게(누르기는 막지 않음) */
+.bk.is-mode-gap .bk-gap { box-shadow: inset 0 0 0 2px var(--accent); background: var(--accent-soft); }
+.bk.is-mode-gap .bk-slot { border-color: var(--divider); }
+.bk.is-mode-slot .bk-slot:not(.is-picked) { border-color: var(--control-line); }
+
+/* 두 줄로 나눴을 때: 줄 바뀌는 곳의 틈은 두 줄 사이에 가로로 길게(누르는 높이는 --bk-cell) */
+.bk.is-split { gap: var(--s1); }
+.bk-gap.is-break { align-self: stretch; width: auto; height: var(--bk-cell); min-height: var(--bk-cell); flex-direction: row; gap: var(--s2); }
+.bk-gap.is-break .bk-cut { max-width: none; white-space: nowrap; }
+
+/* 휴대폰 세로: 칸은 48px 그대로, 테두리 · 여백만 줄여 4음절이 두 줄에 들게(가장 넓은 첫 줄 = 음절 + 틈 + 반모음 음절 ≈ 305px) */
+@media (max-width: 760px), (orientation: portrait) {
+  .bk { --bk-pad: 2px; --bk-in: 1px; --bk-border: 1.5px; }
+}
+/* 경계 표시가 없는 줄 바뀜 틈: 가는 점선 하나로 '이어짐'만 보인다(심화 단계 · 경계 없는 자리 모두 같은 모양) */
+.bk-gap.is-break:empty { position: relative; }
+.bk-gap.is-break:empty::before { content: ''; position: absolute; left: 30%; right: 30%; top: 50%; border-top: 2px dotted var(--divider); }
