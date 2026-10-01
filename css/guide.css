@@ -1,0 +1,102 @@
+/* 감수 지침 화면 — js/game/guide.js (명세 §7 · §14)
+   종이 바탕 위에 흰 지침 카드를 차례로 쌓는다. 카드 = 번호 · 지침 문장(빈칸 자리) · 빈칸마다 보기 단추 줄 · 예시 원고.
+   색: 고른 보기 = 선택 색(--accent). 신호 색(--sig-*)과 방송 빨강은 쓰지 않는다(지침 확인은 송출 신호가 아님).
+   정답이 새지 않게 보기 단추는 모두 같은 모양이고, 누른 것만 [aria-pressed="true"]로 칠한다.
+   글씨 크기는 화면 너비(container app — css/app.css)로 정한다. 세로 배치 기준은 base.css · app.js PORTRAIT_Q와 같음.
+   누르는 자리: 가로 64px, 휴대폰 세로 48px(--touch). */
+.gd {
+  max-width: 1280px; margin: 0 auto;
+  display: flex; flex-direction: column; gap: clamp(12px, 1.4cqw, 24px);
+  padding: clamp(16px, 2cqw, 40px) var(--app-pad) clamp(24px, 3cqw, 48px);
+}
+@container app (min-width: 1600px) { .gd { max-width: 1560px; } }
+
+/* 머리 */
+.gd-head { display: flex; flex-direction: column; gap: 4px; }
+.gd-kicker { margin: 0; font-size: calc(var(--app-body-fs) - 2px); font-weight: 600; color: var(--ink-2); }
+.gd-from { margin: 0; font-size: var(--app-body-fs); font-weight: 600; color: var(--accent-2); }
+.gd-intro { margin: 0; font-size: var(--app-body-fs); color: var(--ink); font-weight: 600; }
+
+/* 지침 카드 */
+.gd-list { display: flex; flex-direction: column; gap: clamp(12px, 1.4cqw, 24px); }
+.gd-card {
+  display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: var(--s4) clamp(16px, 2cqw, 32px);
+  padding: clamp(14px, 1.6cqw, 28px); border-radius: var(--r-panel); background: var(--surface); border: 1px solid var(--divider);
+}
+.gd-card-main { display: flex; gap: var(--s3); min-width: 0; }
+.gd-card-num {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 1.8em; height: 1.8em; border-radius: 50%; margin-top: 2px;
+  background: var(--accent-soft); color: var(--accent-2); font-weight: 800; font-size: var(--app-h2-fs);
+}
+.gd-card-body { min-width: 0; flex: 1 1 auto; display: flex; flex-direction: column; gap: var(--s3); }
+.gd-text { margin: 0; font-size: calc(var(--app-body-fs) + 1px); line-height: 1.75; color: var(--ink); overflow-wrap: anywhere; }
+
+/* 문장 속 빈칸 자리: 번호 + 고른 보기(고르기 전에는 빈 밑줄) */
+.gd-slot {
+  display: inline-flex; align-items: baseline; gap: 2px; margin: 0 2px; padding: 0 6px;
+  border-bottom: 3px solid var(--control-line); border-radius: 4px 4px 0 0; background: var(--surface-2);
+  font-weight: 700; white-space: nowrap; line-height: 1.4;
+}
+.gd-slot-no { color: var(--accent-2); font-weight: 800; }
+.gd-slot-val { display: inline-block; min-width: 2.6em; font-family: var(--font-pron); }
+.gd-slot.is-filled { border-bottom-color: var(--accent); background: var(--accent-soft); white-space: normal; }
+.gd-slot.is-filled .gd-slot-val { min-width: 0; }
+
+/* 빈칸마다 보기 줄 */
+.gd-blanks { display: flex; flex-direction: column; gap: var(--s2); }
+.gd-blank { display: flex; align-items: center; gap: var(--s2) var(--s3); min-width: 0; }
+.gd-blank-no { flex: none; width: 1.6em; text-align: center; font-size: var(--app-h2-fs); font-weight: 800; color: var(--accent-2); }
+.gd-opts { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; gap: var(--s2); }
+.gd-opt {
+  min-height: var(--touch); min-width: var(--touch); padding: 4px 18px; border-radius: var(--r-btn); cursor: pointer;
+  border: 2px solid var(--control-line); background: var(--surface); color: var(--ink);
+  font-family: var(--font-body); font-weight: 700; font-size: var(--app-btn-fs); line-height: 1.25;
+  display: inline-flex; align-items: center; justify-content: center; text-align: center;
+  word-break: keep-all; overflow-wrap: anywhere; touch-action: manipulation;
+  transition: background-color var(--t-pick), border-color var(--t-pick), color var(--t-pick);
+}
+.gd-opt:hover:not(:disabled) { background: var(--accent-soft); }
+.gd-opt[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.gd-opt:disabled { cursor: default; }
+.gd-opt:disabled:not([aria-pressed="true"]) { color: var(--ink-2); border-color: var(--divider); }
+
+/* 예시 원고: 표기 → [발음] */
+.gd-ex { min-width: 0; padding: var(--s3) var(--s4); border-radius: var(--r-btn); background: var(--surface-2); border: 1px dashed var(--divider); align-self: start; }
+.gd-ex-h { margin: 0 0 var(--s2); display: flex; align-items: center; gap: var(--s2); font-size: calc(var(--app-body-fs) - 1px); font-weight: 700; color: var(--ink-2); }
+.gd-ex-ico { width: 1.2em; height: 1.2em; color: var(--accent); }
+.gd-ex-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.gd-ex-row { font-size: calc(var(--app-body-fs) + 1px); line-height: 1.35; color: var(--ink-2); overflow-wrap: anywhere; }
+.gd-ex-text { font-weight: 700; color: var(--ink); }
+.gd-ex-pron { font-family: var(--font-pron); font-weight: 700; color: var(--ink); }
+
+/* 아래: 한 줄 안내 + 확인 / 원고 감수 시작 */
+.gd-foot { display: flex; align-items: center; justify-content: flex-end; gap: var(--s3) var(--s5); flex-wrap: wrap; }
+.gd-msg {
+  flex: 1 1 260px; min-width: 0; margin: 0; min-height: 1.4em;
+  font-size: var(--app-h2-fs); font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.gd-msg.is-ok { color: var(--accent-2); }
+.gd-check, .gd-go { min-width: clamp(220px, 18cqw, 320px); }
+.gd-check-ico, .gd-go-ico { width: .9em; height: .9em; }
+
+/* 넓지 않은 가로 화면: 예시를 지침 아래로 */
+@container app (max-width: 1100px) {
+  .gd-card { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* 휴대폰 세로 */
+@media (max-width: 760px), (orientation: portrait) {
+  .gd { padding: var(--s3) var(--s4) calc(var(--s5) + env(safe-area-inset-bottom, 0px)); gap: var(--s3); }
+  .gd-card { grid-template-columns: minmax(0, 1fr); padding: var(--s3); gap: var(--s3); }
+  .gd-card-main { gap: var(--s2); }
+  .gd-card-num { font-size: 16px; }
+  .gd-text { font-size: 17px; line-height: 1.7; }
+  .gd-blank { align-items: flex-start; }
+  .gd-blank-no { font-size: 18px; width: 1.3em; line-height: var(--touch); }
+  .gd-opt { padding: 4px 12px; font-size: 16px; }
+  .gd-ex { padding: var(--s2) var(--s3); }
+  .gd-ex-row { font-size: 17px; }
+  .gd-msg { flex-basis: 100%; font-size: 17px; text-align: center; }
+  .gd-check, .gd-go { flex: 1 1 100%; min-width: 0; }
+}
