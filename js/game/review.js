@@ -109,6 +109,11 @@
     return out;
   }
 
+  // 음운 표기(/ㄱ/)가 줄 끝에서 '/'만 남고 끊기지 않게 한 덩어리(.rw-ph — 줄바꿈 없음)로 묶는다. 글(textContent)은 그대로다.
+  function keepPh(s) {
+    return String(s).split(/(\/[^\/\s]{1,2}\/)/).filter(Boolean).map((x) => (/^\/[^\/\s]{1,2}\/$/.test(x) ? el('span', { class: 'rw-ph' }, x) : x));
+  }
+
   let view = null; // 지금 열린 감수 화면(점검 전용 debug가 씀)
 
   function createView(root, run) {
@@ -298,7 +303,7 @@
       r.lines.forEach((line, i) => {
         const off = outRule.indexOf(i) >= 0;
         logList.appendChild(el('li', { class: 'rw-log-item' + (off ? ' is-offrule' : '') }, [
-          el('span', { class: 'rw-log-line' }, line),
+          el('span', { class: 'rw-log-line' }, keepPh(line)),
           off ? el('span', { class: 'rw-log-tag' }, [U.glyph('offrule', 'glyph rw-log-tag-ico'), R.offruleMark]) : null,
         ]));
       });
@@ -602,9 +607,9 @@
           const fills = {};
           Object.keys(g.blanks || {}).forEach((b) => {
             const bl = g.blanks[b];
-            fills[b] = el('span', { class: 'rw-guide-fill' }, bl.options[bl.answer]);
+            fills[b] = el('span', { class: 'rw-guide-fill' }, keepPh(bl.options[bl.answer]));
           });
-          return el('li', { class: 'rw-guide' }, fillNodes((g.text && g.text[grade]) || '', fills));
+          return el('li', { class: 'rw-guide' }, fillNodes((g.text && g.text[grade]) || '', fills).map((x) => (typeof x === 'string' ? keepPh(x) : x)));
         })),
       ]);
     }
@@ -617,7 +622,7 @@
       const steps = (tw.steps || []).map((x) => G.rules.parseStep(x)).map((c, i) => {
         const line = G.text.logLine(i + 1, logInfo(st, c));
         st = G.rules.apply(st, c);
-        return el('li', { class: 'rw-ex-step' }, G.text.fill(H.exampleStep, { line, rule: G.text.rule(grade, c.rule) }));
+        return el('li', { class: 'rw-ex-step' }, keepPh(G.text.fill(H.exampleStep, { line, rule: G.text.rule(grade, c.rule) })));
       });
       return el('div', { class: 'rw-ex' }, [
         el('h3', { class: 'rw-help-h' }, H.exampleTitle),

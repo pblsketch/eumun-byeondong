@@ -155,7 +155,8 @@
 .rw-ex-row { margin: 0; display: flex; align-items: baseline; gap: var(--s3); flex-wrap: wrap; }
 .rw-ex-label { font-size: calc(var(--app-body-fs) - 2px); font-weight: 700; color: var(--ink-2); }
 .rw-ex-spell, .rw-ex-pron { font-family: var(--font-pron); font-weight: 700; font-size: calc(var(--app-h2-fs) + 2px); color: var(--ink); }
-.rw-ex-steps { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; }
+.rw-ex-steps { margin: 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; } /* 줄마다 ①②…이 이미 있음 */
+.rw-ph { white-space: nowrap; } /* 음운 표기 /ㄱ/는 줄에서 끊지 않는다 */
 .rw-ex-step, .rw-ex-none { margin: 0; font-weight: 600; }
 
 /* ── 아래 단추 ── */
