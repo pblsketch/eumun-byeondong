@@ -26,7 +26,7 @@
 //   app        게임 이름, 방송국 이름, 역할 이름
 //   common     여러 화면이 함께 쓰는 단추·꼴(네/아니요, 원문·게임 설정 표시, '{n}장', '{n}번' …)
 //   chapters   장 이름 8개(name) + 다루는 변동 한 줄(topic, 학년별) — 기획안 3절
-//   levels     단계 이름(basic 기본 / deep 심화) + 단계 풀이(hint, 학년별)
+//   levels     단계 이름(basic 기본 / advanced 심화) + 단계 풀이(hint, 학년별)
 //   start      시작 화면: 학년·장·단계 고르기, 준비 중, 중3 추천, 게임 방법·설정 단추, 이어 하기(resume),
 //              덮어쓰기 확인(overwrite)
 //   settings   설정 창
@@ -52,7 +52,7 @@
 //   음절 자리 slot: on gl nu co (js/core/rules.js의 자리 Pos)
 //   형태소 경계 cut: formal content sino (space·null은 이름표 없음)
 //   규칙 rule: coda r-nasal-exc r-nasal nasal lateral · 변동 change: replace delete insert merge
-//   화면 단계 phase: guide review reveal · 단계 level: basic deep
+//   화면 단계 phase: guide review reveal · 단계 level: basic advanced
 // · 맨 아래에 다른 코드가 쓰는 도우미 함수(G.text.…)가 있다. 문구만 고칠 때는 건드리지 않아도 된다.
 
 window.TEXT = {
@@ -96,11 +96,11 @@ window.TEXT = {
 
   // ── 단계 ─────────────────────────────────────────────────────
   levels: {
-    name: { basic: '기본', deep: '심화' },
+    name: { basic: '기본', advanced: '심화' },
     tag: '{level} 단계',                    // '심화 단계'
     hint: {
       basic: { m3: '말의 경계와 닮은 칸 안내가 보여요', h1: '형태소 경계와 닮은 칸 안내가 보여요' },
-      deep: { m3: '경계도 안내도 없이 감수해요', h1: '경계도 안내도 없이 감수해요' },
+      advanced: { m3: '경계도 안내도 없이 감수해요', h1: '경계도 안내도 없이 감수해요' },
     },
   },
 
@@ -608,7 +608,7 @@ G.text = (function () {
     chapterName(n) { return (T.chapters[n] && T.chapters[n].name) || ''; },
     chapterTitle(n) { return api.fill(T.common.chapterTitle, { n, name: api.chapterName(n) }); },
     chapterTopic(grade, n) { return T.chapters[n] ? T.chapters[n].topic[gr(grade)] : ''; },
-    // 단계 이름: levelName('deep') → '심화'
+    // 단계 이름: levelName('advanced') → '심화'
     levelName(level) { return T.levels.name[level] || ''; },
     // 송출 신호 한 줄과 이름: signal('diff', { n: 2 }) → '2곳이 달라요'
     signal(kind, vars) { return T.signal.line[kind] ? api.fill(T.signal.line[kind], vars) : ''; },

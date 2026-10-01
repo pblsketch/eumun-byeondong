@@ -148,7 +148,7 @@ const CH = ['첫 출근', '닮은 소리', '/ㅣ/ 앞에서', '세게', '자리�
 CH.forEach((name, i) => eq(H.chapterName(i + 1), name, `${i + 1}장 이름`));
 eq(H.chapterTitle(2), '2장 닮은 소리', '장 제목 꼴');
 check(!!T.start.comingSoon && !!T.start.recommendM3, '준비 중·중3 추천');
-eq(JSON.stringify(T.levels.name), JSON.stringify({ basic: '기본', deep: '심화' }), '단계 이름');
+eq(JSON.stringify(T.levels.name), JSON.stringify({ basic: '기본', advanced: '심화' }), '단계 이름');
 for (const ph of ['guide', 'review', 'reveal']) check(!!T.start.resume.summary[ph], `이어 하기 요약 ${ph}`);
 eq(H.t('start.resume.summary.review', { chapter: H.chapterTitle(1), level: H.levelName('basic'), i: 3, n: 7 }),
   '1장 첫 출근 · 기본 단계 · 원고 3/7', '이어 하기 요약 꼴');
@@ -231,7 +231,7 @@ eq(H.chapterTopic('m3', 1), T.chapters[1].topic.m3, 'chapterTopic');
 check(T.chapters[1].topic && typeof T.chapters[1].topic === 'object', 'get이 원본을 바꾸지 않음');
 eq(H.term('x', 'place', 'velar'), '여린입천장소리', '모르는 학년은 중3(term)');
 eq(H.short('h1', 'manner', 'stop'), '파열', 'short');
-eq(H.levelName('deep'), '심화', 'levelName');
+eq(H.levelName('advanced'), '심화', 'levelName');
 eq(H.signalName('offrule'), '규칙 밖', 'signalName');
 eq(H.articleName('18'), '제18항', 'articleName');
 eq(H.articleName('20-다만'), '제20항 다만', 'articleName 다만');
