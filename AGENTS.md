@@ -22,7 +22,7 @@
 │   └── tracking/
 │       ├── status.md                   ← 된 것 / 남은 것 / 선생님이 확인할 것
 │       ├── decisions/index.md          ← 결정 기록 목록(0001~)
-│       └── findings.md                 ← 아직 못 푼 문제(F2·F4·F5·F7 …)
+│       └── findings.md                 ← 아직 못 푼 문제
 ├── js/
 │   ├── core/AGENTS.md                  ← 규칙 엔진·한글 음절·저장·소리 재생·공용 도구
 │   ├── data/AGENTS.md                  ← 음운·원고·지침·조항 원문·화면 문구(선생님이 고치는 곳)

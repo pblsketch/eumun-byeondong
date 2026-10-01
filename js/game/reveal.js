@@ -26,12 +26,7 @@
   const U = G.util, el = U.el;
   const T = () => window.TEXT;
 
-  function sound(fn) { try { fn(); } catch (e) { /* 소리 장치 문제로 화면이 멈추지 않게 */ } }
-
-  // 끝난 진행 장인가(원고 7개 모두 결과가 있음)
-  function finished(run) {
-    return !!run && Array.isArray(run.ids) && Array.isArray(run.done) && run.ids.length > 0 && run.done.length === run.ids.length;
-  }
+  const sound = U.sound, finished = U.finished; // finished: 끝난 진행 장인가(원고 모두 결과가 있음)
 
   function exampleItem(e) {
     return el('li', { class: 'rv-ex' }, [
@@ -75,7 +70,7 @@
 
       root.appendChild(el('div', { class: 'rv' }, [
         el('header', { class: 'rv-head' }, [
-          el('p', { class: 'rv-kicker' }, G.text.t('result.subtitle', { chapter: G.text.chapterTitle(run.ch), level: G.text.levelName(run.level) })),
+          el('p', { class: 'rv-kicker' }, G.text.t('common.chapterLevel', { chapter: G.text.chapterTitle(run.ch), level: G.text.levelName(run.level) })),
           el('h1', { class: 'app-h1 rv-title' }, R.title),
         ]),
         el('p', { class: 'rv-heading' }, G.text.fill(R.heading, { articles: G.text.articleList(ids) })),

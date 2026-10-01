@@ -14,10 +14,11 @@
 //   지금 원고 = run.ids[run.done.length], 그 기록 = run.cur(교정 · 송출 신호 · 도움). 새로 고침하면 교정까지 그대로 돌아온다.
 //
 // ── 화면 ────────────────────────────────────────────────────────────────
-//   머리: 장 · 단계 | 원고 n/7 | 음운 수 '표기 n → 지금 m' | [게임 방법] [소리]
+//   머리: 장 · 단계 | 원고 n/7 | 음운 수 '표기 n → 지금 m' | 감수실 그림 자리 | [게임 방법] [소리]
 //   책상(화면 너비 가득): 원고 표기 · 감수 도장 · 음절 블록(G.blocks) · 교정 부호 넷 · 한 줄 자리(.rw-say — 안내 · 알림 · 신호 ·
 //     연음 안내가 차례로)
-//   그 아래(가로 배치는 나란히, 휴대폰 세로는 차례로): 프롬프터(ON AIR 램프 · 아나운서가 읽는 발음 · 신호 배지) · 감수 기록 · 도움
+//   그 아래(가로 배치는 나란히, 휴대폰 세로는 차례로): 프롬프터(ON AIR 램프 · 아나운서 그림 자리 · 아나운서가 읽는 발음 · 신호 배지)
+//     · 감수 기록 · 도움. 그림 자리 둘은 빈 틀(명세 §14 — aria-label만, 휴대폰 세로에서는 숨김)
 //   아래: [되돌리기] [다시 감수] [도움] [송출] [다음 원고 / 조항 공개로]
 //   판(.rw-sheet — 가로 배치는 화면 아래에 떠 있고, 휴대폰 세로는 책상 안에 펼쳐짐): 조음 도표(고침표 · 합침표) 또는
 //     넣을 음운 고르기(/ㄴ/ · /j/)
@@ -36,8 +37,13 @@
 //   심화 단계 경계는 G.blocks가 그리지 않는다(level을 꼭 넘김). 닮은 칸도 심화에서는 넘기지 않는다.
 //
 // ── 저장 시점(명세 §11) — 모두 G.save.saveChapter(run) ───────────────────
-//   교정 · 되돌리기 · 다시 감수 · 송출 · 도움(센 것) · 원고 넘김. 7번째 원고가 끝나면 phase 'reveal' · cur null · done 7개로
-//   저장하고 조항 공개 화면으로 간다(G.app.go('reveal', { run })).
+//   교정 · 되돌리기 · 다시 감수 · 송출 · 도움(센 것, 처음 연 단계 — cur.open) · 원고 넘김. 7번째 원고가 끝나면 phase 'reveal' · cur null ·
+//   done 7개로 저장하고 조항 공개 화면으로 간다(G.app.go('reveal', { run })).
+//   송출하면 그 모습(cur.last — 신호 · 읽은 발음 · 다른 음절 · 규칙 밖 교정 · 그때의 교정 수 n)을 저장하고, 새로 고친 뒤 그 모습 그대로 보인다.
+//   송출 뒤 교정이 바뀌면 n을 null로 — 규칙 밖 표시 · 감수 도장은 송출한 그대로일 때만 다시 보인다(프롬프터 발음 · 배지는 남음).
+//
+// ── 묻기 창(넘김 확인)은 모달(G.util.modal — 뒤 화면 inert, Tab은 창 안에서, 닫으면 여는 단추로 초점). 화면을 떠나면
+//   이 화면에서 연 게임 방법 창도 닫는다.
 //
 // ── 소리(명세 §15) ──────────────────────────────────────────────────────
 //   배경 음악 'review', 효과음 mark(교정) · send(송출) · 신호 kind 그대로(G.audio.sfx(result.kind)). 소리 장치 문제로 멈추지 않게 감싼다.
@@ -61,9 +67,10 @@
   const INSERTS = [['ㄴ', 'onset'], ['j', 'glide']];                                   // 넣음표: /ㄴ/은 뒤 음절 초성, j는 반모음 자리
   const MARKS = ['replace', 'delete', 'insert', 'merge'];
 
-  function sound(fn) { try { fn(); } catch (e) { /* 소리 장치 문제로 화면이 멈추지 않게 */ } }
+  const sound = U.sound, fillNodes = U.fillNodes;
+  const keepPh = (s) => U.keepPh(s, 'rw-ph'); // 음운 표기(/ㄱ/)를 줄에서 끊지 않는 덩어리로
   const copy = (x) => (x == null ? x : JSON.parse(JSON.stringify(x)));
-  const freshCur = () => ({ corrections: [], kinds: [], sends: 0, help: [], helped: false, last: null });
+  const freshCur = () => ({ corrections: [], kinds: [], sends: 0, help: [], helped: false, open: 0, last: null });
   const posOf = (p) => G.rules.pos(p);
   const samePos = (a, b) => a.s === b.s && a.slot === b.slot && a.k === b.k;
   const seqKey = (p) => p.s * 10 + SLOTS.indexOf(p.slot) * 2 + p.k;   // 자리 차례(음절 → 초성 · 반모음 · 중성 · 종성)
@@ -94,21 +101,6 @@
     });
     return { state: st, lines };
   }
-  // 문구 틀의 {이름} 자리에 노드를 끼운다(js/game/guide.js와 같은 방식)
-  function fillNodes(tpl, nodes) {
-    const out = [];
-    const re = /\{(\w+)\}/g;
-    const s = String(tpl);
-    let at = 0, m;
-    while ((m = re.exec(s))) {
-      if (m.index > at) out.push(s.slice(at, m.index));
-      out.push(Object.prototype.hasOwnProperty.call(nodes, m[1]) ? nodes[m[1]] : m[0]);
-      at = re.lastIndex;
-    }
-    if (at < s.length) out.push(s.slice(at));
-    return out;
-  }
-
   let view = null; // 지금 열린 감수 화면(점검 전용 debug가 씀)
 
   function createView(root, run) {
@@ -131,8 +123,8 @@
     let gapP = null;         // 넣음표로 누른 틈
     let outRule = [];        // 마지막 송출의 규칙 밖 교정 번호(교정이 바뀌면 지움)
     let busy = false, finalize = null, timers = [], sayToken = 0;
-    let helpOpen = false, helpView = 0, helpSeen = [];
-    let blocks = null, confirmEl = null;
+    let helpOpen = false, helpView = 0;
+    let blocks = null, confirmEl = null, releaseConfirm = null;
     let alive = true;
 
     function later(fn, ms) { const id = setTimeout(() => { timers = timers.filter((x) => x !== id); if (alive) fn(); }, ms); timers.push(id); }
@@ -143,7 +135,7 @@
       type: 'button', class: 'app-btn rw-btn' + (cls ? ' ' + cls : ''), 'data-act': act, onclick: onClick,
     }, [glyph ? U.glyph(glyph, 'glyph rw-btn-ico') : null, el('span', { class: 'rw-btn-label' }, label)]);
 
-    const kicker = el('p', { class: 'rw-kicker' }, G.text.t('result.subtitle', { chapter: G.text.chapterTitle(run.ch), level: G.text.levelName(level) }));
+    const kicker = el('p', { class: 'rw-kicker' }, G.text.t('common.chapterLevel', { chapter: G.text.chapterTitle(run.ch), level: G.text.levelName(level) }));
     const noEl = el('h1', { class: 'app-h1 rw-no' });
     const countVal = el('span', { class: 'rw-count-val' });
     const countEl = el('p', { class: 'rw-count' }, [el('span', { class: 'rw-count-name' }, R.header.count), countVal]);
@@ -161,9 +153,11 @@
     const lamp = el('span', { class: 'rw-lamp', 'aria-hidden': 'true' }, R.onAir);
     const prompter = el('div', { class: 'rw-prompter' });
     const badge = el('p', { class: 'rw-badge', hidden: true });
+    // 그림 자리(이번에는 빈 틀 — 명세 §14): 아나운서는 프롬프터 옆, 감수실은 머리 가운데. 글 없이 aria-label만, 휴대폰 세로에서는 숨김
+    const art = (cls, label) => el('div', { class: 'rw-art ' + cls, role: 'img', 'aria-label': label }, U.glyph('image', 'glyph rw-art-ico'));
     const booth = el('section', { class: 'rw-booth', 'aria-label': R.prompter }, [
       el('div', { class: 'rw-booth-bar' }, [lamp, el('span', { class: 'rw-booth-name' }, R.prompter)]),
-      prompter, badge,
+      el('div', { class: 'rw-booth-row' }, [art('rw-art-announcer', T().images.announcer), el('div', { class: 'rw-booth-screen' }, [prompter, badge])]),
     ]);
 
     const logMark = el('span', { class: 'rw-log-mark', hidden: true }, [U.glyph('offrule', 'glyph rw-log-mark-ico'), R.offruleMark]);
@@ -199,8 +193,10 @@
       'aria-label': id === 'j' ? G.text.term(grade, 'glide', 'j') : G.text.phoneme(id),
       onclick: () => insertPick(id, where),
     }, G.text.phoneme(id)));
-    const insHost = el('div', { class: 'rw-ins-pick', hidden: true }, [
-      el('p', { class: 'rw-ins-title' }, R.prompt.insertPick),
+    //   안내 '넣을 음운을 골라 주세요'는 한 줄 자리(.rw-say)에 나오므로 여기서는 화면에 다시 쓰지 않고 묶음의 읽기 이름으로만 둔다
+    const insTitleId = 'rw-ins-title-' + Date.now();
+    const insHost = el('div', { class: 'rw-ins-pick', role: 'group', 'aria-labelledby': insTitleId, hidden: true }, [
+      el('p', { class: 'rw-ins-title sr-only', id: insTitleId }, R.prompt.insertPick),
       el('div', { class: 'rw-ins-row' }, insBtns),
       el('div', { class: 'rw-sheet-bar' }, el('button', { type: 'button', class: 'app-btn rw-sheet-close', onclick: () => cancelPick() }, [U.glyph('close', 'glyph rw-btn-ico'), C.close])),
     ]);
@@ -211,6 +207,7 @@
     const wrap = el('div', { class: 'rw' }, [
       el('header', { class: 'rw-head' }, [
         el('div', { class: 'rw-head-main' }, [kicker, el('div', { class: 'rw-head-row' }, [noEl, countEl])]),
+        art('rw-art-room', T().images.room),
         el('div', { class: 'rw-tools' }, [howtoBtn, soundBtn]),
       ]),
       el('div', { class: 'rw-main' }, [
@@ -233,7 +230,7 @@
     const mq = window.matchMedia ? window.matchMedia(G.app.PORTRAIT_Q) : null;
 
     function onKey(e) {
-      if (e.key !== 'Escape') return;
+      if (e.key !== 'Escape' || (G.howto.current && G.howto.current())) return;
       if (confirmEl) { e.stopPropagation(); closeConfirm(); } else if (!sheet.hidden) { e.stopPropagation(); cancelPick(); }
     }
     document.addEventListener('keydown', onKey, true);
@@ -260,7 +257,7 @@
       clearTimers();
       closeConfirm();
       S = { script, cur, sandbox: !!sandbox, state: null, from: G.rules.phonemes(G.rules.start(script)) };
-      mode = null; outRule = []; helpSeen = []; helpView = 0;
+      mode = null; outRule = []; helpView = 0;
       resetPicks();
       closeSheet();
       toggleHelp(false);
@@ -271,13 +268,18 @@
       if (blocks) blocks.destroy();
       blocks = G.blocks.create(blocksHost, { grade, level, split: 'auto', caption: true, label: R.scriptLabel, onTap: (p) => onTap(p) });
       refresh();
-      // 새로 고침 뒤: 마지막 송출의 배지와 지금 교정대로의 발음(도움 ①이 위치를 표시할 곳)
+      // 새로 고침 뒤: 마지막 송출의 모습 그대로 — 그때 프롬프터에 보인 발음 · 신호 배지(도움 ①이 이 발음에 위치를 표시).
+      //   교정이 송출 때 그대로일 때만(last.n === 교정 수) 규칙 밖 표시와 감수 도장도 — 바뀌었으면 송출한 직후 교정을 바꾼 때와 같게 지움
       U.clear(prompter);
       badge.hidden = true;
-      if (cur.last) {
-        fillPrompter(Array.from(G.rules.reading(S.state)), false);
-        showBadge(cur.last.kind);
-        stamp.hidden = cur.last.kind !== 'onair';
+      const last = cur.last;
+      if (last) {
+        const same = sentAsIs();
+        fillPrompter(Array.from(last.reading), false);
+        showBadge(last.kind);
+        stamp.hidden = !(same && last.kind === 'onair');
+        outRule = same && last.kind === 'offrule' ? last.outOfRule.slice() : [];
+        refresh();
       }
       say(promptText());
     }
@@ -298,7 +300,7 @@
       r.lines.forEach((line, i) => {
         const off = outRule.indexOf(i) >= 0;
         logList.appendChild(el('li', { class: 'rw-log-item' + (off ? ' is-offrule' : '') }, [
-          el('span', { class: 'rw-log-line' }, line),
+          el('span', { class: 'rw-log-line' }, keepPh(line)),
           off ? el('span', { class: 'rw-log-tag' }, [U.glyph('offrule', 'glyph rw-log-tag-ico'), R.offruleMark]) : null,
         ]));
       });
@@ -415,6 +417,7 @@
     function changed() {
       flush();
       outRule = [];
+      if (S.cur.last) { S.cur.last.n = null; S.cur.last.outOfRule = []; } // 송출한 그대로가 아님(js/core/save.js 머리 주석)
       stamp.hidden = true;
       setLamp(false);
       save();
@@ -496,7 +499,7 @@
       const linking = G.rules.touchedLink(S.script, S.cur.corrections);
       S.cur.kinds.push(res.kind);
       S.cur.sends = S.cur.kinds.length;
-      S.cur.last = { kind: res.kind, at: res.at.slice() };
+      S.cur.last = { kind: res.kind, at: res.at.slice(), diff: res.diff, reading: res.reading, outOfRule: res.outOfRule.slice(), n: S.cur.corrections.length };
       save();
       sound(() => G.audio.sfx('send'));
       outRule = res.kind === 'offrule' ? res.outOfRule.slice() : [];
@@ -543,7 +546,10 @@
     }
 
     // ── 도움 사다리(명세 §8-4): 한 칸씩 학생이 엶, 감점 없음 ──
-    function reach() { return Math.max(0, ...S.cur.help, ...helpSeen); }
+    // 열 수 있는 단계: 연 적 있는 가장 높은 단계(S.cur.open — '먼저 송출해 보세요'였던 ①도, 저장됨) + 1
+    function reach() { return Math.max(0, S.cur.open || 0, ...S.cur.help); }
+    // 마지막 송출 뒤 교정이 그대로인가(규칙 밖 표시 · 감수 도장을 다시 보일지)
+    function sentAsIs() { const l = S.cur.last; return !!l && l.n === S.cur.corrections.length; }
     function paintHelp() {
       const r = reach();
       helpSteps.forEach((b, i) => {
@@ -572,17 +578,19 @@
     function openHelp(n) {
       if (n > reach() + 1) return;
       helpView = n;
-      if (helpSeen.indexOf(n) < 0) helpSeen.push(n);
+      const opened = n > (S.cur.open || 0);
+      if (opened) S.cur.open = n;
       U.clear(helpBody);
       if (n === 1) {
         const last = S.cur.last;
         if (last && last.kind === 'diff') {
-          if (!prompter.querySelector('.rw-psyl')) fillPrompter(Array.from(G.rules.reading(S.state)), false);
+          if (!prompter.querySelector('.rw-psyl')) fillPrompter(Array.from(last.reading), false);
           prompter.querySelectorAll('.rw-psyl').forEach((s) => s.classList.toggle('is-diff', last.at.indexOf(+s.getAttribute('data-i')) >= 0));
           helpBody.appendChild(el('p', { class: 'rw-help-line' }, H.diffMarked));
           record(1);
         } else {
-          helpBody.appendChild(el('p', { class: 'rw-help-line' }, H.needBroadcast)); // 도움으로 세지 않음
+          helpBody.appendChild(el('p', { class: 'rw-help-line' }, H.needBroadcast)); // 도움으로 세지 않음(연 단계만 저장 — ②가 열림)
+          if (opened) save();
         }
       } else if (n === 2) {
         helpBody.appendChild(guidesView());
@@ -602,9 +610,9 @@
           const fills = {};
           Object.keys(g.blanks || {}).forEach((b) => {
             const bl = g.blanks[b];
-            fills[b] = el('span', { class: 'rw-guide-fill' }, bl.options[bl.answer]);
+            fills[b] = el('span', { class: 'rw-guide-fill' }, keepPh(bl.options[bl.answer]));
           });
-          return el('li', { class: 'rw-guide' }, fillNodes((g.text && g.text[grade]) || '', fills));
+          return el('li', { class: 'rw-guide' }, fillNodes((g.text && g.text[grade]) || '', fills).map((x) => (typeof x === 'string' ? keepPh(x) : x)));
         })),
       ]);
     }
@@ -617,7 +625,7 @@
       const steps = (tw.steps || []).map((x) => G.rules.parseStep(x)).map((c, i) => {
         const line = G.text.logLine(i + 1, logInfo(st, c));
         st = G.rules.apply(st, c);
-        return el('li', { class: 'rw-ex-step' }, G.text.fill(H.exampleStep, { line, rule: G.text.rule(grade, c.rule) }));
+        return el('li', { class: 'rw-ex-step' }, keepPh(G.text.fill(H.exampleStep, { line, rule: G.text.rule(grade, c.rule) })));
       });
       return el('div', { class: 'rw-ex' }, [
         el('h3', { class: 'rw-help-h' }, H.exampleTitle),
@@ -648,9 +656,15 @@
           ]),
         ]));
       root.appendChild(confirmEl);
+      releaseConfirm = U.modal(confirmEl, confirmEl.firstChild); // 뒤 화면 inert · Tab은 창 안에서 · 닫으면 여는 단추로 초점
       try { noBtn.focus({ preventScroll: true }); } catch (e) { /* 무시 */ }
     }
-    function closeConfirm() { if (confirmEl) { confirmEl.remove(); confirmEl = null; } }
+    function closeConfirm() {
+      if (!confirmEl) return;
+      confirmEl.remove();
+      confirmEl = null;
+      if (releaseConfirm) { releaseConfirm(); releaseConfirm = null; }
+    }
     function finish() {
       flush();
       clearTimers();
@@ -717,6 +731,9 @@
       if (blocks) { blocks.destroy(); blocks = null; }
       chart.destroy();
       closeConfirm();
+      // 감수 화면에서 연 게임 방법 창(document.body에 붙음)도 닫는다 — 그 창의 문서 이벤트도 함께 떨어진다
+      const h = G.howto.current && G.howto.current();
+      if (h) h.close();
     }
 
     // 처음 원고

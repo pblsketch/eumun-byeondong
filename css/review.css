@@ -24,6 +24,14 @@
 }
 .rw-count-name { color: var(--ink-2); font-weight: 600; }
 .rw-tools { display: flex; gap: var(--s2); flex-wrap: wrap; }
+/* 그림 자리(이번에는 빈 틀 — 명세 §14, 시작 화면 .st-art와 같은 모양). 글 없이 aria-label만, 휴대폰 세로에서는 숨김.
+   감수실은 머리 가운데 빈 곳에(머리 높이를 늘리지 않고, 줄바꿈을 일으키지 않게 flex-basis 0), 아나운서는 프롬프터 왼쪽에 좁게. */
+.rw-art {
+  min-width: 0; display: flex; align-items: center; justify-content: center;
+  border: 2px dashed var(--divider); border-radius: var(--r-panel); background: var(--surface-2); color: var(--divider);
+}
+.rw-art-ico { width: clamp(28px, 2.4cqw, 48px); height: clamp(28px, 2.4cqw, 48px); }
+.rw-art-room { flex: 1 1 0; align-self: stretch; max-width: 440px; min-height: 48px; }
 .rw-tool { padding: 0 16px; font-size: calc(var(--app-btn-fs) - 1px); }
 .rw-sound .glyph { color: var(--accent); }
 
@@ -98,6 +106,9 @@
 }
 .rw-lamp.is-on { background: var(--onair-lamp); color: var(--prompter-ink); }
 .rw-booth-name { font-size: 15px; font-weight: 700; color: var(--prompter-ink); }
+.rw-booth-row { display: flex; align-items: stretch; gap: var(--s3); min-width: 0; }
+.rw-booth-screen { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: var(--s2); }
+.rw-art-announcer { flex: 0 0 clamp(64px, 6cqw, 132px); min-height: calc(var(--touch) + 8px); background: transparent; border-color: var(--ink-3); color: var(--ink-3); }
 .rw-prompter {
   min-height: calc(var(--touch) + 8px); display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 2px;
   font-family: var(--font-pron); font-weight: 700; font-size: clamp(30px, 2.8cqw, 54px); line-height: 1.15; letter-spacing: .04em;
@@ -155,7 +166,8 @@
 .rw-ex-row { margin: 0; display: flex; align-items: baseline; gap: var(--s3); flex-wrap: wrap; }
 .rw-ex-label { font-size: calc(var(--app-body-fs) - 2px); font-weight: 700; color: var(--ink-2); }
 .rw-ex-spell, .rw-ex-pron { font-family: var(--font-pron); font-weight: 700; font-size: calc(var(--app-h2-fs) + 2px); color: var(--ink); }
-.rw-ex-steps { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; }
+.rw-ex-steps { margin: 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; } /* 줄마다 ①②…이 이미 있음 */
+.rw-ph { white-space: nowrap; } /* 음운 표기 /ㄱ/는 줄에서 끊지 않는다 */
 .rw-ex-step, .rw-ex-none { margin: 0; font-weight: 600; }
 
 /* ── 아래 단추 ── */
@@ -176,7 +188,7 @@
 .rw-sheet .ch-parts { flex: 0 1 auto; }
 .rw-chart { min-width: 0; }
 .rw-ins-pick { display: flex; flex-direction: column; align-items: center; gap: var(--s3); padding: var(--s3) var(--s4); min-width: min(420px, 100%); }
-.rw-ins-title { margin: 0; font-size: var(--app-h2-fs); font-weight: 800; color: var(--ink); text-align: center; }
+/* .rw-ins-title은 화면에서 숨긴 읽기 이름(.sr-only) — 같은 안내가 한 줄 자리에 나온다 */
 .rw-ins-row { display: flex; gap: var(--s3); justify-content: center; flex-wrap: wrap; }
 .rw-ins {
   min-width: calc(var(--touch) * 1.6); min-height: calc(var(--touch) * 1.2); margin: 0; padding: 0 var(--s4);
@@ -201,6 +213,7 @@
   .rw-head-main { flex: 1 1 100%; }
   .rw-count { font-size: 15px; padding: 2px 10px; }
   .rw-tools { flex: 1 1 100%; }
+  .rw-art { display: none; }
   .rw-tool { flex: 1 1 0; min-width: 0; padding: 0 8px; font-size: 15px; }
   .rw-side { grid-template-columns: minmax(0, 1fr); }
   /* 4음절 두 줄이 360px 너비에 들게 책상 테두리 · 여백을 뺀다 */

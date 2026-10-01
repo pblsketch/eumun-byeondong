@@ -1,5 +1,5 @@
 // 조항 공개 G.screens.reveal · 장 결과 G.screens.result 점검(aside) — 명세 §9 · §10 · §11 · §14 · §18.
-//   감수 화면(T9) 없이 점검한다: 점검 전용 조작 D.finishRun(tests/lib/runs.mjs)이 '원고 7개가 끝난 진행 장'을 저장소에 넣고
+//   감수 화면(js/game/review.js) 없이 점검한다: 점검 전용 조작 D.finishRun(tests/lib/runs.mjs)이 '원고 7개가 끝난 진행 장'을 저장소에 넣고
 //   G.app.resume()으로 조항 공개 화면에 바로 간다(게임 화면에는 점검용 단추 · 글이 없다).
 //   1) 조항 공개: 머리 문장 = 「표준 발음법」 + G.text.articleList(G.rules.revealArticles(지침, 뽑힌 원고)),
 //      조항 카드 차례가 그 목록과 같음('20-다만'은 '20' 바로 뒤), 카드마다 '원문' 표시와 원문 문장 · 예시

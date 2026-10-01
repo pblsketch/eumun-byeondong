@@ -49,7 +49,7 @@ util ──▶ data ──▶ core ──▶ game ──▶ main
            G.save.clearChapter()   [다시 하기] = beginChapter({ skipGuide: true }) → 감수로 바로
 ```
 
-새로 고침하거나 다시 열면 `G.app.resume()`이 저장된 진행 장의 phase 화면으로 바로 간다. 감수 단계면 `cur.corrections`를 처음 상태부터 다시 적용해 하던 교정까지 그대로 그린다.
+새로 고침하거나 다시 열면 늘 시작 화면이 뜨고, 저장된 진행 장이 있으면 이어 하기 카드가 보인다. [이어 하기]를 누르면 `G.app.resume()`이 저장된 phase 화면으로 간다. 감수 단계면 `cur.corrections`를 처음 상태부터 다시 적용해 하던 교정까지 그대로 그린다.
 
 ## 교정 하나가 판정되는 길
 

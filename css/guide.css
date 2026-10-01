@@ -39,6 +39,7 @@
   font-weight: 700; white-space: nowrap; line-height: 1.4;
 }
 .gd-slot-no { color: var(--accent-2); font-weight: 800; }
+.gd-ph { white-space: nowrap; } /* 음운 표기 /ㄱ/는 줄에서 끊지 않는다 */
 .gd-slot-val { display: inline-block; min-width: 2.6em; font-family: var(--font-pron); }
 .gd-slot.is-filled { border-bottom-color: var(--accent); background: var(--accent-soft); white-space: normal; }
 .gd-slot.is-filled .gd-slot-val { min-width: 0; }

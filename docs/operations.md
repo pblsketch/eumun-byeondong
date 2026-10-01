@@ -26,14 +26,15 @@ node tests/server.mjs 8766
 cd tests
 npm test
 ```
-- 마지막 줄이 `모두 통과`이고 종료 코드 0이어야 한다. 전체는 브라우저 점검 때문에 십수 분 걸린다. 실행 중 Aside 브라우저에 탭이 열렸다 닫히는 것은 정상이다.
+- 마지막 줄이 `모두 통과`이고 종료 코드 0이어야 한다. 전체는 브라우저 점검 때문에 약 30분 걸리고, 그 대부분이 `check-layout`의 화면 캡처다. 캡처 없이 재기만 하려면 `SHOTS=0 npm test`(약 12분). 실행 중 Aside 브라우저에 탭이 열렸다 닫히는 것은 정상이다.
 - 서버는 `run-all.mjs`가 스스로 띄운다(8791부터 빈 포트).
 - Aside 앱이 꺼져 있거나 응답하지 않으면 브라우저 점검이 모두 실패한다 → 앱을 켜고 다시. 한 단계만 시간 초과로 실패하면 그 점검만 다시 돌려 본다.
 
 | 명령·환경 값 | 뜻 |
 |---|---|
-| `npm test -- rules data save text audio-load` | 이름에 그 낱말이 든 점검만. 이 다섯은 브라우저 없이 몇 초 |
+| `npm test -- rules data save check-text audio-load` | 이름에 그 낱말이 든 점검만(이름의 일부와 맞춰 봄). 이 다섯은 브라우저 없이 몇 초. `text`만 주면 브라우저 점검 `check-screen-text`도 함께 돈다 |
 | `npm test -- review` | 감수 화면 브라우저 점검만 |
+| `SHOTS=0 npm test` | 모든 점검을 돌리되 `tests/shots/` 화면 캡처를 건너뜀(캡처는 aside가 바쁠 때 한 장에 수십 초) |
 | `BASE=https://pblsketch.github.io/eumun-byeondong/ npm test -- 00-smoke` | 로컬 서버 대신 그 주소를 점검(배포 확인). 브라우저 점검만 주소를 쓴다 |
 | `STEP=낱말 node check-review.mjs` | 한 점검 파일 안에서 이름에 그 낱말이 든 단계만(서버를 따로 켜 둠: `node server.mjs 8791`) |
 

@@ -13,16 +13,17 @@
 - 부품끼리: `blocks.js`와 `chart.js`는 서로 부르지 않고 판단하지 않는다. 감수 화면이 둘을 엮는다.
 
 ## 불변 조건
-- 화면은 `G.screens.<이름> = { mount(root, 값), unmount() }`로 등록한다. `app.js`를 고쳐 화면을 더하지 않는다. 이름은 `start|guide|review|reveal|result` — `start`는 `app.js`가 그린다. `guide`·`review`·`reveal`의 값은 `{ run }`(저장소에서 다시 읽은 진행 장), 값이 없으면 `G.save.loadChapter()`.
+- 화면은 `G.screens.<이름> = { mount(root, 값), unmount() }`로 등록하고, 화면끼리는 `G.app.go(이름, 값)`로만 넘어간다. 지금 이름은 `start|guide|review|reveal|result`(`G.app.NAMES` — 새 화면은 여기에 이름을 더함, 목록에 없는 이름은 시작 화면으로) — `start`는 `app.js`가 그린다. `guide`·`review`·`reveal`의 값은 `{ run }`(저장소에서 다시 읽은 진행 장), 값이 없으면 `G.save.loadChapter()`.
 - 결과 화면 전에는 뽑힌 원고의 표준 발음·비표준 발음·함정 여부·갈래, 지침 정답이 화면 글·DOM 속성·aria에 없다. 지침의 정답 보기와 오답 보기는 속성이 같아야 한다(`aria-pressed`·`data-i`만 다름). 프롬프터는 송출한 뒤 학생이 교정한 발음만 보인다.
 - 심화 단계: `G.blocks.create`에 `level`을 꼭 넘긴다(빠뜨리면 기본으로 그려 경계가 샌다). 심화면 경계·이름표가 DOM·aria에 아예 없고, 닮은 칸을 넘기지 않는다. 닮은 칸은 1·2장 기본 단계만.
 - 할 수 없는 교정(`G.rules.apply`가 받은 상태를 그대로 돌려줌)만 한 줄로 알리고 기록하지 않는다. 그 밖의 교정은 막지 않는다.
-- 저장 시점: 교정·되돌리기·다시 감수·송출·센 도움·원고 넘김·지침 완료마다 `G.save.saveChapter(run)`. 7번째 원고 뒤 `phase:'reveal'`, `cur:null`, `done` 7개로 저장하고 `G.app.go('reveal', { run })`. 결과 화면이 `G.save.clearChapter()`.
+- 저장 시점: 교정·되돌리기·다시 감수·송출·센 도움·처음 연 도움 단계(`cur.open` — 세지 않는 ①도)·원고 넘김·지침 완료마다 `G.save.saveChapter(run)`. 송출하면 그 모습(`cur.last` — 읽은 발음·신호·다른 음절·규칙 밖 교정·그때의 교정 수 `n`)을 저장하고, 새로 고친 뒤 프롬프터·배지·도움 ①은 그 모습 그대로 그린다(지금 교정으로 다시 읽지 않음). 송출 뒤 교정이 바뀌면 `n`을 null로 — 규칙 밖 표시·감수 도장은 송출한 그대로일 때만. 7번째 원고 뒤 `phase:'reveal'`, `cur:null`, `done` 7개로 저장하고 `G.app.go('reveal', { run })`. 결과 화면이 `G.save.clearChapter()`.
 - 화면 크기 다섯에서 가로 스크롤 없음, 누르는 자리 64px(휴대폰 세로 48px, CSS `--touch`). 색은 `base.css` 토큰만. 깜박임 반복·계속 움직이는 장식 없음, `.reduce-motion`이면 송출 연출을 건너뛴다.
 - 점검용 조작(`G.review.debug`)은 화면에 단추·글로 드러내지 않는다.
 
 ## 구현 방식
-- DOM은 `G.util.el`로 짓고, 기호는 `G.util.glyph(이름)`. 묻기 창·한 줄 안내 방식은 `guide.js`·`app.js`와 같게 한다.
+- DOM은 `G.util.el`로 짓고, 기호는 `G.util.glyph(이름)`. 문구 틀에 노드 끼우기 `G.util.fillNodes`, 음운 표기 묶기 `G.util.keepPh`, 소리 감싸기 `G.util.sound`, 끝난 진행 장 `G.util.finished`를 쓴다(화면마다 다시 만들지 않음). 묻기 창·한 줄 안내 방식은 `guide.js`·`app.js`와 같게 한다.
+- 묻기 창·안내 창(`role="dialog" aria-modal="true"`)은 `G.util.modal(덮개, 창)`으로 연다: 뒤 화면 inert, Tab은 창 안에서, 닫을 때 돌려받은 `release()`를 불러 inert를 떼고 여는 단추로 초점을 돌려준다. 화면을 떠날 때(unmount·destroy) 그 화면에서 연 창(게임 방법 포함)을 닫는다.
 - 세로 배치 기준은 `(max-width: 760px), (orientation: portrait)` — CSS 미디어 쿼리와 `G.app.PORTRAIT_Q`가 같은 값이어야 한다. 낮은 가로 화면은 `(orientation: landscape) and (max-height: 500px)`.
 - 음절 블록 `split:'auto'`는 실제 너비를 재서 들어가지 않을 때만 두 줄로 나누고, 띄어쓰기 → (기본 단계) 경계 틈을 먼저 고른다. 줄이 바뀌는 틈은 가로 띠로 남아 누를 수 있다. 다시 배치는 `setTimeout(0)` 뒤에(ResizeObserver 직후 값이 틀림).
 - 합침표: 두 음운을 자리 차례로 놓고, 결과가 들어갈 표(자음·모음·반모음)는 `G.rules.apply`에 대표 음운을 넣어 봐서 고른다(받는 표가 없으면 이웃이 아님).
