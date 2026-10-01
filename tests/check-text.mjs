@@ -11,6 +11,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { loadScripts, check, done, ROOT } from './lib/load.mjs';
+import { FORBIDDEN, BROADCASTERS } from './lib/words.mjs';
 
 const FILE = 'js/data/text.js';
 check(fs.existsSync(path.join(ROOT, FILE)), `${FILE}이 있다`);
@@ -66,10 +67,7 @@ check(pairs.some(([p]) => p === 'TEXT.terms') && pairs.some(([p]) => p === 'TEXT
 })(T, 'TEXT');
 
 // ── 2. 금지 낱말(명세 §3-6) + 실제 방송사 이름 — 문구와 파일 전체(주석 포함) ──
-const FORBIDDEN = ['글자', '훈민정음', '해례', '제자 원리', '제자원리', '상형', '가획', '중세', '조선 수군', '조선',
-  '판옥선', '협선', '척후선', '게임오버', '게임 오버'];
-const BROADCASTERS = ['KBS', 'MBC', 'SBS', 'EBS', 'JTBC', 'YTN', 'MBN', 'OBS', 'CBS', 'BBC', 'CNN', 'NHK',
-  '채널A', '채널에이', '연합뉴스', '한국방송', '문화방송', '서울방송', '교육방송'];
+// 목록은 tests/lib/words.mjs(실제 화면 글 점검 check-screen-text와 함께 씀)
 for (const w of [...FORBIDDEN, ...BROADCASTERS]) {
   const bad = strings.filter(([, s]) => s.includes(w));
   check(!bad.length, `금지 낱말 '${w}' 없음(문구) ${bad.map((b) => b[0]).join(', ')}`);
