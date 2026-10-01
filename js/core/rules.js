@@ -669,7 +669,7 @@ G.rules = (function () {
         { what: '탈락이 먼저인 원고', test: (s) => stepAt(s, 0)[1] === 'delete' },
         { what: '끝소리 규칙이 먼저인 원고', test: (s) => stepAt(s, 0)[0] === 'coda' },
         { what: '축약이 먼저인 원고', test: (s) => stepAt(s, 0)[0] === 'aspirate' },
-        { what: '첨가 ▸ 비음화 원고', test: (s) => { const q = ruleSeq(s), i = q.indexOf('n-insert'); return i >= 0 && q.indexOf('nasal', i + 1) > i; } },
+        { what: '첨가 뒤 비음화 원고', test: (s) => { const q = ruleSeq(s), i = q.indexOf('n-insert'); return i >= 0 && q.indexOf('nasal', i + 1) > i; } },
       ],
     },
   };

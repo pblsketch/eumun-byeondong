@@ -57,7 +57,16 @@ if (window.D && !D.toReview) {
     if (sc.pron !== sc.text && strip(sc.pron).length > 1) words.push(sc.pron);
     if (strip(sc.pron) !== strip(sc.text) && strip(sc.pron).length > 1) words.push(strip(sc.pron));
     (sc.nonstandard || []).forEach((ns) => { words.push(G.text.pron(ns[0]), strip(ns[0])); });
-    words.forEach((x) => { if (html.indexOf(x) >= 0) D.bad(tag + ': 아직 얻지 않은 발음이 DOM에 있음 ' + x + ' (' + sc.id + ')'); });
+    // 대괄호 없는 발음은 앞뒤가 한글이 아닐 때만 셈 — 잎[입]이 도표 머리글 '입술소리'에 걸리지 않게
+    const H = (c) => !!c && c >= '가' && c <= '힣';
+    const found = (x) => {
+      if (x.charAt(0) === '[') return html.indexOf(x) >= 0;
+      for (let k = html.indexOf(x); k >= 0; k = html.indexOf(x, k + 1)) {
+        if (!H(html.charAt(k - 1)) && !H(html.charAt(k + x.length))) return true;
+      }
+      return false;
+    };
+    words.forEach((x) => { if (found(x)) D.bad(tag + ': 아직 얻지 않은 발음이 DOM에 있음 ' + x + ' (' + sc.id + ')'); });
     if (/trap|data-kind="(link|exception|blocked|contrast|coda|nasal|r-nasal|lateral|palatal|tense[a-z-]*|simplify|h-drop|n-insert|glide-insert|aspirate)"/.test(html)) D.bad(tag + ': 함정 · 갈래 표시가 DOM에 있음');
   };
   D.noBad = (tag) => {
