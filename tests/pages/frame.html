@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><title>크기별 점검 틀</title>
+<style>html,body{margin:0;background:#888;height:100%;overflow:hidden}#wrap{transform-origin:0 0;position:absolute;left:0;top:0}iframe{border:0;display:block;background:#fff}</style>
+</head><body>
+<!-- 출처: 「음운 해전」 pblsketch/sori-haejeon tests/pages/frame.html 을 가져왔다(바꾼 것: frameReady가 빈 틀의 load에 풀리지 않게).
+     점검 전용: aside는 화면 크기를 못 바꾸므로 게임을 정해진 크기의 iframe으로 띄운다.
+     ?w=390&h=844&src=index.html   창보다 크면 축소해서 보여 준다. frameWin()으로 게임 창에 접근. -->
+<div id="wrap"><iframe id="game"></iframe></div>
+<script>
+  const q = new URLSearchParams(location.search);
+  const w = +q.get('w') || 1920, h = +q.get('h') || 1080;
+  const f = document.getElementById('game');
+  f.style.width = w + 'px'; f.style.height = h + 'px';
+  const fit = () => { const s = Math.min(1, innerWidth / w, innerHeight / h); document.getElementById('wrap').style.transform = 'scale(' + s + ')'; };
+  fit(); addEventListener('resize', fit);
+  window.frameWin = () => f.contentWindow;
+  // 처음 붙은 빈 틀(about:blank)의 load는 건너뛰고 게임 페이지가 열렸을 때만 준비됨(이 저장소에서 고침)
+  window.frameReady = new Promise((r) => f.addEventListener('load', function on() {
+    let blank = true;
+    try { blank = f.contentWindow.location.href === 'about:blank'; } catch (e) { blank = false; }
+    if (blank) return;
+    f.removeEventListener('load', on);
+    r(true);
+  }));
+  f.src = '../../' + (q.get('src') || 'index.html');
+</script>
+</body></html>
