@@ -178,6 +178,22 @@ for (const s of SC) {
   walkA(st0, 0);
   const okEnds = [s.pron].concat(s.allowed || []).map(R.strip);
   c0([...endsA].every((e) => okEnds.includes(e)), `${n} 허용 규칙까지 쓴 모든 길의 끝 발음 ${J([...endsA])}이 표준·허용 안`);
+  // ⑥ 허용 발음은 규칙 안 교정만으로 닿을 수 있어야 한다(닿지 못하면 학생이 허용 발음을 내도 '규칙 밖' — 쇠붙이[쉐부치]·외곬[웨골]처럼
+  //   교정 부호로 나타낼 수 없는 모음 변이는 allowed에 적지 않는다, findings F12). 처음 상태부터 applicable + allowable 너비 우선, 풀이 단계 수 + 2까지
+  if ((s.allowed || []).length) {
+    const reach = new Set([R.reading(st0)]), seenR = new Set([J(st0)]);
+    let front = [st0];
+    for (let depth = 0; depth < s.steps.length + 2 && front.length; depth++) {
+      const nextF = [];
+      front.forEach((x) => R.applicable(x).concat(R.allowable(x)).forEach((c) => {
+        const y = R.apply(x, c), key = J(y);
+        if (seenR.has(key)) return;
+        seenR.add(key); reach.add(R.reading(y)); nextF.push(y);
+      }));
+      front = nextF;
+    }
+    s.allowed.forEach((a) => c0(reach.has(R.strip(a)), `${n} 허용 발음 [${a}]에 규칙 안 교정만으로 닿음`));
+  }
   if (!failsBefore.length) engineOk++;
 }
 console.log(`  원고 ${SC.length}개 중 엔진 대조 통과 ${engineOk}개 (${[1, 2, 3, 4, 5, 6, 7, 8].map((c) => c + '장 ' + SC.filter((s) => s.ch === c).length).join(' · ')})`);
@@ -294,7 +310,7 @@ eq(R.reading(R.start(script('강아지'))), '강아지', '종성 /ㅇ/은 연음
 
 // ───────────────────────── 7. 판 진행 함수(구현 2단계, 명세 §17) ─────────────────────────
 // 원고 풀은 scripts.js 전체를 그대로 쓴다(원고가 더해져도 통과하도록 원고 수를 박지 않는다).
-const NEW_FNS = ['kindOf', 'draw', 'exampleIds', 'twin', 'twins', 'gradeGuides', 'hasCondition', 'checkGuide', 'checkGuides',
+const NEW_FNS = ['kindOf', 'orderPairs', 'draw', 'exampleIds', 'twin', 'twins', 'gradeGuides', 'hasCondition', 'checkGuide', 'checkGuides',
   'revealArticles', 'linkSites', 'touchedLink', 'similarCell', 'scriptResult', 'chapterTotals'];
 NEW_FNS.forEach((f) => check(typeof R[f] === 'function', `G.rules.${f} 있음`));
 if (NEW_FNS.some((f) => typeof R[f] !== 'function')) done('규칙 점검');
@@ -940,14 +956,46 @@ if (has3(['신고', '안기다', '할 것을', '문고리', '볶음밥', '밟다
 // 9-10 원고 뽑기 3~8장(결정 D0-2·D8-1): 시드 200개, 조건, 지침 예시를 뺀 여유
 {
   const chIds = (ch) => SC.filter((s) => s.ch === ch);
-  const firstRule = (s) => ((s.steps || [])[0] || [])[0];
-  const seqOf = (s) => (s.steps || []).map((x) => x[0]);
-  const ORDER8 = {
-    'delete-first': (s) => ((s.steps || [])[0] || [])[1] === 'delete',
-    'coda-first': (s) => firstRule(s) === 'coda',
-    'aspirate-first': (s) => firstRule(s) === 'aspirate',
-    'insert-then-nasal': (s) => { const q = seqOf(s), i = q.indexOf('n-insert'); return i >= 0 && q.indexOf('nasal', i + 1) > i; },
+  // 8장 차례 갈래(결정 D8-1)는 풀이에 적힌 차례가 아니라 엔진 관계로 본다: 뒤 단계 B의 교정이 앞 단계 A 직전에는 규칙 밖, 직후에는 규칙 안이면 [A, B].
+  //   점검은 공개 함수(check·parseStep)로 따로 계산해 R.orderPairs와 맞춰 본다.
+  const pairsOf = (s) => {
+    const cs = (s.steps || []).map((x) => R.parseStep(x));
+    const states = [R.start(s)];
+    cs.forEach((c, i) => states.push(R.check(states[i], c).state));
+    const out = [];
+    cs.forEach((b, j) => {
+      for (let i = 0; i < j; i++) {
+        if (!R.check(states[i], b).ok && R.check(states[i + 1], b).ok && !out.some((p) => p[0] === cs[i].rule && p[1] === b.rule)) out.push([cs[i].rule, b.rule]);
+      }
+    });
+    return out;
   };
+  const pairIs = (s, fa, fb) => pairsOf(s).some(([a, b]) => fa(a) && (!fb || fb(b)));
+  const ORDER8 = {
+    'delete-first': (s) => pairIs(s, (a) => R.RULES[a].op === 'delete'),
+    'coda-first': (s) => pairIs(s, (a) => a === 'coda'),
+    'aspirate-first': (s) => pairIs(s, (a) => a === 'aspirate'),
+    'insert-then-nasal': (s) => pairIs(s, (a) => a === 'n-insert', (b) => b === 'nasal'),
+  };
+  chIds(8).forEach((s) => eq(R.orderPairs(s), pairsOf(s), `[${s.id}] 차례 관계 = 점검이 따로 계산한 것`));
+  if (has3(['직행열차', '홑이불', '굳히다', '흙만', '옷 한 벌', '읊는', '옷맵시', '잊히지 않는'])) {
+    eq(R.orderPairs(byId['직행열차']), [], '직행열차: 합침과 첨가는 다른 자리 — 차례 관계 없음(첫 단계가 합침이어도 축약이 먼저가 아님)');
+    eq(R.orderPairs(byId['잊히지 않는']), [], '잊히지 않는: 합침과 ㅎ 탈락은 다른 자리 — 차례 관계 없음');
+    eq(R.orderPairs(byId['홑이불']), [['n-insert', 'nasal']], '홑이불: 끝소리 고침과 첨가는 차례가 자유, 비음화는 첨가에 기댐');
+    eq(R.orderPairs(byId['굳히다']), [['aspirate', 'palatal']], '굳히다: 합쳐서 생긴 /ㅌ/에 구개음화');
+    eq(R.orderPairs(byId['흙만']), [['simplify', 'nasal']], '흙만: 뺀 뒤에 비음화');
+    eq(R.orderPairs(byId['옷 한 벌']), [['coda', 'aspirate']], '옷 한 벌: 끝소리 고침 뒤에 합침');
+    eq(R.orderPairs(byId['옷맵시']), [['coda', 'nasal']], '옷맵시: 끝소리 고침 뒤에 비음화');
+    eq(R.orderPairs(byId['읊는']), [['simplify', 'coda'], ['coda', 'nasal']], '읊는: 뺌 ▸ 끝소리 ▸ 비음화');
+    // 풀이 차례를 바꿔 적어도(차례가 자유로운 두 단계) 관계는 같다
+    const swapped = Object.assign({}, byId['직행열차'], { steps: [byId['직행열차'].steps[1], byId['직행열차'].steps[0]] });
+    eq(R.orderPairs(swapped), [], '직행열차 풀이 차례를 바꿔 적어도 차례 관계 없음');
+    // 첫 단계 규칙만 같은 원고로는 갈래를 채우지 못한다(데이터 차례가 아니라 엔진 관계로 뽑음)
+    const notReal = (k) => chIds(8).filter((s) => !s.trap && ORDER8[k](s)).map((s) => s.id);
+    check(throws(() => R.draw(8, SC, notReal('aspirate-first'), 1)), '8장: 축약이 먼저인 원고(굳히다 무리)를 빼면 직행열차·잊히지 않는이 남아도 오류');
+    check(throws(() => R.draw(8, SC, notReal('coda-first'), 1)), '8장: 끝소리가 먼저인 원고를 빼면 홑이불·꽃잎·맛없다가 남아도 오류');
+    check(throws(() => R.draw(8, SC, notReal('delete-first'), 1)), '8장: 탈락이 먼저인 원고를 빼면 넋받이·넋 없다·굵직한이 남아도 오류');
+  }
   const NEEDS = {
     3: [['palatal']], 4: [['tense'], ['tense-stem'], ['tense-sino', 'tense-adn', 'tense-cmp']], 5: [['simplify'], ['h-drop']],
     6: [['n-insert']], 7: [['aspirate']],

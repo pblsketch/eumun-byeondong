@@ -45,7 +45,7 @@
 { id: 표기와 같은 유일한 이름, ch: 장, text: 표기, morphs: 형태소 분석(사람이 읽는 것),
   cuts: [음절 사이 경계 — 'formal'|'content'|'space'|'sino'|null, 길이 = 음절 수 − 1],
   marks?: { lateralExc: [경계 번호] },            // 제20항 다만 자리
-  pron: 표준 발음(장음 ː 포함), allowed?: [허용 발음],
+  pron: 표준 발음(장음 ː 포함), allowed?: [허용 발음 — 규칙 안 교정만으로 닿는 것만(check-rules), findings F12],
   nonstandard?: [[흔하지만 표준이 아닌 발음, 조항]],
   steps: [[규칙 id, op, 자리('0.co'·'1.on'·'0.co1'), 음운]…],   // 풀이 과정, 교정 하나 = 규칙 하나
   count: [표기의 음운 수, 발음의 음운 수], change: { replace?, delete?, insert?, merge? },
