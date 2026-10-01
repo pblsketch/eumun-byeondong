@@ -90,7 +90,7 @@ for (const s of s15) {
   const hit = ex15.find((e) => e[0] === s.text);
   check(!!hit, `[${s.id}] 표기가 제15항 원문 예시에 있음`);
   if (hit) check(strip(hit[1]) === strip(s.pron), `[${s.id}] 발음이 원문과 같음 (${hit[1]} / ${s.pron})`);
-  check(s.ch === 1 && (s.articles || []).includes('15'), `[${s.id}] 1장 원고이고 근거 조항에 제15항`);
+  check((s.articles || []).includes('15'), `[${s.id}] 근거 조항에 제15항(3~8장은 [붙임]처럼 다른 규칙과 함께 걸림)`);
 }
 console.log(`  조항 ${Object.keys(A).length}개 · 제15항 원고 ${s15.length}개 (${s15.map((s) => s.id).join(', ')})`);
 
