@@ -710,3 +710,61 @@ try {
 } finally { await closeTab(${v}); }
 `);
 });
+
+// 3~8장(결정 0019): 닮은 칸은 1 · 2장 기본 단계만 · 어간 + 어미 경계 이름표(기본 단계만, 학년별) · 8장 도움(지침이 없음)
+step('3~8장 — 닮은 칸 없음 · 어간+어미 이름표 · 8장 도움 ②는 지침이 없다는 한 줄', `
+${open('k1', 1280, 800)}
+try {
+  const ek = [];
+  ek.push(...await k1.evaluate(${FRESH}));
+  ek.push(...await k1.evaluate(async () => {
+    const T = D.T();
+    // 3장 기본: 굳이 /ㄷ/ — 구개음화가 걸리지만 닮은 칸은 1 · 2장만
+    await D.toReview(3, { level: 'basic', grade: 'm3', seed: 4 });
+    await D.load('굳이');
+    D.mark('replace'); D.slot('0.co'); await D.until(() => D.sheet() && D.$('.rw-sheet .ch-cell'), 2000, '도표');
+    if (D.$('.rw-sheet .ch-cell.is-like')) D.bad('3장 기본인데 닮은 칸');
+    D.tapSel('.rw-sheet .ch-close', '도표 닫기');
+    // 4장 기본: 신고 = 어간 + 어미 이름표(중3), 안기다 = 형식 경계 그대로
+    await D.toReview(4, { level: 'basic', grade: 'm3', seed: 4 });
+    await D.load('신고');
+    const g = D.$('.rw-blocks .bk-gap[data-gap="0"]');
+    if (!g || !g.classList.contains('is-stem') || g.getAttribute('data-cut') !== 'formal' || (g.querySelector('.bk-cut') || {}).textContent !== T.terms.m3.cut.stem
+      || g.getAttribute('aria-label').indexOf(T.terms.m3.cut.stem) < 0) D.bad('신고 어간 + 어미 이름표: ' + (g && g.outerHTML.slice(0, 200)));
+    await D.load('안기다');
+    const a = D.$('.rw-blocks .bk-gap[data-gap="0"]');
+    if (!a || a.classList.contains('is-stem') || (a.querySelector('.bk-cut') || {}).textContent !== T.terms.m3.cut.formal) D.bad('안기다 경계 이름표: ' + (a && a.outerHTML.slice(0, 200)));
+    // 4장 심화: 이름표 · 어간 표시가 DOM · aria에 없음(두 학년 모두)
+    await D.toReview(4, { level: 'advanced', grade: 'h1', seed: 4 });
+    await D.load('신고');
+    const html = D.d().body.innerHTML;
+    if (D.$('.rw-blocks .is-stem, .rw-blocks .bk-cut, .rw-blocks [data-cut]')) D.bad('심화인데 어간 + 어미 경계');
+    [T.terms.m3.cut.stem, T.terms.h1.cut.stem].forEach((x) => { if (html.indexOf(x) >= 0) D.bad('심화인데 이름표 ' + x); });
+    return D.take();
+  }));
+  ek.push(...await k1.evaluate(async () => {
+    const G = D.G(), T = D.T();
+    await D.toReview(8, { level: 'basic', grade: 'h1', seed: 6 });
+    const run = G.save.loadChapter();
+    if (!run || run.ch !== 8 || run.guides !== null) D.bad('8장 진행 장(지침 없음): ' + JSON.stringify(run && { ch: run.ch, g: run.guides }));
+    D.act('rw-help');
+    await D.until(() => D.$('.rw-help') && D.visible(D.$('.rw-help')), 2000, '도움 열림');
+    D.tapSel('.rw-help-step[data-step="1"]', '도움 ①');
+    D.tapSel('.rw-help-step[data-step="2"]', '도움 ②');
+    const line = D.$('.rw-help-body .rw-no-guide');
+    if (!line || line.textContent.trim() !== T.help.noGuide) D.bad('8장 도움 ②: ' + (D.$('.rw-help-body') || {}).textContent);
+    if (D.$('.rw-help-body .rw-guide')) D.bad('8장 도움 ②에 지침 목록');
+    const c1 = D.dbg().cur();
+    if (c1.help.indexOf(2) >= 0 || c1.open !== 2) D.bad('지침이 없는 ②는 도움으로 세지 않고 연 단계만: ' + JSON.stringify({ h: c1.help, o: c1.open }));
+    const s3 = D.$('.rw-help-step[data-step="3"]');
+    if (!s3 || s3.disabled) D.bad('8장: ② 다음에 ③이 열리지 않음');
+    D.tapSel('.rw-help-step[data-step="3"]', '도움 ③');
+    const c2 = D.dbg().cur();
+    if (c2.help.indexOf(3) < 0 || !c2.helped) D.bad('8장 도움 ③이 도움으로 세지 않음');
+    if (!D.$('.rw-help-body .rw-ex') && !(D.$('.rw-help-body') || {}).textContent.includes(T.help.noExample)) D.bad('8장 도움 ③ 내용');
+    D.tapSel('.rw-help-close', '도움 닫기');
+    return D.take();
+  }));
+  ${fin('ek')}
+} finally { await closeTab(k1); }
+`);

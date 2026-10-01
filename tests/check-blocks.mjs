@@ -1,6 +1,6 @@
 // 음절 블록 · 형태소 경계 부품 G.blocks 점검(aside) — 명세 §8-1 · §8-2 · §14 · §18.
 //   점검 전용 페이지 tests/pages/blocks.html(부품만 불러 띄움)을 크기별 틀(tests/pages/frame.html)에 띄운다.
-//   1) 원고 87개 모두(기본 · 심화, 두 학년): 음절 · 자리(빈 초성 ○ · 반모음 · ㅢ 한 칸 · 겹받침) · 틈 수가 상태와 같고,
+//   1) 원고 377개 모두(1~8장, 기본 · 심화, 두 학년): 음절 · 자리(빈 초성 ○ · 반모음 · ㅢ 한 칸 · 겹받침) · 틈 수가 상태와 같고,
 //      음운 · 틈을 누르면 엔진 자리(Pos)가 알맞게 온다. 화면 글에 빗금 없는 자모가 없다.
 //   2) 형태소 경계: 기본 단계는 종류별 '+'와 학년별 이름표(G.text.cutLabel), 심화 단계는 '+' · 이름표 · 종류가 DOM · aria에 없다
 //      (심화 블록 = 경계를 모두 지운 상태의 블록과 HTML이 똑같음 — 두 줄 나누기 자리로도 새지 않음).
@@ -31,8 +31,8 @@ if (!window.K) {
   K.posStr = (p) => p ? p.s + '.' + p.slot + (p.slot === 'co' ? p.k : '') : 'null';
   K.cutWords = () => {
     const T = D.T(), out = [];
-    ['m3', 'h1'].forEach((g) => { ['formal', 'content', 'sino'].forEach((c) => out.push(T.terms[g].cut[c])); });
-    out.push(T.review.aria.cut.m3.split(':')[0], T.review.aria.cut.h1.split(':')[0], 'formal', 'content', 'sino', 'data-cut', 'bk-plus', 'bk-cut');
+    ['m3', 'h1'].forEach((g) => { ['formal', 'content', 'sino', 'stem'].forEach((c) => out.push(T.terms[g].cut[c])); });
+    out.push(T.review.aria.cut.m3.split(':')[0], T.review.aria.cut.h1.split(':')[0], 'formal', 'content', 'sino', 'data-cut', 'bk-plus', 'bk-cut', 'is-stem');
     return out;
   };
   // 그려진 블록이 상태와 같은지 + 누르면 알맞은 자리가 오는지. 돌려줌: 없음(문제는 D.bad)
@@ -76,8 +76,11 @@ if (!window.K) {
       if (g.classList.contains('is-space') !== (c === 'space')) D.bad(tag + ': 띄어쓰기 틈 표시 ' + i);
       const plus = D.$('.bk-plus', g), lab = D.$('.bk-cut', g);
       const shown = o.level === 'basic' && (c === 'formal' || c === 'content' || c === 'sino');
+      // 어간 + 어미 표시(marks.stem)가 있는 형식 경계는 이름표만 'stem'(결정 0019)
+      const stem = shown && c === 'formal' && ((st.marks && st.marks.stem) || []).indexOf(i) >= 0;
+      if (g.classList.contains('is-stem') !== stem) D.bad(tag + ': ' + i + '번 틈 어간+어미 표시 ' + g.classList.contains('is-stem') + ' / ' + stem);
       if (shown) {
-        const want = G.text.cutLabel(o.grade, c);
+        const want = G.text.cutLabel(o.grade, stem ? 'stem' : c);
         if (!plus) D.bad(tag + ': ' + i + '번 틈에 + 없음(' + c + ')');
         if (!lab || lab.textContent.trim() !== want) D.bad(tag + ': 이름표 ' + (lab && lab.textContent) + ' ≠ ' + want);
         if (g.getAttribute('data-cut') !== c) D.bad(tag + ': data-cut ' + g.getAttribute('data-cut'));
@@ -142,25 +145,26 @@ if (${v}.length) console.log('FAIL ' + ${v}.join('\\nFAIL '));
 else console.log('PASS');
 `;
 
-// ── 1) 원고 87개 모두 ──────────────────────────────────────
+// ── 1) 원고 377개 모두 ─────────────────────────────────────
 //   CDP 한 번의 evaluate는 30초 안에 끝나야 하므로 단계 · 학년마다 나눠 부른다.
 const LEVELS = [{ level: 'basic', grade: 'm3' }, { level: 'basic', grade: 'h1' }, { level: 'advanced', grade: 'm3' }, { level: 'advanced', grade: 'h1' }];
-step('원고 87개 모두 — 자리 · 경계 · 누르면 자리', `
+step('원고 377개 모두 — 자리 · 경계 · 누르면 자리', `
 ${open('a1', 1280, 800)}
 try {
   const ea = [];
   ea.push(...await a1.evaluate(async () => {
     const G = D.G(), w = D.w();
     if (!G || !G.blocks || typeof G.blocks.create !== 'function') D.bad('G.blocks.create 없음');
-    if (w.SCRIPTS.length !== 87) D.bad('원고 수 ' + w.SCRIPTS.length + ' (87이어야 함)');
-    K.seen = { emptyOn: 0, glide: 0, double: 0, ui: 0, formal: 0, content: 0, sino: 0, space: 0 };
+    if (w.SCRIPTS.length !== 377) D.bad('원고 수 ' + w.SCRIPTS.length + ' (377이어야 함)');
+    K.seen = { emptyOn: 0, glide: 0, double: 0, ui: 0, formal: 0, content: 0, sino: 0, space: 0, stem: 0 };
     return D.take();
   }));
-  if (!ea.length) for (const lv of ${J(LEVELS)}) {
+  // 원고 50개씩 나눠 부른다(원고 377개 — 공용 aside가 바빠도 CDP 한 번 30초 안)
+  if (!ea.length) for (const lv of ${J(LEVELS)}) for (let from = 0; from < 400; from += 50) {
     ea.push(...await a1.evaluate(async (o) => {
       const G = D.G(), w = D.w();
       K.mk(o);
-      for (const s of w.SCRIPTS) {
+      for (const s of w.SCRIPTS.slice(o.from, o.from + 50)) {
         const st = G.rules.start(s);
         K.b.render(st);
         const tag = s.id + '(' + o.level + '·' + o.grade + ')';
@@ -174,10 +178,11 @@ try {
             if (y.nu === 'ㅢ') K.seen.ui++;
           });
           st.cuts.forEach((c) => { if (c) K.seen[c]++; });
+          K.seen.stem += ((st.marks && st.marks.stem) || []).length;
         }
       }
       return D.take();
-    }, lv));
+    }, Object.assign({ from }, lv)));
   }
   const seen = await a1.evaluate(() => K.seen);
   Object.keys(seen).forEach((k) => { if (!seen[k]) ea.push('원고에서 본 적 없음: ' + k); });

@@ -481,6 +481,30 @@ const DEF_SETTINGS = { bgmOn: true, bgmVolume: 0.6, sfxOn: true, sfxVolume: 0.8,
   }
 }
 
+// ───────────────────────── 8-2. 지침이 없는 장(8장 — GUIDES에 그 장 키가 없음, 결정 0019) ─────────────────────────
+{
+  const st = makeStorage();
+  const b = boot(st, { guides: FAKE_GUIDES });
+  const ids8 = b.ctx.G.rules.draw(8, b.ctx.SCRIPTS, [], 3);
+  const run8 = { grade: 'h1', ch: 8, level: 'basic', seed: 3, ids: ids8, phase: 'review', guideDone: true, done: [], cur: null };
+  check(b.S.saveChapter(copy(run8)) === true, '8장(지침 없음) 감수 단계 저장');
+  const got = boot(st, { guides: FAKE_GUIDES }).S.loadChapter();
+  check(!!got && got.ch === 8 && got.guides === null && got.phase === 'review' && got.guideDone === true, '8장 진행 장 복원(guides null)');
+  eq(boot(st, { guides: FAKE_GUIDES }).S.chapterInfo(), { grade: 'h1', ch: 8, level: 'basic', phase: 'review', no: 1, total: 7 }, '8장 chapterInfo');
+  check(boot(makeStorage(), { guides: FAKE_GUIDES }).S.saveChapter({ ...copy(run8), phase: 'guide', guideDone: false }) === false, '지침이 없는 장의 지침 단계는 저장하지 않음');
+  // 지침 목록을 적어 둔 8장 진행 장(지침이 있던 때의 값)은 버림
+  const st2 = makeStorage();
+  const S2 = boot(st2, { guides: FAKE_GUIDES }).S;
+  st2.setItem(PREFIX + 'chapter', J({ s: S2.SCHEMA, savedAt: 1, run: { ...copy(run8), guides: ['c8-x'], fp: S2.fingerprint(8, ids8) } }));
+  check(boot(st2, { guides: FAKE_GUIDES }).S.loadChapter() === null, '지침이 없는 장인데 지침 목록이 저장돼 있으면 버림');
+  // 조항 공개 단계(원고 7개 끝)도 저장 · 복원
+  const rv = { ...copy(run8), phase: 'reveal', cur: null, done: ids8.map((id) => ({ id, result: 'onair', sends: 1, help: [] })) };
+  const st3 = makeStorage();
+  check(boot(st3, { guides: FAKE_GUIDES }).S.saveChapter(rv) === true, '8장 조항 공개 단계 저장');
+  const got3 = boot(st3, { guides: FAKE_GUIDES }).S.loadChapter();
+  check(!!got3 && got3.phase === 'reveal' && got3.done.length === 7 && got3.guides === null, '8장 조항 공개 단계 복원');
+}
+
 // ───────────────────────── 9. 엔진 · 원고 데이터가 없을 때 ─────────────────────────
 {
   // 엔진(G.rules) 없이: 모양 확인만으로 저장 · 복원

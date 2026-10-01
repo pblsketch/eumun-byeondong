@@ -24,7 +24,7 @@
 //     grade: 'm3'|'h1', ch: 장 번호(1~8), level: 'basic'|'advanced',
 //     seed: 원고 뽑기에 쓴 시드(숫자) | null,
 //     ids: [원고 id 7개 — 뽑힌 차례 그대로],
-//     guides: [그 장 지침 id — 저장할 때 window.GUIDES[ch]에서 이 파일이 적는다] | null(GUIDES가 없을 때),
+//     guides: [그 장 지침 id — 저장할 때 window.GUIDES[ch]에서 이 파일이 적는다] | null(GUIDES가 없을 때 · 지침이 없는 장 — 8장),
 //     phase: 'guide'(감수 지침) | 'review'(원고 감수) | 'reveal'(조항 공개),
 //     guideDone: 지침을 다 채웠는지(감수 · 조항 공개 단계면 반드시 true. [다시 하기]는 true로 시작),
 //     done: [끝난 원고 기록 — ids 차례대로, done[i].id === ids[i]] {
@@ -57,6 +57,8 @@
 //   데이터 지문 fp가 지금 데이터로 다시 낸 값과 다름(뽑힌 원고의 표기 · 경계 · 표준 발음 · 풀이나 그 장 지침의 빈칸 · 예시가 바뀜) ·
 //   G.rules가 있는데 지금 원고의 교정을 엔진이 받지 않음(broadcast가 예외 — 모르는 음운 등).
 //   GUIDES가 없는 곳(지침 데이터 전)에서는 지침 확인만 건너뛴다. saveChapter도 같은 확인을 거쳐 틀린 값은 쓰지 않는다(false).
+//   지침이 없는 장(GUIDES는 있는데 그 장 키가 없음 — 8장, 결정 0019): guides는 null, 지침 단계('guide')는 버린다.
+//   불러올 때 저장된 guides가 목록인데 지금 그 장 지침이 없으면(지침이 빠짐) 버린다.
 G.save = (function () {
   const PREFIX = 'eumun-byeondong:';
   const SCHEMA = 2; // 저장 형식 버전(바꾸면 옛 저장 값은 모두 기본값으로, 옛 진행 장은 버림). 2: cur.open · last 모습 · fp
@@ -206,10 +208,12 @@ G.save = (function () {
     list.forEach((s) => { if (s && s.ch === ch && typeof s.id === 'string') by[s.id] = s; });
     return by;
   }
-  // 지금 지침 데이터: GUIDES가 없으면 null(확인 건너뜀), 있는데 그 장이 쓸 수 없는 모양이면 false
+  // 지금 지침 데이터: GUIDES가 없으면 null(확인 건너뜀), 그 장 키가 없으면 'none'(지침이 없는 장 — 8장),
+  //   있는데 그 장이 쓸 수 없는 모양이면 false
   function guidesOf(ch) {
     const all = window.GUIDES;
     if (!all || typeof all !== 'object') return null;
+    if (!Object.prototype.hasOwnProperty.call(all, ch)) return 'none';
     const list = all[ch];
     if (!Array.isArray(list)) return false;
     const ids = [], examples = [];
@@ -342,7 +346,11 @@ G.save = (function () {
     const gd = guidesOf(r.ch);
     if (gd === false) return null;
     let guides = null;
-    if (gd) {
+    if (gd === 'none') {
+      // 지침이 없는 장: 지침 단계가 없고, 지침이 있던 때 저장한 진행 장(guides 목록)은 맞지 않음
+      if (r.phase === 'guide' || !r.guideDone) return null;
+      if (loading && Array.isArray(r.guides)) return null;
+    } else if (gd) {
       if (loading && !(Array.isArray(r.guides) && r.guides.length === gd.ids.length && r.guides.every((x, i) => x === gd.ids[i]))) return null;
       if (r.ids.some((id) => gd.examples.indexOf(id) >= 0)) return null;
       guides = gd.ids.slice();
