@@ -50,6 +50,11 @@
     return out;
   }
 
+  // 음운 표기(/ㄱ/)가 줄 끝에서 '/'만 남고 끊기지 않게 한 덩어리(.gd-ph — 줄바꿈 없음)로 묶는다. 글(textContent)은 그대로다.
+  function keepPh(s) {
+    return String(s).split(/(\/[^\/\s]{1,2}\/)/).filter(Boolean).map((x) => (/^\/[^\/\s]{1,2}\/$/.test(x) ? el('span', { class: 'gd-ph' }, x) : x));
+  }
+
   const SCREEN = {
     mount(root, value) {
       const run = (value && value.run) || G.save.loadChapter();
@@ -87,7 +92,7 @@
           slotNodes[b] = slot;
           blanks.push(info);
         });
-        const sentence = el('p', { class: 'gd-text' }, fillNodes(text, slotNodes));
+        const sentence = el('p', { class: 'gd-text' }, fillNodes(text, slotNodes).map((x) => (typeof x === 'string' ? keepPh(x) : x)));
         // 빈칸마다 보기 단추(문장 속 빈칸 차례대로)
         const order = Object.keys(slotNodes).sort((x, y) => mine[x].n - mine[y].n);
         const pickers = order.map((b) => {
@@ -152,7 +157,7 @@
         picks[info.g.id][info.b] = i;
         info.opts.forEach((o, k) => o.setAttribute('aria-pressed', String(k === i)));
         U.clear(info.val);
-        info.val.appendChild(document.createTextNode(info.g.blanks[info.b].options[i]));
+        U.append(info.val, keepPh(info.g.blanks[info.b].options[i]));
         info.slot.classList.add('is-filled');
         if (msg.textContent) say('');
       }
