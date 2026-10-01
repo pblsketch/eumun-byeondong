@@ -29,26 +29,7 @@
   const OPS = ['replace', 'delete', 'insert', 'merge'];
   const OUTCOME_GLYPH = { onair: 'onair', offrule: 'offrule', skip: 'next' }; // 넘김은 신호가 아니라서 '다음' 기호
 
-  function sound(fn) { try { fn(); } catch (e) { /* 소리 장치 문제로 화면이 멈추지 않게 */ } }
-
-  function finished(run) {
-    return !!run && Array.isArray(run.ids) && Array.isArray(run.done) && run.ids.length > 0 && run.done.length === run.ids.length;
-  }
-
-  // 문구 틀의 {이름} 자리에 노드를 끼운다(textContent는 G.text.fill과 같음)
-  function fillNodes(tpl, nodes) {
-    const out = [];
-    const re = /\{(\w+)\}/g;
-    let at = 0, m;
-    const s = String(tpl);
-    while ((m = re.exec(s))) {
-      if (m.index > at) out.push(s.slice(at, m.index));
-      out.push(Object.prototype.hasOwnProperty.call(nodes, m[1]) ? nodes[m[1]] : m[0]);
-      at = re.lastIndex;
-    }
-    if (at < s.length) out.push(s.slice(at));
-    return out;
-  }
+  const sound = U.sound, finished = U.finished, fillNodes = U.fillNodes;
 
   G.screens.result = {
     mount(root, value) {

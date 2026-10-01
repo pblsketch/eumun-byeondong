@@ -1,10 +1,10 @@
 # js/core — 규칙 엔진·한글 음절·저장·소리·공용 도구
 
 ## 맡는 것
-- `util.js`: 전역 `G`와 `G.util`(DOM·SVG 도우미 `el`·`append`·`svg`·`clear`, 신호·부호·단추 기호 `glyph`), 화면 자리 `G.screens`, 페이지 오류 모음 `window.__gamsuErrors`(`console.error`와 처리 안 된 오류를 모음 — 브라우저 점검이 읽음).
+- `util.js`: 전역 `G`와 `G.util`(DOM·SVG 도우미 `el`·`append`·`svg`·`clear`, 신호·부호·단추 기호 `glyph`, 화면들이 함께 쓰는 `fillNodes`·`keepPh`·`sound`·`finished`, 모달 창 `modal`), 화면 자리 `G.screens`, 페이지 오류 모음 `window.__gamsuErrors`(`console.error`와 처리 안 된 오류를 모음 — 브라우저 점검이 읽음).
 - `hangul.js`: `G.hangul.split`(음절 → 초성·모음·종성 배열, 초성 ㅇ은 null)·`join`(적을 수 없는 조합이면 자모를 그대로 이어 적음).
 - `rules.js`: `G.rules` — 판정의 진실 전부. 상태 만들기(`start`), 적용 가능 규칙(`applicable`), 교정 적용(`apply`), 표준 발음 도출(`derive`), 읽기(연음 `reading`), 송출 판정(`broadcast`), 뽑기(`draw`·`exampleIds`·`kindOf`), 쌍둥이(`twins`·`twin`), 연음 자리(`linkSites`·`touchedLink`), 닮은 칸(`similarCell`), 지침(`hasCondition`·`gradeGuides`·`checkGuide(s)`), 공개 조항(`revealArticles`), 원고 결과(`scriptResult`), 장 합계(`chapterTotals`).
-- `save.js`: `G.save` — 설정·마지막 선택·게임 방법을 연 적·진행 중인 장의 localStorage 읽기·쓰기와 진행 장 확인.
+- `save.js`: `G.save` — 설정·마지막 선택·게임 방법을 연 적·진행 중인 장의 localStorage 읽기·쓰기와 진행 장 확인, 데이터 지문 `fingerprint`(판정이 기대는 원고·지침 데이터가 바뀌면 진행 장을 버림).
 - `audio.js`: `G.audio` — 녹음 음원(mp3) 배경 음악·효과음 재생(크로스페이드, 잠금 풀기, 파일이 없으면 조용히).
 
 ## 맡지 않는 것

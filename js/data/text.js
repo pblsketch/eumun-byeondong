@@ -72,6 +72,7 @@ window.TEXT = {
     on: '켜기', off: '끄기',
     chapterN: '{n}장',
     chapterTitle: '{n}장 {name}',          // '2장 닮은 소리'
+    chapterLevel: '{chapter} · {level} 단계', // 화면 머리 위 작은 줄(지침 · 감수 · 조항 공개): '2장 닮은 소리 · 기본 단계'
     timesN: '{n}번',
     countN: '{n}개',
     original: '원문',                       // 실제 조항 원문에 다는 표시(결정 0001)

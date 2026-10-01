@@ -27,33 +27,13 @@
 //   예시 원고의 표준 발음은 지침 데이터에 고정된 예시만 보인다(뽑힌 감수 원고는 예시에서 빠진다 — G.rules.exampleIds).
 //   다 맞으면: guideDone · 감수 단계로 저장(지침 완료 = 저장 시점, 명세 §11) → [원고 감수 시작]을 누르면 감수 화면.
 //   소리: 배경 음악 'review'(감수 — 지침 · 감수 화면), 효과음 guideOk(다 맞음) · guideWrong(틀림)(명세 §15).
-//   문구는 모두 TEXT.guide · TEXT.result.subtitle(js/data/text.js), 지침 문장 · 보기는 GUIDES(js/data/guides.js).
+//   문구는 모두 TEXT.guide · TEXT.common.chapterLevel(js/data/text.js), 지침 문장 · 보기는 GUIDES(js/data/guides.js).
 (function () {
   const U = G.util, el = U.el;
   const T = () => window.TEXT;
 
-  function sound(fn) { try { fn(); } catch (e) { /* 소리 장치 문제로 화면이 멈추지 않게 */ } }
-
-  // 문구 틀의 {이름} 자리에 노드를 끼운다: fillNodes('{text} → {pron}', { text: 노드, pron: 노드 }) → [글 · 노드 …]
-  //   틀에 적힌 글(띄어쓰기 · 화살표)은 그대로 두므로 textContent가 G.text.fill과 같다.
-  function fillNodes(tpl, nodes) {
-    const out = [];
-    const re = /\{(\w+)\}/g;
-    let at = 0, m;
-    const s = String(tpl);
-    while ((m = re.exec(s))) {
-      if (m.index > at) out.push(s.slice(at, m.index));
-      out.push(Object.prototype.hasOwnProperty.call(nodes, m[1]) ? nodes[m[1]] : m[0]);
-      at = re.lastIndex;
-    }
-    if (at < s.length) out.push(s.slice(at));
-    return out;
-  }
-
-  // 음운 표기(/ㄱ/)가 줄 끝에서 '/'만 남고 끊기지 않게 한 덩어리(.gd-ph — 줄바꿈 없음)로 묶는다. 글(textContent)은 그대로다.
-  function keepPh(s) {
-    return String(s).split(/(\/[^\/\s]{1,2}\/)/).filter(Boolean).map((x) => (/^\/[^\/\s]{1,2}\/$/.test(x) ? el('span', { class: 'gd-ph' }, x) : x));
-  }
+  const sound = U.sound, fillNodes = U.fillNodes;
+  const keepPh = (s) => U.keepPh(s, 'gd-ph'); // 음운 표기(/ㄱ/)를 줄에서 끊지 않는 덩어리로
 
   const SCREEN = {
     mount(root, value) {
@@ -137,7 +117,7 @@
 
       const wrap = el('div', { class: 'gd' }, [
         el('header', { class: 'gd-head' }, [
-          el('p', { class: 'gd-kicker' }, G.text.t('result.subtitle', { chapter: G.text.chapterTitle(run.ch), level: G.text.levelName(run.level) })),
+          el('p', { class: 'gd-kicker' }, G.text.t('common.chapterLevel', { chapter: G.text.chapterTitle(run.ch), level: G.text.levelName(run.level) })),
           el('h1', { class: 'app-h1 gd-title' }, TG.title),
           el('p', { class: 'gd-from' }, TG.from),
         ]),

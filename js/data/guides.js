@@ -1,5 +1,5 @@
 'use strict';
-// 감수 지침 데이터(1·2장) — 선생님이 고치는 곳. 모양은 js/core/rules.js 머리 주석의 '감수 지침 GUIDES'(명세 §7, 계획 T1 계약).
+// 감수 지침 데이터(1·2장) — 선생님이 고치는 곳. 모양은 js/core/rules.js 머리 주석의 '감수 지침 GUIDES'(명세 §7, 형식은 docs/contracts.md '감수 지침').
 //   고친 뒤에는 꼭: node tests/check-rules.mjs (8절: 예시가 빈칸 조건을 모두 보이는지 엔진으로 확인, 채점, 예시를 뺀 뽑기, 문구 규칙)
 //
 //   지침 문장은 「표준 발음법」 조항 원문(js/data/articles.js, 대조 기록 design/research/03 §5)에서만 만든다.
