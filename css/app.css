@@ -163,6 +163,9 @@ button.st-ch:hover { border-color: var(--accent); transform: translateY(-2px); }
 .set-range { flex: 1 1 auto; min-width: var(--touch); height: var(--touch); margin: 0; accent-color: var(--accent); cursor: pointer; }
 .set-row.is-off .set-vol { opacity: .45; }
 .set-saved { margin: 0; font-size: 16px; color: var(--ink-2); text-align: center; }
+.set-credits { border-top: 1px solid var(--divider); padding-top: var(--s2); font-size: 14px; color: var(--ink-2); }
+.set-credits-title { min-height: var(--touch); display: flex; align-items: center; cursor: pointer; font-weight: 700; color: var(--ink); }
+.set-credits-list { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; line-height: 1.45; overflow-wrap: anywhere; }
 .set-foot { display: flex; justify-content: center; }
 .set-foot .app-btn { min-width: 200px; }
 

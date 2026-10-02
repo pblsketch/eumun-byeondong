@@ -154,6 +154,17 @@ window.TEXT = {
     on: '켜기', off: '끄기',
     savedHint: '설정은 이 기기에만 저장돼요',
     close: '닫기',
+    // 만든 사람·출처(설정 창 아래, 펼쳐 봄). 음원 표기는 assets/audio/CREDITS.md 그대로 — CC BY 4.0 곡은 표기가 라이선스 조건이다
+    credits: {
+      title: '만든 사람·출처',
+      lines: [
+        '배경 음악 "Local Forecast - Elevator", "Inspired" Kevin MacLeod (incompetech.com)',
+        'Licensed under Creative Commons: By Attribution 4.0 License (creativecommons.org/licenses/by/4.0)',
+        '효과음 Freesound(freesound.org)의 CC0 음원: jakobhandersen, bruce965, FunWithSound, Jofae, JonnyRuss01, prueslove, ertfelda',
+        '글꼴 Pretendard(SIL Open Font License 1.1)를 이 게임에 맞게 줄여 이름을 바꿈',
+        '그림은 이 게임을 위해 새로 그림. 방송국과 인물은 모두 가상',
+      ],
+    },
   },
 
   // ── 게임 방법 창(시작 화면·감수 화면에서 엶). 여러 줄을 써도 되는 곳 ──────
@@ -421,7 +432,13 @@ window.TEXT = {
     stepLabel: '{no} {name}',               // '① 다른 음절 위치'
     nextStep: '다음 도움',
     diffMarked: '다른 음절을 프롬프터에 표시했어요',
-    needBroadcast: '먼저 송출해 보세요',     // 아직 송출 안 함 또는 마지막 송출이 '다름'이 아닐 때(도움으로 세지 않음)
+    needBroadcast: '먼저 송출해 보세요',     // 아직 송출 안 함(도움으로 세지 않음)
+    // 마지막 송출이 '다름'이 아닐 때 도움 ① 한 줄(도움으로 세지 않음 — 위치를 알릴 다른 음절이 없음). 정답 위치를 말하지 않는다
+    notDiff: {
+      onair: '다른 음절이 없어요. 이미 온에어예요',
+      offrule: '발음은 같아요. 감수 기록의 규칙 밖 표시를 살펴보세요',
+      nonstandard: '표준이 아닌 발음이에요. 지침을 다시 살펴보세요',
+    },
     guideTitle: '이 장의 감수 지침',
     noGuide: '이 장에는 감수 지침이 없어요',   // 지침이 없는 장(8장)의 도움 ② · ③(쌍둥이가 없을 때)
     exampleTitle: '같은 규칙을 쓰는 다른 낱말',
@@ -446,7 +463,7 @@ window.TEXT = {
     source: '「표준 발음법」',
     note: '원문 표시가 붙은 글은 실제 조항이에요',
     mine: '이번에 감수한 말',                 // 조항 예시 가운데 이번 장 원고와 같은 말에 붙는 표
-    senior: '선생님이 채운 지침, 실제 조항과 꼭 닮았죠?',
+    senior: '직접 채운 지침, 실제 조항과 꼭 닮았죠?',
     seniorNoGuide: '오늘 감수한 원고의 근거를 확인해 봐요',
     next: '장 결과 보기',
   },
@@ -477,7 +494,8 @@ window.TEXT = {
     chapters: '장 고르기',
     // 장 결과 머리의 방송 마무리 한 줄
     wrap: {
-      clean: '오늘 방송, 사고 없이 끝났어요!',
+      clean: '오늘 방송, 사고 없이 끝났어요!',   // 모든 원고가 첫 송출에 온에어
+      fixed: '끝까지 고쳐서 모두 온에어!',        // 모두 온에어지만 다시 송출한 원고가 있음
       done: '오늘 방송이 끝났어요. 수고했어요!',
     },
     onairCount: '온에어 {n}/{total}',

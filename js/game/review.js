@@ -578,6 +578,7 @@
         refresh();
       };
       refresh();
+      showStage(quick);
       if (quick) { finalize(); return; }
       // 초읽기 3 · 2 · 1 → 아나운서가 읽음(한 음절씩) → 신호(전체 2초 안쪽)
       const cues = [3, 2, 1];
@@ -647,6 +648,13 @@
         rundown.appendChild(el('li', { class: 'rw-rd' + (kind ? ' is-' + kind : '') + (now ? ' is-now' : ''), 'aria-label': label, title: label },
           kind && kind !== 'skip' ? U.glyph(kind, 'glyph rw-rd-ico') : el('span', { class: 'rw-rd-no', 'aria-hidden': 'true' }, String(i + 1))));
       });
+    }
+    // ── 송출하면 스튜디오 무대(자막 띠의 프롬프터까지)가 화면에 들도록 필요한 만큼만 내린다(이미 보이면 그대로) ──
+    function showStage(quick) {
+      try {
+        const r = booth.getBoundingClientRect(), vh = window.innerHeight || 0;
+        if (r.bottom > vh || r.top < 0) booth.scrollIntoView({ block: 'nearest', behavior: quick ? 'auto' : 'smooth' });
+      } catch (e) { /* 무시 */ }
     }
     // ── 스튜디오 무대: 결과 띠 · 시청자 반응(송출 뒤 한 번만 나타남, 계속 움직이지 않음) ──
     function clearStage() {
@@ -727,7 +735,10 @@
           helpBody.appendChild(el('p', { class: 'rw-help-line' }, H.diffMarked));
           record(1);
         } else {
-          helpBody.appendChild(el('p', { class: 'rw-help-line' }, H.needBroadcast)); // 도움으로 세지 않음(연 단계만 저장 — ②가 열림)
+          // 아직 송출 안 함 → '먼저 송출해 보세요', 송출했지만 '다름'이 아님 → 그 신호에 맞는 한 줄(위치를 알릴 다른 음절이 없음).
+          //   어느 쪽도 도움으로 세지 않음(연 단계만 저장 — ②가 열림)
+          const msg = last && H.notDiff[last.kind] ? H.notDiff[last.kind] : H.needBroadcast;
+          helpBody.appendChild(el('p', { class: 'rw-help-line' }, msg));
           if (opened) save();
         }
       } else if (n === 2) {

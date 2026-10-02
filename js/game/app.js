@@ -211,6 +211,10 @@ G.app = (function () {
       row(S.sfx, [toggle('sfxOn', S.sfx), slider('sfxVolume', S.sfx, () => { try { G.audio.sfx('mark'); } catch (e) { /* 무시 */ } })]),
       row(S.reduceMotion, [toggle('reduceMotion', S.reduceMotion)], S.reduceMotionHint),
       el('p', { class: 'set-saved' }, S.savedHint),
+      el('details', { class: 'set-credits' }, [
+        el('summary', { class: 'set-credits-title' }, S.credits.title),
+        el('ul', { class: 'set-credits-list' }, S.credits.lines.map((t) => el('li', null, t))),
+      ]),
       el('footer', { class: 'set-foot' }, btn(S.close, () => close(), 'is-primary', { 'data-act': 'settings-close' })),
     ]);
     const overlay = el('div', { class: 'set-overlay', onclick: (e) => { if (e.target === overlay) close(); } }, panel);

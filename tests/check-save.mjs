@@ -110,12 +110,12 @@ const C_MEOK = { op: 'replace', at: { s: 0, slot: 'co', k: 0 }, to: 'ㅇ' };
 function sampleRun() {
   return {
     grade: 'h1', ch: 2, level: 'advanced', seed: 12345,
-    ids: ['협력', '감기', '임진란', '먹는', '물난리', '놓는', '백리'],
+    ids: ['협력', '감기', '생산량', '먹는', '물난리', '놓는', '백리'],
     phase: 'review', guideDone: true,
     done: [
       { id: '협력', result: 'onair', sends: 2, help: [1, 3], helped: true },
       { id: '감기', result: 'skip', sends: 0, help: [], helped: false },
-      { id: '임진란', result: 'offrule', sends: 1, help: [2], helped: true },
+      { id: '생산량', result: 'offrule', sends: 1, help: [2], helped: true },
     ],
     cur: {
       corrections: [copy(C_MEOK), { op: 'delete', at: { s: 1, slot: 'on', k: 0 } }],

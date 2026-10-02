@@ -6,7 +6,7 @@
 // 3 문구 규칙: 금지 낱말 없음, 한자 없음(명세 §3-6 · §13 — 조항 원문은 원문 그대로이므로 빗금 표기만 예외)
 // 4 제15항 원고(src '표준 15')는 제15항 원문 예시에 그대로 있음(표기·발음) — 원문에 없는 낱말을 원고로 지어내지 않았는지
 // 5 뉴스 원고 문장(js/data/news.js — 결정 0020): 원고마다 하나, {…}가 한 번이고 그 안이 원고 표기 그대로, 길이 · 금지 낱말 · 한자 ·
-//   대괄호(발음 표시) · 빗금(음운 표기) 없음, 감수할 말 바로 뒤에 모음으로 시작하는 말이 붙지 않음(이어 읽으면 발음이 달라짐)
+//   대괄호(발음 표시) · 빗금(음운 표기) 없음, 앞뒤 말과 이어 읽어도 감수할 말의 발음이 바뀌지 않음(edgeRisk)
 import { loadScripts, check, done } from './lib/load.mjs';
 import * as WORDS from './lib/words.mjs';
 
@@ -111,6 +111,37 @@ for (const s of SC || []) for (const src of s.src || []) {
 if (off.length) console.log('  참고: 현행 원문과 다른 원고 —', off.join(', '));
 
 // ───────────────────────── 5. 뉴스 원고 문장 ─────────────────────────
+// 감수할 말의 첫 · 끝 음절과 앞 · 뒤 말(띄어쓰기 건너 · 붙은 조사)이 만나 감수할 말 쪽 소리가 바뀌는 자리를 찾는다.
+//   쉼표 · 문장 처음 · 끝은 쉼으로 보고 안전. 앞말이 바뀌는 것(옷 + 맞는 → 앞말 비음화)은 판정과 상관없어 보지 않는다.
+const CO = ['', 'ㄱ', 'ㄲ', 'ㄳ', 'ㄴ', 'ㄵ', 'ㄶ', 'ㄷ', 'ㄹ', 'ㄺ', 'ㄻ', 'ㄼ', 'ㄽ', 'ㄾ', 'ㄿ', 'ㅀ', 'ㅁ', 'ㅂ', 'ㅄ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'];
+const ON = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'];
+const sylOf = (c) => { const k = (c || '').charCodeAt(0) - 0xAC00; return k >= 0 && k < 11172 ? { on: ON[Math.floor(k / 588)], co: CO[k % 28] } : null; };
+const OBS = ['ㄱ', 'ㄲ', 'ㄳ', 'ㄷ', 'ㅅ', 'ㅆ', 'ㅈ', 'ㅊ', 'ㅌ', 'ㅂ', 'ㅄ', 'ㅍ', 'ㅋ', 'ㄺ', 'ㄼ', 'ㄿ']; // 끝소리가 ㄱ · ㄷ · ㅂ인 받침
+const HCO = ['ㅎ', 'ㄶ', 'ㅀ'];
+function edgeRisk(pre, t, post) {
+  const out = [];
+  const last = sylOf(t[t.length - 1]), first = sylOf(t[0]);
+  const nx = post.startsWith(' ') ? sylOf(post[1]) : (post && post[0] !== ',' ? sylOf(post[0]) : null);
+  if (last && last.co && nx) {
+    if (HCO.includes(last.co)) out.push('뒤: ㅎ 받침 뒤에 말이 이어짐');
+    else if (nx.on === 'ㅇ') out.push('뒤: 받침 뒤 모음(이어 읽기)');
+    else if (OBS.includes(last.co) && (nx.on === 'ㄴ' || nx.on === 'ㅁ')) out.push('뒤: 비음화');
+    else if (OBS.includes(last.co) && nx.on === 'ㅎ') out.push('뒤: 거센소리되기');
+    else if (last.co !== 'ㄹ' && nx.on === 'ㄹ') out.push('뒤: ㄹ 앞 받침(비음화 · 유음화)');
+    else if (last.co === 'ㄹ' && nx.on === 'ㄴ') out.push('뒤: 유음화');
+  }
+  const pv = pre.endsWith(' ') ? sylOf(pre[pre.length - 2]) : null;
+  if (pv && pv.co && first) {
+    if (first.on === 'ㅇ') out.push('앞: 받침 + 모음(이어 읽기 · ㄴ 첨가)');
+    else if (OBS.includes(pv.co) && ['ㄱ', 'ㄷ', 'ㅂ', 'ㅅ', 'ㅈ'].includes(first.on)) out.push('앞: 된소리되기');
+    else if ((HCO.includes(pv.co) || OBS.includes(pv.co)) && first.on === 'ㅎ') out.push('앞: 거센소리되기');
+    else if (HCO.includes(pv.co) && ['ㄱ', 'ㄷ', 'ㅈ', 'ㄴ'].includes(first.on)) out.push('앞: ㅎ 받침');
+    else if (['ㅁ', 'ㅇ', 'ㄱ', 'ㅂ'].includes(pv.co) && first.on === 'ㄹ') out.push('앞: ㄹ의 비음화');
+    else if (pv.co === 'ㄹ' && first.on === 'ㄴ') out.push('앞: 유음화');
+  }
+  return out;
+}
+check(edgeRisk('', '앞', ' 횡단보도').length === 1 && edgeRisk('', '앞', ' 사거리').length === 0 && edgeRisk('신문 ', '의견란', '').length === 1, '앞뒤 말 점검 자체가 동작');
 {
   const N = ctx.NEWS;
   check(!!N && typeof N === 'object', 'window.NEWS 있음');
@@ -130,9 +161,8 @@ if (off.length) console.log('  참고: 현행 원문과 다른 원고 —', off.
     if (/[[\]/\n]/.test(line)) bad.push(s.id + ': 대괄호 · 빗금 · 줄바꿈');
     if (HANJA.test(line)) bad.push(s.id + ': 한자');
     for (const w of WORDS.FORBIDDEN.concat(WORDS.BROADCASTERS)) if (line.includes(w)) bad.push(s.id + ': 금지 낱말 ' + w);
-    // 감수할 말이 받침으로 끝나는데 바로 뒤에 모음으로 시작하는 음절이 붙으면(띄어쓰기 없이) 이어 읽혀 발음이 달라진다
-    const last = m[2].charCodeAt(m[2].length - 1) - 0xAC00, next = m[3].charCodeAt(0) - 0xAC00;
-    if (last >= 0 && last < 11172 && last % 28 && next >= 0 && next < 11172 && Math.floor(next / 588) === 11) bad.push(s.id + ': 뒤에 모음이 붙음');
+    // 앞뒤 말 때문에 감수할 말의 발음이 달라지면 안 된다(뉴스를 한 마디로 이어 읽어도 판정한 발음 그대로 — Codex QA D2).
+    for (const w of edgeRisk(m[1], m[2], m[3])) bad.push(s.id + ': ' + w);
   }
   check(bad.length === 0, '뉴스 문장 모양 (' + bad.slice(0, 8).join(' / ') + ')');
   console.log('  뉴스 문장 ' + keys.length + '개');

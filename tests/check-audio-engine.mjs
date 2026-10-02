@@ -1,5 +1,6 @@
 // 소리 장치 브라우저 점검(aside) — 명세 §15 · §5-6 · §11 · §18 '시작 화면이 콘솔 오류 없이 뜸(음원 파일 없음 상태 포함)'.
-//   음원 파일이 하나도 없는 지금 상태(assets/audio/에 README만)로 진짜 index.html을 돌린다:
+//   음원 없음은 G.audio.setBase('assets/audio-none/')(없는 폴더)로 흉내 내서 진짜 index.html을 돌린다(결정 0020 — 음원을 동봉한 뒤에도
+//   파일이 빠지거나 막힌 교실 기기에서 조용히 넘어가는지를 계속 본다). 동봉 음원이 실제로 울리는지는 마지막 단계에서 본다:
 //   1) 첫 터치(pointerdown)로 잠금이 풀리고, 배경 음악 자리(지침 · 감수 = review, 조항 공개 · 장 결과 = result)와
 //      효과음(교정 · 송출 · 신호 · 지침 맞음/틀림)을 모두 불러도 페이지 오류가 0, 실제로 울리는 소리는 없음(조용히 넘어감),
 //      같은 파일 경고는 한 번만, console.error 없음 — 점검 서버(웹 오디오)와 file://(오디오 요소) 둘 다
@@ -70,7 +71,7 @@ ${open('a1', 1280, 800)}
 await a1.evaluate(() => { ${SPY} });
 try {
   const ea = [];
-  ea.push(...await a1.evaluate(async () => { await D.fresh(); D.spy(); D.G().save.setSettings({ reduceMotion: true }); return D.take(); }));
+  ea.push(...await a1.evaluate(async () => { await D.fresh(); D.spy(); D.G().save.setSettings({ reduceMotion: true }); D.G().audio.setBase('assets/audio-none/'); return D.take(); }));
   ea.push(...await a1.evaluate(async () => {
     const G = D.G(), A = G.audio;
     if (A.state().unlocked) D.bad('터치 전에 잠금이 풀림');
@@ -201,6 +202,7 @@ try {
     console.warn = (...a) => { spy.warn.push(a.map(String).join(' ')); ow(...a); };
     console.error = (...a) => { spy.error.push(a.map(String).join(' ')); oe(...a); };
     if (location.protocol !== 'file:') bad.push('file 주소가 아님: ' + location.protocol);
+    G.audio.setBase('assets/audio-none/'); // 음원 없음 흉내(없는 폴더)
     window.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
     const A = G.audio;
     if (!A.state().unlocked) bad.push('잠금이 풀리지 않음');
@@ -221,4 +223,30 @@ try {
   console.log('INFO ' + r.info);
   ${fin('r.bad')}
 } finally { await closeTab(c1); }
+`);
+
+// 동봉 음원(결정 0020): 점검 서버(웹 오디오)에서 배경 음악이 실제로 재생되고 효과음이 울리며, 없는 파일이 없음
+step('동봉 음원 — 배경 음악 재생 · 효과음 울림 · 없는 파일 0', `
+${open('d1', 1280, 800)}
+try {
+  const ed = await d1.evaluate(async () => {
+    await D.fresh();
+    const G = D.G(), A = G.audio;
+    G.save.setSettings({ bgmOn: true, sfxOn: true, reduceMotion: true });
+    D.w().dispatchEvent(new (D.w().PointerEvent)('pointerdown', { bubbles: true }));
+    await D.startChapter({ ch: 1, grade: 'm3', level: 'basic' });
+    await D.until(() => A.state().playing === 'review', 8000, '감수 배경 음악 재생');
+    const n0 = A.state().sfxPlayed;
+    A.sfx('onair'); A.sfx('mark');
+    await D.until(() => A.state().sfxPlayed >= n0 + 2, 4000, '효과음 두 번 울림');
+    await D.wait(300);
+    const st = A.state();
+    if (st.missing.length) D.bad('없는 파일로 적힘: ' + JSON.stringify(st.missing));
+    window.__infos = ['동봉 음원: 소리 틀 ' + st.backend + ', 재생 ' + st.playing + ', 효과음 ' + st.sfxPlayed + '번'];
+    D.noErr('동봉 음원');
+    return D.take();
+  });
+  for (const i of await d1.evaluate(() => window.__infos || [])) console.log('INFO ' + i);
+  ${fin('ed')}
+} finally { await closeTab(d1); }
 `);
