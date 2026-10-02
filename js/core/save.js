@@ -26,7 +26,8 @@
 //     ids: [원고 id 7개 — 뽑힌 차례 그대로],
 //     guides: [그 장 지침 id — 저장할 때 window.GUIDES[ch]에서 이 파일이 적는다] | null(GUIDES가 없을 때 · 지침이 없는 장 — 8장),
 //     phase: 'guide'(감수 지침) | 'review'(원고 감수) | 'reveal'(조항 공개),
-//     guideDone: 지침을 다 채웠는지(감수 · 조항 공개 단계면 반드시 true. [다시 하기]는 true로 시작),
+//     guideDone: 지침을 다 채웠는지(조항 공개 단계면 반드시 true. [다시 하기]는 true로 시작. 몸풀기 장(WARMUP — 1장)은
+//                감수 단계에서 false일 수 있다: 몸풀기 원고(done < WARMUP[ch])를 감수하는 동안),
 //     done: [끝난 원고 기록 — ids 차례대로, done[i].id === ids[i]] {
 //       id, result: 'onair'|'offrule'|'skip'(온에어 · 규칙 밖 · 넘김, G.rules가 정한 값), sends: 송출 횟수,
 //       help: [연 도움 단계 1|2|3 — 도움으로 센 것만(§8-4: '먼저 송출해 보세요'였던 ①은 빼고 화면이 넣는다)],
@@ -63,6 +64,8 @@ G.save = (function () {
   const PREFIX = 'eumun-byeondong:';
   const SCHEMA = 2; // 저장 형식 버전(바꾸면 옛 저장 값은 모두 기본값으로, 옛 진행 장은 버림). 2: cur.open · last 모습 · fp
   const PICK = 7; // 한 장의 원고 수(spec §6)
+  // 몸풀기: 지침보다 먼저 감수하는 원고 수(장마다). 1장만 — 원고 2개 → 지침 → 나머지(결정 0021, 첫 조작까지 걸리는 시간을 줄이려고)
+  const WARMUP = { 1: 2 };
   const CHAPTERS = [1, 2, 3, 4, 5, 6, 7, 8];
   const GRADES = ['m3', 'h1'];
   const LEVELS = ['basic', 'advanced'];
@@ -335,7 +338,8 @@ G.save = (function () {
     if (!isObj(r)) return null;
     if (GRADES.indexOf(r.grade) < 0 || LEVELS.indexOf(r.level) < 0) return null;
     if (CHAPTERS.indexOf(r.ch) < 0 || PHASES.indexOf(r.phase) < 0 || typeof r.guideDone !== 'boolean') return null;
-    if (r.phase !== 'guide' && !r.guideDone) return null;
+    const warm = WARMUP[r.ch] || 0;
+    if (r.phase === 'reveal' && !r.guideDone) return null;
     const seed = r.seed === undefined || r.seed === null ? null : r.seed;
     if (seed !== null && !(typeof seed === 'number' && isFinite(seed))) return null;
     // 원고 id: 지금 원고 데이터의 그 장 원고, 겹치지 않는 7개
@@ -363,7 +367,9 @@ G.save = (function () {
     if (!Array.isArray(ds) || ds.length > PICK) return null;
     const done = ds.map((d, i) => cleanDone(d, r.ids[i]));
     if (done.some((d) => d === undefined)) return null;
-    if (r.phase === 'guide' && done.length) return null;
+    // 지침 단계: 처음(끝난 원고 없음) 또는 몸풀기를 마친 뒤(끝난 원고 = WARMUP[ch]). 감수 단계에서 지침 전이면 몸풀기 원고만
+    if (r.phase === 'guide' && done.length && !(warm && done.length === warm)) return null;
+    if (r.phase === 'review' && !r.guideDone && !(warm && gd && gd !== 'none' && done.length < warm)) return null;
     if (r.phase === 'review' && done.length >= PICK) return null;
     if (r.phase === 'reveal' && done.length !== PICK) return null;
     let cur = null;
@@ -406,7 +412,7 @@ G.save = (function () {
   function clearChapter() { rawDel('chapter'); }
 
   return {
-    PREFIX, SCHEMA, fingerprint,
+    PREFIX, SCHEMA, WARMUP, fingerprint,
     getSettings, setSettings, applySettings,
     getSelection, setSelection, levelOf,
     seenHowto, setSeenHowto,

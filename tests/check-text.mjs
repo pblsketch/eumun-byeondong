@@ -84,7 +84,8 @@ check(!hanLines.length, `한자 없음(파일) ${hanLines.map(([n]) => n + '행'
 // ── 4. 빗금 표기·대괄호·한 줄 ──
 // 한글 자모(호환 자모 ㄱ-ㆎ, 조합용 자모)가 /x/ 꼴이 아닌 채로 나오면 실패. 완성된 음절(가-힣)은 상관없다.
 const JAMO = '\\u3131-\\u318E\\u1100-\\u11FF';
-const slashed = new RegExp(`/[${JAMO}]/`, 'g');
+// 반모음 교과서 표기(ㅣ̆ · ㅗ̆·ㅜ̆ — 위에 붙는 반달표 U+0306, 결정 0021)도 빗금 표기로 본다
+    const slashed = new RegExp(`/[${JAMO}]\u0306?(·[${JAMO}]\u0306?)?/`, 'g');
 const lone = new RegExp(`[${JAMO}]`);
 check(!lone.test('가/ㄱ/나'.replace(slashed, '')) && lone.test('ㄱ과 /ㅇ/'.replace(slashed, '')), '빗금 점검 자체가 동작');
 for (const [p, s] of strings) {
@@ -239,7 +240,7 @@ eq(H.term('m3', 'slot', 'co'), '끝소리', '중3 자리 이름');
 // ── 7. 도우미 ──
 eq(H.fill('{n}곳', { n: 3 }), '3곳', 'fill');
 eq(H.fill('{n}곳', {}), '{n}곳', 'fill: 값이 없으면 자리 그대로');
-eq(H.phoneme('ㄱ'), '/ㄱ/', 'phoneme'); eq(H.sound('j'), '/j/', 'sound(별칭)');
+eq(H.phoneme('ㄱ'), '/ㄱ/', 'phoneme'); eq(H.sound('j'), '/ㅣ̆/', 'sound(별칭) — 반모음은 교과서 표기'); eq(H.phoneme('w', 'ㅏ'), '/ㅗ̆/', '반모음 w + ㅏ'); eq(H.phoneme('w', 'ㅓ'), '/ㅜ̆/', '반모음 w + ㅓ');
 eq(H.pron('궁물'), '[궁물]', 'pron');
 eq(H.circled(1) + H.circled(20) + H.circled(21), '①⑳(21)', 'circled');
 eq(H.t('signal.line.diff', { n: 4 }), '4곳이 달라요', 't');
@@ -257,10 +258,10 @@ eq(H.signalName('offrule'), '규칙 밖', 'signalName');
 eq(H.articleName('18'), '제18항', 'articleName');
 eq(H.articleName('20-다만'), '제20항 다만', 'articleName 다만');
 eq(H.articleList(['18', '19', '20', '20-다만', '21']), '제18항·제19항·제20항·제20항 다만·제21항', 'articleList');
-eq(H.fill(T.reveal.heading, { articles: H.articleList(['18']) }), '선생님이 채운 지침은 실제로 「표준 발음법」 제18항입니다', '조항 공개 머리 꼴');
+eq(H.fill(T.reveal.heading, { articles: H.articleList(['18']) }), '직접 채운 지침은 실제로 「표준 발음법」 제18항입니다', '조항 공개 머리 꼴');
 eq(H.logLine(1, { op: 'replace', from: 'ㄷ', to: 'ㄴ' }), '① 고침 /ㄷ/→/ㄴ/', 'logLine 고침(명세 §8-1 예)');
 eq(H.logLine(2, { op: 'delete', from: 'ㄹ' }), '② 뺌 /ㄹ/', 'logLine 뺌');
-eq(H.logLine(3, { op: 'insert', to: 'j' }), '③ 넣음 /j/', 'logLine 넣음');
+eq(H.logLine(3, { op: 'insert', to: 'j' }), '③ 넣음 /ㅣ̆/', 'logLine 넣음');
 eq(H.logLine(4, { op: 'merge', from: ['ㅎ', 'ㄱ'], to: 'ㅋ' }), '④ 합침 /ㅎ/·/ㄱ/→/ㅋ/', 'logLine 합침');
 eq(H.logLine(1, { op: 'nope' }), '', 'logLine 모르는 op');
 // 도우미가 내놓은 문구도 빗금 표기를 지킨다

@@ -103,7 +103,7 @@
       root.appendChild(el('div', { class: 'rs' }, [
         el('header', { class: 'rs-head' }, [
           el('div', { class: 'rs-head-text' }, [
-            el('h1', { class: 'app-h1 rs-title' }, R.title),
+            el('div', { class: 'app-titlebar' }, [U.art('ic_trophy', 'app-title-ico'), el('h1', { class: 'app-h1 rs-title' }, R.title)]),
             el('p', { class: 'rs-sub' }, G.text.fill(R.subtitle, { chapter: G.text.chapterTitle(run.ch), level: G.text.levelName(run.level) })),
           ]),
           el('div', { class: 'rs-wrap' + (allOn ? ' is-clean' : '') }, [

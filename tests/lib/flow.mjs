@@ -26,7 +26,9 @@ if (window.D && D.toReview && !D.startChapter) {
     D.tapSel('[data-level="' + o.level + '"]', '단계 ' + o.level);
     D.tapSel('[data-act="begin"]', '감수 시작');
     if (D.$('.st-confirm')) D.tapSel('[data-act="overwrite-yes"]', '새로 시작');
-    if (D.w().GUIDES[o.ch]) await D.until(() => D.cur() === 'guide' && D.$('.gd-card'), 4000, '지침 화면');
+    // o.keepWarmup: 1장 몸풀기 원고(결정 0021)를 넘기지 않고 감수 화면에서 돌려준다
+    if (D.w().GUIDES[o.ch] && o.keepWarmup && D.G().save.WARMUP[o.ch]) await D.until(() => D.cur() === 'review' && D.$('.rw-blocks .bk-slot'), 4000, '몸풀기 감수 화면');
+    else if (D.w().GUIDES[o.ch]) { await D.passWarmup(); await D.until(() => D.cur() === 'guide' && D.$('.gd-card'), 4000, '지침 화면'); }
     else await D.until(() => D.cur() === 'review' && D.$('.rw-blocks .bk-slot'), 4000, '감수 화면(지침 없는 장)');
     return D.G().save.loadChapter();
   };
@@ -110,7 +112,8 @@ if (window.D && D.toReview && !D.startChapter) {
     const n0 = D.G().save.loadChapter().done.length;
     D.act('rw-next');
     await D.until(() => { const r = D.G().save.loadChapter(); return r && r.done.length === n0 + 1; }, 3000, '다음 원고 저장');
-    if (n0 + 1 < 7) await D.until(() => D.dbg().script() && D.$('.rw-blocks .bk-slot') && D.logN() === 0, 3000, '다음 원고');
+    // 몸풀기 마지막 원고 뒤에는 지침 화면으로 간다(결정 0021)
+    if (n0 + 1 < 7) await D.until(() => (D.cur() === 'guide' && D.$('.gd-card')) || (D.cur() === 'review' && D.dbg().script() && D.$('.rw-blocks .bk-slot') && D.logN() === 0), 3000, '다음 원고');
   };
 
   // ── 넘치는 글 ──

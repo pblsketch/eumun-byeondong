@@ -36,7 +36,8 @@ if (!D.scanText) {
     const attrs = [];
     clone.querySelectorAll('[aria-label], [title], [alt], [placeholder]').forEach((e) => ['aria-label', 'title', 'alt', 'placeholder'].forEach((a) => { if (e.hasAttribute(a)) attrs.push(e.getAttribute(a)); }));
     const txt = clone.textContent + '\n' + attrs.join('\n');
-    const lone = txt.replace(/\/[ㄱ-ㆎ]\//g, '').match(/.{0,8}[ㄱ-ㆎᄀ-ᇿ].{0,8}/);
+    // 빗금 표기를 지운 뒤 남는 자모: /ㄱ/ · 반모음 /ㅣ̆/(반달표 U+0306) · /ㅗ̆·ㅜ̆/ (결정 0021)
+    const lone = txt.replace(/\/[ㄱ-ㆎ]\u0306?(·[ㄱ-ㆎ]\u0306?)?\//g, '').match(/.{0,8}[ㄱ-ㆎᄀ-ᇿ].{0,8}/);
     if (lone) D.bad(tag + ': 빗금 없이 쓴 음운 — "' + lone[0].replace(/\s+/g, ' ') + '"');
   };
 }

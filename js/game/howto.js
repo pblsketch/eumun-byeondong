@@ -20,11 +20,17 @@
   const U = G.util, el = U.el;
   let cur = null;
 
+  // 카드마다 꾸밈 그림(화풍 B — assets/img). 2번(한 장의 흐름)은 지침 → 원고 감수 → 조항 공개 → 장 결과 네 그림을 차례로
+  const ART = ['ch1', null, 'ic_blocks', 'ic_mark', 'ic_onair', 'ic_hint'];
+  const FLOW = ['ic_guide', 'ic_review', 'ic_rule', 'ic_trophy'];
+
   function card(n, sec) {
     const lines = Array.isArray(sec.lines) ? sec.lines : [];
+    const art = ART[n - 1];
     return el('section', { class: 'howto-card' }, [
-      el('h3', { class: 'howto-card-h' }, [el('span', { class: 'howto-num', 'aria-hidden': 'true' }, String(n)), sec.title || '']),
-      lines.filter(Boolean).map((t) => el('p', { class: 'howto-p' }, t)),
+      el('h3', { class: 'howto-card-h' }, [el('span', { class: 'howto-num', 'aria-hidden': 'true' }, String(n)), sec.title || '', art ? U.art(art, 'howto-art') : null]),
+      n === 2 ? el('div', { class: 'howto-flow', 'aria-hidden': 'true' }, FLOW.map((f, i) => [i ? el('span', { class: 'howto-flow-arrow' }, U.glyph('next')) : null, U.art(f, 'howto-flow-ico')])) : null,
+      lines.filter(Boolean).map((t) => el('p', { class: 'howto-p' }, U.keepPh(t, 'howto-ph'))), // 음운 표기(/ㄱ/)는 한 덩어리
     ]);
   }
 

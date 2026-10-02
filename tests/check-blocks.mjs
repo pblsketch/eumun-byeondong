@@ -54,7 +54,8 @@ if (!window.K) {
       // 반모음: 있을 때만 따로
       const gl = slot('gl');
       if (!!gl !== !!y.gl) D.bad(tag + ': ' + s + '번 반모음 칸 ' + (gl ? '있음' : '없음') + ' / 상태 ' + y.gl);
-      if (gl && gl.textContent.trim() !== '/' + y.gl + '/') D.bad(tag + ': 반모음 ' + gl.textContent);
+      // 반모음은 교과서 표기(ㅣ̆ · ㅗ̆ · ㅜ̆ — 결정 0021). 뒤 단모음에 따라 ㅗ̆/ㅜ̆
+      if (gl && gl.textContent.trim() !== D.G().text.phoneme(y.gl, y.nu)) D.bad(tag + ': 반모음 ' + gl.textContent + ' / ' + D.G().text.phoneme(y.gl, y.nu));
       // 중성(ㅢ도 한 칸)
       const nus = D.$$('.bk-slot[data-s="' + s + '"][data-slot="nu"]', root);
       if (nus.length !== 1) D.bad(tag + ': 중성 칸 수 ' + nus.length);

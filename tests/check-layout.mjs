@@ -228,7 +228,7 @@ try {
   const er0 = [];
   er0.push(...await r0.evaluate(async () => { await D.fresh(); D.G().save.setSettings({ reduceMotion: true }); return D.take(); }));
   ${ROT('시작')} await shot('00-rotate-start');
-  er0.push(...await r0.evaluate(async () => { D.G().app.beginChapter({ ch: 1, grade: 'm3', level: 'basic' }); await D.until(() => D.cur() === 'guide' && D.$('.gd-card'), 3000, '지침'); return D.take(); }));  // 덮개 아래라 누르지 않고 바로 연다
+  er0.push(...await r0.evaluate(async () => { D.G().app.beginChapter({ ch: 2, grade: 'm3', level: 'basic' }); await D.until(() => D.cur() === 'guide' && D.$('.gd-card'), 3000, '지침'); return D.take(); }));  // 덮개 아래라 누르지 않고 바로 연다
   ${ROT('지침')} await shot('00-rotate-guide');
   er0.push(...await r0.evaluate(async () => { await D.toReview(2, { seed: 4 }); return D.take(); }));
   ${ROT('감수')} await shot('00-rotate-review');

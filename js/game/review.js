@@ -117,6 +117,9 @@
     const grade = run.grade === 'h1' ? 'h1' : 'm3';
     const level = run.level === 'advanced' ? 'advanced' : 'basic';
     const likeOn = level === 'basic' && (run.ch === 1 || run.ch === 2); // 닮은 칸: 1 · 2장 기본 단계만
+    // 마지막 두 원고는 닮은 칸 없이(비계 걷어내기 — 결정 0021). 연습 자리(점검)는 원래 원고 차례를 따른다
+    const LIKE_OFF_LAST = 2;
+    const likeNow = () => likeOn && run.done.length < run.ids.length - LIKE_OFF_LAST;
     const by = {};
     (window.SCRIPTS || []).forEach((s) => { by[s.id] = s; });
     if (!run.cur) run.cur = freshCur();
@@ -234,7 +237,7 @@
       type: 'button', class: 'rw-ins', 'data-id': id,
       'aria-label': id === 'j' ? G.text.term(grade, 'glide', 'j') : G.text.phoneme(id),
       onclick: () => insertPick(id, where),
-    }, G.text.phoneme(id)));
+    }, U.breve(G.text.phoneme(id))));
     //   안내 '넣을 음운을 골라 주세요'는 한 줄 자리(.rw-say)에 나오므로 여기서는 화면에 다시 쓰지 않고 묶음의 읽기 이름으로만 둔다
     const insTitleId = 'rw-ins-title-' + Date.now();
     const insHost = el('div', { class: 'rw-ins-pick', role: 'group', 'aria-labelledby': insTitleId, hidden: true }, [
@@ -248,7 +251,10 @@
 
     const wrap = el('div', { class: 'rw' }, [
       el('header', { class: 'rw-head' }, [
-        el('div', { class: 'rw-head-main' }, [kicker, el('div', { class: 'rw-head-row' }, [noEl, countEl])]),
+        el('div', { class: 'rw-head-id' }, [
+          U.art('ch' + run.ch, 'rw-head-badge'), // 장 배지(시작 화면 장 카드와 같은 그림)
+          el('div', { class: 'rw-head-main' }, [kicker, el('div', { class: 'rw-head-row' }, [noEl, countEl])]),
+        ]),
         el('div', { class: 'rw-rundown-box' }, [el('span', { class: 'rw-rundown-title', 'aria-hidden': 'true' }, R.rundown.title), rundown]),
         el('div', { class: 'rw-tools' }, [howtoBtn, soundBtn]),
       ]),
@@ -302,6 +308,7 @@
       clearTimers();
       closeConfirm();
       S = { script, cur, sandbox: !!sandbox, state: null, from: G.rules.phonemes(G.rules.start(script)) };
+      helpBtn.classList.remove('is-nudge');
       mode = null; outRule = []; helpView = 0;
       resetPicks();
       closeSheet();
@@ -316,6 +323,12 @@
       stamp.classList.remove('is-pop');
       setLamp(false);
       clearStage();
+      // 몸풀기 원고(지침 전 — 1장 처음 두 원고, 송출 전): 무대에 선배 한 줄(무엇을 고칠지는 말하지 않음)
+      if (!run.guideDone && !sandbox && !cur.last) {
+        const SG = T().signal;
+        reactEl.appendChild(el('li', { class: 'rw-react-item is-senior is-still' }, [
+          el('span', { class: 'rw-react-who' }, SG.nudge.who), el('span', { class: 'rw-react-text' }, SG.warmup)]));
+      }
       if (blocks) blocks.destroy();
       blocks = G.blocks.create(blocksHost, { grade, level, split: 'auto', caption: true, label: R.scriptLabel, onTap: (p) => onTap(p) });
       refresh();
@@ -351,11 +364,13 @@
       // 감수 기록
       U.clear(logList);
       if (!r.lines.length) logList.appendChild(el('li', { class: 'rw-log-empty' }, R.log.empty));
+      const names = ruleNames();
       r.lines.forEach((line, i) => {
         const off = outRule.indexOf(i) >= 0;
         logList.appendChild(el('li', { class: 'rw-log-item' + (off ? ' is-offrule' : '') }, [
           el('span', { class: 'rw-log-line' }, keepPh(line)),
           off ? el('span', { class: 'rw-log-tag' }, [U.glyph('offrule', 'glyph rw-log-tag-ico'), R.offruleMark]) : null,
+          names[i] ? el('span', { class: 'rw-log-rule' }, G.text.fill(R.ruleTag, { rule: names[i] })) : null,
         ]));
       });
       logMark.hidden = !outRule.length;
@@ -408,7 +423,7 @@
         pick = at;
         blocks.setPicked([at]);
         let like = [];
-        if (likeOn) { const id = G.rules.similarCell(S.state, at); if (id) like = [id]; }
+        if (likeNow()) { const id = G.rules.similarCell(S.state, at); if (id) like = [id]; }
         openChart({ parts: [PART_OF[at.slot]], current: p.id, like });
         say(R.prompt.replaceChart);
         return;
@@ -475,6 +490,7 @@
       stamp.hidden = true;
       setLamp(false);
       clearStage();
+      helpBtn.classList.remove('is-nudge');
       save();
       refresh();
     }
@@ -608,8 +624,14 @@
       else say(line, 'sig-' + res.kind);
       sound(() => G.audio.sfx(res.kind));
       setAnchors(REACT_STATE[res.kind]);
-      showBanner(res.kind, quick);
-      showReactions(res.kind, quick);
+      // 같은 원고에서 온에어가 아닌 송출 뒤 온에어 → '방송 수습'. 같은 신호가 두 번 이어짐 → 선배가 도움을 권함(위치 · 정답은 말하지 않음)
+      const ks = S.cur.kinds, prev = ks.slice(0, -1);
+      const recover = res.kind === 'onair' && prev.some((k) => k !== 'onair');
+      const repeat = res.kind !== 'onair' && prev.length > 0 && prev[prev.length - 1] === res.kind;
+      showBanner(res.kind, quick, recover);
+      showReactions(res.kind, quick, recover, repeat);
+      if (repeat && res.kind === 'diff') helpBtn.classList.add('is-nudge');
+      flashResult(quick);
       if (res.kind === 'onair') {
         stamp.hidden = false;
         if (!quick) { stamp.classList.remove('is-pop'); void stamp.offsetWidth; stamp.classList.add('is-pop'); }
@@ -618,9 +640,30 @@
       if (linking) {
         const tok = sayToken;
         later(() => { if (sayToken === tok) say(T().signal.linking, 'linking'); }, LINK_MS);
+      } else if (res.kind === 'onair' && G.rules.linkSites(G.rules.start(S.script)).length) {
+        // 연음 자리가 있는 원고를 받침을 고치지 않고 온에어: 같은 자리가 '이어 읽는 자리만 옮겨짐'으로(송출 뒤라 답이 새지 않음)
+        const tok = sayToken;
+        later(() => { if (sayToken === tok) say(T().signal.linkOk, 'linking'); }, quick ? 0 : LINK_MS);
       }
     }
+    // 결과가 나오면 고친 음운 칸(펜 자국)과 감수 기록을 잠깐 함께 돋보이게 — 시선을 무대에서 학습 내용으로(한 번만)
+    function flashResult(quick) {
+      if (quick) return;
+      [blocksHost, logBox].forEach((n) => { n.classList.remove('is-flash'); void n.offsetWidth; n.classList.add('is-flash'); });
+      later(() => [blocksHost, logBox].forEach((n) => n.classList.remove('is-flash')), 1400);
+    }
 
+    // ── 온에어(송출한 그대로)일 때만: 교정마다 엔진이 알려 준 규칙의 이름. 결과 전에는 빈 목록(답이 새지 않음) ──
+    function ruleNames() {
+      const l = S.cur.last;
+      if (!l || l.kind !== 'onair' || !sentAsIs()) return [];
+      let st = G.rules.start(S.script);
+      return S.cur.corrections.map((c) => {
+        const k = G.rules.check(st, c);
+        st = k.state;
+        return k.rule ? G.text.rule(grade, k.rule) : '';
+      });
+    }
     // ── 뉴스 한 줄(js/data/news.js): '앞 {감수할 말} 뒤' → [앞, 뒤]. 없거나 모양이 틀리면 감수할 말만 ──
     function newsOf(script) {
       const line = window.NEWS && window.NEWS[script.id];
@@ -664,10 +707,10 @@
       cueEl.hidden = true;
       setAnchors('idle');
     }
-    function showBanner(kind, quick) {
+    function showBanner(kind, quick, recover) {
       U.clear(bannerEl);
       bannerEl.setAttribute('data-kind', kind);
-      U.append(bannerEl, [U.glyph(kind, 'glyph rw-banner-ico'), el('span', null, T().signal.banner[kind])]);
+      U.append(bannerEl, [U.glyph(kind, 'glyph rw-banner-ico'), el('span', null, recover ? T().signal.recover.banner : T().signal.banner[kind])]);
       bannerEl.hidden = false;
       bannerEl.classList.toggle('is-still', !!quick);
     }
@@ -676,15 +719,16 @@
       for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = a[i]; a[i] = a[j]; a[j] = t; }
       return a.slice(0, n);
     }
-    function showReactions(kind, quick) {
+    function showReactions(kind, quick, recover, repeat) {
       const SG = T().signal;
       U.clear(reactEl);
-      const who = SG.reactBy[kind] === 'pd' ? 'pd' : 'viewer';
-      const lines = pickSome(SG.react[kind] || [], who === 'pd' ? 1 : 2);
+      // 반복 실패: 웃기는 반응 대신 선배 한 줄(도움을 권함) / 수습: 수습 반응 / 그 밖: 신호마다 시청자 · PD
+      const who = repeat && SG.nudge[kind] ? 'senior' : SG.reactBy[kind] === 'pd' ? 'pd' : 'viewer';
+      const lines = who === 'senior' ? [SG.nudge[kind]] : pickSome(recover ? SG.recover.react : (SG.react[kind] || []), who === 'pd' ? 1 : 2);
       const nicks = pickSome(SG.nicks || [], lines.length);
       lines.forEach((text, i) => {
         const add = () => reactEl.appendChild(el('li', { class: 'rw-react-item is-' + who + (quick ? ' is-still' : '') }, [
-          el('span', { class: 'rw-react-who' }, who === 'pd' ? SG.who.pd : (nicks[i] || SG.who.viewer)),
+          el('span', { class: 'rw-react-who' }, who === 'senior' ? SG.nudge.who : who === 'pd' ? SG.who.pd : (nicks[i] || SG.who.viewer)),
           el('span', { class: 'rw-react-text' }, text),
         ]));
         if (quick || i === 0) add(); else later(add, REACT_MS * i);
@@ -707,6 +751,7 @@
     function toggleHelp(open) {
       helpOpen = open === undefined ? !helpOpen : !!open;
       helpBox.hidden = !helpOpen;
+      if (helpOpen) helpBtn.classList.remove('is-nudge');
       helpBtn.setAttribute('aria-expanded', String(helpOpen));
       helpBtn.classList.toggle('is-on', helpOpen);
       if (helpOpen) {
@@ -753,9 +798,11 @@
     }
     // ② 이 장의 채운 감수 지침(빈칸에 고른 답) — 지침은 이미 다 맞힌 것이다. 지침이 없는 장(8장)은 그렇다는 한 줄
     function guidesOf() { return (window.GUIDES && window.GUIDES[run.ch]) || []; }
-    function hasGuides() { return guidesOf().length > 0; }
+    // 몸풀기 원고(지침 전)에서는 채운 지침을 보이지 않는다 — 지침 정답이 새지 않게(결정 0021). 도움으로 세지도 않음
+    function hasGuides() { return guidesOf().length > 0 && !!run.guideDone; }
     function guidesView() {
       const gs = guidesOf();
+      if (gs.length && !run.guideDone) return el('p', { class: 'rw-help-line rw-no-guide' }, H.guideLater);
       if (!gs.length) return el('p', { class: 'rw-help-line rw-no-guide' }, H.noGuide);
       return el('div', { class: 'rw-guides' }, [
         el('h3', { class: 'rw-help-h' }, H.guideTitle),
@@ -824,6 +871,15 @@
       const cur = S.cur;
       const result = G.rules.scriptResult(cur.kinds);
       run.done.push({ id: S.script.id, result, sends: cur.sends, help: cur.help.slice(), helped: cur.help.length > 0 });
+      // 몸풀기를 마침(지침 전 원고 WARMUP개 — 1장, 결정 0021): 지침 단계로 저장하고 지침 화면으로. 지침을 채우면 남은 원고로 돌아온다
+      const warm = (G.save.WARMUP || {})[run.ch] || 0;
+      if (!run.guideDone && warm && run.done.length >= warm) {
+        run.phase = 'guide';
+        run.cur = null;
+        G.save.saveChapter(run);
+        G.app.go('guide', { run: G.save.loadChapter() || run });
+        return;
+      }
       if (run.done.length >= run.ids.length) {
         // 7번째 원고 끝: 조항 공개 단계로 저장하고 그 화면으로(js/game/reveal.js와의 약속)
         run.phase = 'reveal';

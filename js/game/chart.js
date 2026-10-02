@@ -36,7 +36,7 @@ G.chart = (function () {
   const T = (path, vars, grade) => G.text.t(path, vars, grade);
 
   function phonemeText(id) {
-    return [U.el('span', { class: 'ch-sl', 'aria-hidden': 'true' }, '/'), U.el('span', { class: 'ch-ph' }, id), U.el('span', { class: 'ch-sl', 'aria-hidden': 'true' }, '/')];
+    return [U.el('span', { class: 'ch-sl', 'aria-hidden': 'true' }, '/'), U.el('span', { class: 'ch-ph' }, U.breve(G.text.glide(id))), U.el('span', { class: 'ch-sl', 'aria-hidden': 'true' }, '/')];
   }
 
   function create(container, options) {

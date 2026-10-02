@@ -378,7 +378,15 @@ const poolJ = J(SC);
   check(bad1c === 0, `1장 제15항 원고가 모두 빠져도 뽑힘 (어긋남 ${bad1c})`);
   check(bad2 === 0, `2장 시드 200개 모두 조건을 지킴 (어긋남 ${bad2})`);
   check(bad2b === 0, `2장 뺄 원고를 주면 뽑지 않고 조건을 지킴 (어긋남 ${bad2b})`);
-  check(trapAt.size >= 5, `함정 위치도 무작위 (감기가 놓인 자리 ${[...trapAt].sort()})`);
+  // 처음 세 원고는 일반 원고, 함정은 4~7번째 안에서 무작위(결정 0021)
+  check(Math.min(...trapAt) >= 3 && trapAt.size === 4, `함정은 4~7번째 안에서 무작위 (감기가 놓인 자리 ${[...trapAt].sort()})`);
+  {
+    let leadBad = 0;
+    for (let ch = 1; ch <= 8; ch++) for (let sd = 0; sd < 60; sd++) {
+      if (R.draw(ch, SC, [], sd).slice(0, 3).some((id) => byId[id].trap)) leadBad++;
+    }
+    check(leadBad === 0, `1~8장 처음 세 원고는 함정 · 예외가 아님 (어긋남 ${leadBad})`);
+  }
   check(firstIds.size >= 5, '차례도 무작위');
   // 조건을 채울 수 없으면 오류(데이터 잘못)
   const noLink = ids(1).filter((id) => byId[id].trap === 'link').slice(1);
@@ -715,7 +723,8 @@ const G_LAT = {
     const FORBIDDEN = [...WORDS_FORBIDDEN, ...BROADCASTERS];   // tests/lib/words.mjs — 문구·화면 글 점검과 같은 목록
     const HAN = /\p{Script=Han}/u;
     const JAMO = '\\u3131-\\u318E\\u1100-\\u11FF';
-    const slashed = new RegExp(`/[${JAMO}]/`, 'g');
+    // 반모음 교과서 표기(ㅣ̆ · ㅗ̆·ㅜ̆ — 위에 붙는 반달표 U+0306, 결정 0021)도 빗금 표기로 본다
+    const slashed = new RegExp(`/[${JAMO}]\u0306?(·[${JAMO}]\u0306?)?/`, 'g');
     const lone = new RegExp(`[${JAMO}]`);
     const shown = []; // 화면에 보이는 문구: 지침 문장(두 학년)과 보기
     GCH.forEach((ch) => GD[ch].forEach((g) => {

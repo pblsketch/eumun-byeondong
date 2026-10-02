@@ -74,8 +74,9 @@ G.blocks = (function () {
     return s;
   }
   // 음운 표기(빗금은 옅게): textContent는 '/ㄱ/'
-  function phonemeText(id) {
-    return [U.el('span', { class: 'bk-sl', 'aria-hidden': 'true' }, '/'), U.el('span', { class: 'bk-ph' }, id), U.el('span', { class: 'bk-sl', 'aria-hidden': 'true' }, '/')];
+  // 반모음 j · w는 교과서 표기(ㅣ̆ · ㅗ̆/ㅜ̆ — G.text.glide, w는 뒤 단모음 nu로 고름)
+  function phonemeText(id, nu) {
+    return [U.el('span', { class: 'bk-sl', 'aria-hidden': 'true' }, '/'), U.el('span', { class: 'bk-ph' }, U.breve(G.text.glide(id, nu))), U.el('span', { class: 'bk-sl', 'aria-hidden': 'true' }, '/')];
   }
   const posOf = (p) => (typeof p === 'string' ? G.rules.pos(p) : { s: p.s, slot: p.slot, k: p.slot === 'co' ? (p.k || 0) : 0 });
   const posKey = (p) => p.s + '.' + p.slot + '.' + (p.slot === 'co' ? p.k : 0);
@@ -88,7 +89,7 @@ G.blocks = (function () {
     let state = null, picked = [], syls = [], gaps = [], lastW = -1, ro = null;
 
     // ── 칸 하나 ──
-    function slotBtn(s, slot, k, id) {
+    function slotBtn(s, slot, k, id, nu) {
       const name = G.text.term(o.grade, 'slot', slot);
       const empty = id == null;
       const b = U.el('button', {
@@ -96,9 +97,9 @@ G.blocks = (function () {
         class: 'bk-slot' + (empty ? ' is-empty' : '') + (id === 'ㅢ' ? ' is-unsplit' : ''),
         'data-s': s, 'data-slot': slot, 'data-k': slot === 'co' ? k : null,
         'data-weight': id === 'ㅢ' ? 2 : null,
-        'aria-label': name + ' ' + (empty ? G.text.t('review.aria.emptySlot') : G.text.phoneme(id)),
+        'aria-label': name + ' ' + (empty ? G.text.t('review.aria.emptySlot') : G.text.phoneme(id, nu)),
       });
-      if (!empty) U.append(b, phonemeText(id));
+      if (!empty) U.append(b, phonemeText(id, nu));
       else if (slot === 'on') b.appendChild(U.el('span', { class: 'bk-zero', 'aria-hidden': 'true' }, '○'));
       else b.appendChild(U.el('span', { class: 'bk-hole', 'aria-hidden': 'true' }));
       return b;
@@ -112,7 +113,7 @@ G.blocks = (function () {
     function sylEl(y, s) {
       const top = U.el('div', { class: 'bk-top' }, [
         slotBtn(s, 'on', 0, y.on || null),
-        y.gl ? slotBtn(s, 'gl', 0, y.gl) : null,
+        y.gl ? slotBtn(s, 'gl', 0, y.gl, y.nu) : null,
         slotBtn(s, 'nu', 0, y.nu || null),
       ]);
       const co = Array.isArray(y.co) ? y.co : [];

@@ -41,7 +41,7 @@
 }
 .bk-slot:hover { background: var(--accent-soft); }
 .bk-sl { color: var(--ink-2); font-weight: 500; font-size: .72em; padding: 0 .04em; }
-.bk-slot[data-slot="gl"] .bk-ph { font-family: var(--font-body); font-style: italic; }
+.bk-slot[data-slot="gl"] .bk-ph { color: var(--ink); } /* 반모음: 교과서 표기 ㅣ̆ · ㅗ̆ · ㅜ̆(G.text.glide) */
 .bk-slot.is-empty { background: transparent; border-style: dashed; border-color: var(--control-line); color: var(--ink-2); }
 .bk-slot.is-empty:hover { background: var(--accent-soft); }
 .bk-zero { font-size: .9em; font-weight: 500; }

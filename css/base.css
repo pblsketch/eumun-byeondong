@@ -124,3 +124,11 @@ button, input, select { font: inherit; color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; }
 }
+
+/* 반모음 교과서 표기(ㅣ̆ · ㅗ̆ · ㅜ̆ — G.util.breve): 자모 위에 작은 반달표를 그린다(글꼴의 결합 반달표는 획과 겹침) */
+.ph-gl { position: relative; display: inline-block; }
+.ph-gl .ph-b { display: none; }
+.ph-gl::before {
+  content: ''; position: absolute; left: 50%; top: -.3em; width: .42em; height: .18em; transform: translateX(-50%);
+  border: max(1.5px, .07em) solid currentColor; border-top: 0; border-radius: 0 0 .3em .3em; pointer-events: none;
+}

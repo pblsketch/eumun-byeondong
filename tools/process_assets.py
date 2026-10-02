@@ -12,6 +12,9 @@
 - senior: 배경을 지우고 여백을 잘라 가로 640 이하.
 - studio_bg: 3:2 그대로 1280×853.
 - title: 2:3 그대로 768×1152(시작 화면 오른쪽 그림).
+- chapter_badges: 한 장에 그린 장 배지 8개(4열 × 2줄) → 배경을 지우고 덩어리 8개를 줄·열 차례로 잘라 ch1~ch8(가로 256, 시작 화면 장 카드 · 지침 · 결과 머리).
+- ui_icons: 같은 화풍의 화면 아이콘 8개(4열 × 2줄) → ic_guide · ic_review · ic_rule · ic_trophy · ic_blocks · ic_mark · ic_onair · ic_hint(가로 192 — 화면 제목 옆 · 게임 방법 카드).
+- start_banner: 가운데 띠(위아래를 잘라 12:5)만 1200×500(휴대폰 세로 시작 화면 머리 그림).
 원본(assets/raw/)은 저장소에 올리지 않는다. 프롬프트는 tools/prompts/<이름>.txt, 기록은 design/style-samples.md '게임 그림'.
 """
 import os
@@ -91,6 +94,22 @@ def desk_fit(im, desk_w):
     return out, round(l * k)
 
 
+def badges(im):
+    """배경을 지운 배지 한 장 → 큰 덩어리 8개를 (줄, 열) 차례로 잘라 돌려준다."""
+    a = np.asarray(im.getchannel('A')) > 128
+    lab, n = ndimage.label(a)
+    sl = ndimage.find_objects(lab)
+    big = sorted([(int((lab[s_] == i + 1).sum()), s_) for i, s_ in enumerate(sl)], key=lambda t: -t[0])[:8]
+    boxes = [s_ for _, s_ in big]
+    rows = sorted(boxes, key=lambda s_: s_[0].start)
+    top, bottom = sorted(rows[:4], key=lambda s_: s_[1].start), sorted(rows[4:], key=lambda s_: s_[1].start)
+    out = []
+    for s_ in top + bottom:
+        y0, y1, x0, x1 = s_[0].start, s_[0].stop, s_[1].start, s_[1].stop
+        out.append(im.crop((max(0, x0 - 6), max(0, y0 - 6), min(im.width, x1 + 6), min(im.height, y1 + 6))))
+    return out
+
+
 def build():
     os.makedirs(OUT, exist_ok=True)
     # 아나운서 다섯 상태: 같은 판(가로 W)에 아래 가운데를 맞춘다
@@ -115,6 +134,21 @@ def build():
         save_webp(raw('studio_bg').resize((1280, 853), Image.LANCZOS), 'studio_bg', q=78)
     if os.path.exists(os.path.join(RAW, 'title.png')):
         save_webp(raw('title').resize((768, 1152), Image.LANCZOS), 'title', q=80)
+    sheets = [('chapter_badges', ['ch' + str(i + 1) for i in range(8)], 256),
+              ('ui_icons', ['ic_guide', 'ic_review', 'ic_rule', 'ic_trophy', 'ic_blocks', 'ic_mark', 'ic_onair', 'ic_hint'], 192)]
+    for sheet, names, px in sheets:
+        if not os.path.exists(os.path.join(RAW, sheet + '.png')):
+            continue
+        for nm, b in zip(names, badges(key_out(raw(sheet)))):
+            side = max(b.width, b.height)
+            sq = Image.new('RGBA', (side, side), (0, 0, 0, 0))
+            sq.alpha_composite(b, ((side - b.width) // 2, (side - b.height) // 2))
+            save_webp(sq.resize((px, px), Image.LANCZOS), nm, q=86)
+    if os.path.exists(os.path.join(RAW, 'start_banner.png')):
+        b = raw('start_banner')
+        h = round(b.width * 5 / 12)
+        y0 = 40
+        save_webp(b.crop((0, y0, b.width, y0 + h)).resize((1200, 500), Image.LANCZOS), 'start_banner', q=80)
 
 
 def check():
@@ -123,7 +157,7 @@ def check():
         im = Image.open(os.path.join(OUT, f))
         kb = os.path.getsize(os.path.join(OUT, f)) // 1024
         note = ''
-        if f.startswith(('anchors_', 'senior')):
+        if f.startswith(('anchors_', 'senior', 'ch', 'ic_')):
             a = np.asarray(im.convert('RGBA'))[..., 3]
             corner = int(a[:4, :4].max())
             if corner > 0:

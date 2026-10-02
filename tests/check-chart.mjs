@@ -126,7 +126,7 @@ try {
       K.c.show({ parts: ['consonant', 'vowel', 'glide'] });
       if (K.ids().length !== 31) D.bad(grade + ': 세 표 함께 칸 수 ' + K.ids().length);
       // 화면 글에 빗금 없는 자모가 없다
-      const bare = root.textContent.replace(/\\/[^/\\s]{1,2}\\//g, '');
+      const bare = root.textContent.replace(/\\/[^/\\s]{1,5}\\//g, '');
       if (/[\\u3131-\\u318E]/.test(bare)) D.bad(grade + ': 빗금 없는 자모 ' + bare.replace(/\\s+/g, ' ').slice(0, 60));
       if (/\\uAE00\\uC790/.test(root.textContent)) D.bad('금지 낱말');
     }

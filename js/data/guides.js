@@ -382,7 +382,7 @@ window.GUIDES = {
         h1: '되어, 피어처럼 어간 뒤에 어미 -어나 -오가 결합되면 그대로 발음함을 원칙으로 하되, 그 사이에 반모음 {b1}를 넣어 발음하는 것도 {b2}.',
       },
       blanks: {
-        b1: { options: ['/w/', '/j/'], answer: 1 },
+        b1: { options: ['/ㅗ̆·ㅜ̆/', '/ㅣ̆/'], answer: 1 },
         b2: { options: ['허용한다', '허용하지 않는다'], answer: 0 },
       },
       examples: [

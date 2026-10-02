@@ -83,7 +83,7 @@
 
 /* 방송 마무리(아나운서 그림 + 한 줄 + 온에어 수 — 결정 0020) */
 .rs-head { justify-content: space-between; align-items: center; }
-.rs-head-text { display: flex; align-items: baseline; gap: var(--s2) var(--s4); flex-wrap: wrap; }
+.rs-head-text { display: flex; align-items: center; gap: var(--s2) var(--s4); flex-wrap: wrap; }
 .rs-wrap {
   display: flex; align-items: center; gap: var(--s3); padding: 6px 18px 6px 6px; border-radius: var(--r-panel);
   background: var(--studio-caption); color: var(--prompter-ink); border-top: 4px solid var(--studio-accent); min-width: 0;
