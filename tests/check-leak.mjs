@@ -136,7 +136,7 @@ if (!D.secrets) {
       D.mark('replace'); D.tapSel('.rw-blocks .bk-slot:not(.is-empty)', t + ' 첫 음운');
       await D.until(() => D.sheet() && D.$('.rw-sheet .ch-cell'), 2000, t + ' 도표');
       D.noSecret(t + ' 도표', run, { except: sent, guides: true, steps: true, advanced: adv });
-      D.tapSel('.rw-sheet .ch-close', t + ' 도표 닫기');
+      D.tapSel('[data-act="rw-sheet-close"]', t + ' 도표 닫기');
       // 넣을 음운(2음절 이상)
       if (D.$('.rw-blocks .bk-gap[data-gap="0"]')) {
         D.mark('insert'); D.gap(0);

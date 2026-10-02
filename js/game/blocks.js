@@ -21,6 +21,8 @@
 //   b.render(상태)        상태를 그린다(교정할 때마다 다시 부름). 학생이 만든 어떤 상태든 그린다:
 //                         빈 중성 · 빈 음절 · 반모음만 · 적을 수 없는 조합 · 음절이 사라져 줄어든 cuts
 //   b.setPicked([자리…])  고른 음운 칸 표시(합침표 첫 음운 · 고침표로 누른 칸). 자리 = Pos 또는 '1.on' 꼴. null이면 지움
+//   b.setNear([자리…], 'near'|'merge')  누른 음운의 바로 옆 소리(.is-near 점선) · 합칠 수 있는 옆 소리(.is-mergeable). null이면 지움.
+//                         어느 칸인지는 감수 화면이 정한다(합칠 수 있는지는 엔진에 물어봄). 다시 그려도 남는다
 //   b.setMode('slot'|'gap'|null)  지금 고를 것(음운 칸 / 틈)을 모양으로 돋보이게(뿌리에 is-mode-slot · is-mode-gap).
 //                         누르기를 막지는 않는다(원칙 3) — 어느 것을 눌러도 알림은 간다
 //   b.setPen([{ at, op }…])  교정 흔적(감수관의 펜 자국): 그 자리 칸에 .is-pen-<op>(replace · delete · insert · merge).
@@ -41,6 +43,8 @@
 //   · 초성이 없으면 ○(표기의 초성 'ㅇ'은 음운이 아님). 중성 · 종성이 비면 점선 빈 칸(.is-empty).
 //   · 반모음 칸은 반모음이 있을 때만(ㅕ = /j/ + /ㅓ/). ㅢ는 나누지 않고 한 칸(.is-unsplit, 음운 수는 엔진이 셈).
 //   · 겹받침은 종성 자리에 두 칸. 음운은 늘 빗금 표기(/ㄱ/ · /j/).
+//   · 이어 읽기(연음, 결정 0023): G.rules.linkMoves(상태)가 고른 빈 초성에 옮겨 올 받침을 옅게(.is-link-in · .bk-ghost),
+//     옮겨 갈 받침 칸에 .is-link-out, 사이 틈에 '이어 읽기'(.bk-link). 소리 모양만 보는 함수라 심화에서도 경계가 새지 않는다.
 //   틈(.bk-gap[data-gap])은 음절 사이마다 하나, 단추. 띄어쓰기 틈은 .is-space(낱말 사이 표시).
 //   · 기본 단계: formal · content · sino 틈에 '+'(.bk-plus, 종류마다 굵기 · 모양 · 색)와 이름표(.bk-cut = G.text.cutLabel),
 //     틈에 .cut-종류 · data-cut. 경계 이름은 aria에도(review.aria.cut).
@@ -66,6 +70,9 @@ G.blocks = (function () {
     sino: '<rect x="10" y="10" width="80" height="80" rx="18" fill="none" stroke="currentColor" stroke-width="7"/>' +
       '<path d="M50 28V72M28 50H72" fill="none" stroke="currentColor" stroke-width="12" stroke-linecap="round"/>',
   };
+  // 이어 읽기 화살표(아래 왼쪽 받침 → 위 오른쪽 첫소리)
+  const LINK_ARROW = '<path d="M18 82C30 40 52 26 80 24" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round" stroke-dasharray="1 16"/>' +
+    '<path d="M62 10L84 24L66 42" fill="none" stroke="currentColor" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>';
   const SPACE = '<path d="M14 34V66H86V34" fill="none" stroke="currentColor" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>';
 
   function pic(cls, inner) {
@@ -86,20 +93,27 @@ G.blocks = (function () {
     const showCuts = o.level !== 'advanced';
     const root = U.el('div', { class: 'bk', role: 'group', 'aria-label': o.label || null });
     container.appendChild(root);
-    let state = null, picked = [], syls = [], gaps = [], lastW = -1, ro = null;
+    let state = null, picked = [], near = [], nearKind = 'near', syls = [], gaps = [], lastW = -1, ro = null;
+    let linkTo = {}, linkFrom = {}; // 이어 읽기: 음절 번호 → 옮겨 올 받침 / 옮겨 갈 받침의 k
 
     // ── 칸 하나 ──
     function slotBtn(s, slot, k, id, nu) {
       const name = G.text.term(o.grade, 'slot', slot);
       const empty = id == null;
+      // 이어 읽기(연음 — G.rules.linkMoves): 빈 초성에는 옮겨 올 받침을 옅게, 옮겨 갈 받침에는 짝 표시
+      const into = empty && slot === 'on' ? linkTo[s] : null;
+      const out = slot === 'co' && linkFrom[s] === k;
+      let label = name + ' ' + (empty ? G.text.t('review.aria.emptySlot') : G.text.phoneme(id, nu));
+      if (into) label += ', ' + G.text.t('review.aria.linkIn', { phoneme: G.text.phoneme(into) });
       const b = U.el('button', {
         type: 'button',
-        class: 'bk-slot' + (empty ? ' is-empty' : '') + (id === 'ㅢ' ? ' is-unsplit' : ''),
+        class: 'bk-slot' + (empty ? ' is-empty' : '') + (id === 'ㅢ' ? ' is-unsplit' : '') + (into ? ' is-link-in' : '') + (out ? ' is-link-out' : ''),
         'data-s': s, 'data-slot': slot, 'data-k': slot === 'co' ? k : null,
         'data-weight': id === 'ㅢ' ? 2 : null,
-        'aria-label': name + ' ' + (empty ? G.text.t('review.aria.emptySlot') : G.text.phoneme(id, nu)),
+        'aria-label': label,
       });
       if (!empty) U.append(b, phonemeText(id, nu));
+      else if (into) b.appendChild(U.el('span', { class: 'bk-ghost', 'aria-hidden': 'true' }, phonemeText(into)));
       else if (slot === 'on') b.appendChild(U.el('span', { class: 'bk-zero', 'aria-hidden': 'true' }, '○'));
       else b.appendChild(U.el('span', { class: 'bk-hole', 'aria-hidden': 'true' }));
       return b;
@@ -131,12 +145,13 @@ G.blocks = (function () {
       const name = kind ? G.text.cutLabel(o.grade, stem ? 'stem' : kind) : '';
       let label = G.text.t('review.aria.gap', { n: i + 1 });
       if (kind) label += ', ' + G.text.t('review.aria.cut', { label: name }, o.grade);
+      const link = linkTo[i + 1] ? U.el('span', { class: 'bk-link', 'aria-hidden': 'true' }, [pic('bk-link-arrow', LINK_ARROW), G.text.t('review.linkTag')]) : null;
       return U.el('button', {
         type: 'button',
-        class: 'bk-gap' + (space ? ' is-space' : '') + (kind ? ' cut-' + kind : '') + (stem ? ' is-stem' : ''),
+        class: 'bk-gap' + (space ? ' is-space' : '') + (kind ? ' cut-' + kind : '') + (stem ? ' is-stem' : '') + (link ? ' has-link' : ''),
         'data-gap': i, 'data-cut': kind, 'aria-label': label,
-      }, kind ? [pic('bk-plus', PLUS[kind]), U.el('span', { class: 'bk-cut', 'aria-hidden': 'true' }, name)]
-        : space ? pic('bk-space', SPACE) : null);
+      }, [kind ? [pic('bk-plus', PLUS[kind]), U.el('span', { class: 'bk-cut', 'aria-hidden': 'true' }, name)]
+        : space ? pic('bk-space', SPACE) : null, link]);
     }
 
     // ── 줄 나누기 ──
@@ -214,10 +229,13 @@ G.blocks = (function () {
     function render(st) {
       if (!st || !Array.isArray(st.syl)) throw new Error('블록: 상태 모양이 틀림');
       state = st;
+      linkTo = {}; linkFrom = {};
+      try { G.rules.linkMoves(st).forEach((m) => { linkTo[m.to.s] = m.id; linkFrom[m.from.s] = m.from.k; }); } catch (e) { /* 그릴 수만 있으면 된다 */ }
       syls = st.syl.map((y, s) => sylEl(y || { on: null, gl: null, nu: null, co: [] }, s));
       gaps = syls.slice(1).map((_, i) => gapEl(i, st.cuts ? st.cuts[i] : null));
       layout();
       paintPicked();
+      paintNear();
       paintPen();
       watch();
     }
@@ -259,6 +277,21 @@ G.blocks = (function () {
       picked = (list || []).map(posOf);
       paintPicked();
     }
+    // 바로 옆 소리(누른 음운의 앞뒤) · 합칠 수 있는 옆 소리 — 그림일 뿐 판정하지 않는다(어느 칸이 이웃인지는 감수 화면이 정함)
+    function paintNear() {
+      const keys = near.map(posKey);
+      root.querySelectorAll('.bk-slot').forEach((b) => {
+        const p = { s: +b.getAttribute('data-s'), slot: b.getAttribute('data-slot'), k: +(b.getAttribute('data-k') || 0) };
+        const on = keys.indexOf(posKey(p)) >= 0;
+        b.classList.toggle('is-near', on && nearKind === 'near');
+        b.classList.toggle('is-mergeable', on && nearKind === 'merge');
+      });
+    }
+    function setNear(list, kind) {
+      near = (list || []).map(posOf);
+      nearKind = kind === 'merge' ? 'merge' : 'near';
+      paintNear();
+    }
     function setMode(m) {
       root.classList.remove('is-mode-slot', 'is-mode-gap');
       if (m === 'slot' || m === 'gap') root.classList.add('is-mode-' + m);
@@ -293,7 +326,7 @@ G.blocks = (function () {
     }
 
     return {
-      el: root, render, setPicked, setPen, setMode, setSplit, destroy,
+      el: root, render, setPicked, setNear, setPen, setMode, setSplit, destroy,
       lines: () => root.querySelectorAll('.bk-line').length,
     };
   }

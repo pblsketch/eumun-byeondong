@@ -169,6 +169,19 @@ try {
     if (D.$$('.is-like', root).length) D.bad('없는 칸을 닮은 칸으로');
     K.c.show({ parts: ['consonant'], current: 'ㅢ' }); // 표에 없는 지금 음운(ㅢ)도 깨지지 않음
     if (D.$$('.ch-cell:disabled', root).length) D.bad('표에 없는 지금 음운');
+    // 띠(결정 0024): 지금 음운과 같은 열 · 같은 줄 — 자음 /ㄴ/ = 잇몸 열(ㄷ ㄸ ㅌ ㅅ ㅆ ㄴ ㄹ) · 비음 줄(ㅁ ㄴ ㅇ), 모음 /ㅓ/ = 뒤 평순 열 · 중간 줄
+    const band = (cls) => D.$$('.ch-td.' + cls + ' .ch-cell', root).map((e) => e.getAttribute('data-id')).sort().join('');
+    K.c.show({ parts: ['consonant'], current: 'ㄴ', bands: true });
+    if (band('is-band-col') !== ['ㄷ', 'ㄸ', 'ㅌ', 'ㅅ', 'ㅆ', 'ㄴ', 'ㄹ'].sort().join('') || band('is-band-row') !== ['ㅁ', 'ㄴ', 'ㅇ'].sort().join('')) D.bad('자음 띠: ' + band('is-band-col') + ' / ' + band('is-band-row'));
+    if (!root.classList.contains('has-bands') || !D.$('th.is-band-col[data-col="alveolar"]', root) || !D.$('th.is-band-row[data-row="nasal"]', root)) D.bad('자음 띠 머리글 · has-bands');
+    K.c.show({ parts: ['vowel'], current: 'ㅓ', bands: true });
+    if (band('is-band-col') !== ['ㅡ', 'ㅓ', 'ㅏ'].sort().join('') || band('is-band-row') !== ['ㅔ', 'ㅚ', 'ㅓ', 'ㅗ'].sort().join('')) D.bad('모음 띠: ' + band('is-band-col') + ' / ' + band('is-band-row'));
+    K.c.show({ parts: ['consonant'], current: 'ㄴ' });
+    if (D.$('.is-band-col, .is-band-row', root) || root.classList.contains('has-bands')) D.bad('bands 없이 띠');
+    K.c.show({ parts: ['glide'], current: 'j', bands: true });
+    if (D.$('.is-band-col, .is-band-row', root) || root.classList.contains('has-bands')) D.bad('반모음 줄에 띠');
+    K.c.show({ parts: ['consonant'], current: null, marked: ['ㅎ', 'ㄱ'] });
+    if (D.$$('.ch-cell.is-marked', root).map((e) => e.getAttribute('data-id')).sort().join('') !== ['ㅎ', 'ㄱ'].sort().join('') || D.$$('.ch-cell:disabled', root).length) D.bad('합치는 두 음운 굵은 테두리(누를 수 있음)');
     // 누르면 음운 id
     K.c.show({ parts: ['consonant', 'vowel', 'glide'], current: null, like: [] });
     K.picks = [];

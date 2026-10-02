@@ -311,7 +311,7 @@ eq(R.reading(R.start(script('강아지'))), '강아지', '종성 /ㅇ/은 연음
 // ───────────────────────── 7. 판 진행 함수(구현 2단계, 명세 §17) ─────────────────────────
 // 원고 풀은 scripts.js 전체를 그대로 쓴다(원고가 더해져도 통과하도록 원고 수를 박지 않는다).
 const NEW_FNS = ['kindOf', 'orderPairs', 'draw', 'exampleIds', 'twin', 'twins', 'gradeGuides', 'hasCondition', 'checkGuide', 'checkGuides',
-  'revealArticles', 'linkSites', 'touchedLink', 'similarCell', 'scriptResult', 'chapterTotals'];
+  'revealArticles', 'linkSites', 'linkMoves', 'touchedLink', 'similarCell', 'scriptResult', 'chapterTotals'];
 NEW_FNS.forEach((f) => check(typeof R[f] === 'function', `G.rules.${f} 있음`));
 if (NEW_FNS.some((f) => typeof R[f] !== 'function')) done('규칙 점검');
 const plainV = (x) => x === null || ['string', 'boolean'].includes(typeof x) || (typeof x === 'number' && isFinite(x)) ||
@@ -529,6 +529,15 @@ const G_LAT = {
   eq(R.linkSites(st('옷 위')), [], '옷 위: 다음 단어 앞은 연음 자리 아님');
   eq(R.linkSites(R.start(script('강아지'))), [], '종성 /ㅇ/은 연음 자리 아님');
   eq(R.linkSites(R.start(script('입원'))), [{ s: 0, slot: 'co', k: 0 }], '경계 없음(null) + 빈 초성도 연음 자리');
+  // 이어 읽기 표시(linkMoves, 결정 0023): 소리 모양만 본다 — 경계 종류와 상관없이 읽을 때 옮겨질 받침(겹받침은 뒤엣것 하나)
+  const mv = (x) => R.linkMoves(x).map((m) => m.from.s + '.co' + m.from.k + '→' + m.to.s + '.on ' + m.id).join(' ');
+  eq(mv(st('앞으로')), '0.co0→1.on ㅍ', '앞으로: /ㅍ/을 으의 첫소리로');
+  eq(mv(st('닭이')), '0.co1→1.on ㄱ', '닭이: 겹받침은 뒤 /ㄱ/만');
+  eq(mv(st('겉옷')), '0.co0→1.on ㅌ', '겉옷: 실질 형태소 앞도 읽을 때는 옮김(무엇으로 옮길지는 학생 교정)');
+  eq(mv(st('옷 위')), '0.co0→1.on ㅅ', '옷 위: 띄어 써도 이어 읽음');
+  eq(mv(R.start(script('강아지'))), '', '종성 /ㅇ/은 옮기지 않음');
+  eq(mv(R.apply(st('겉옷'), rep('0.co', 'ㄷ'))), '0.co0→1.on ㄷ', '겉옷 /ㅌ/→/ㄷ/ 뒤: 고친 받침을 옮김');
+  eq(R.reading(st('앞으로')), '아프로', 'reading은 linkMoves대로');
   check(R.touchedLink(byId['옷이'], [rep('0.co', 'ㄷ')]), '옷이 /ㅅ/ 고침 → 연음 자리 받침을 건드림');
   check(!R.touchedLink(byId['겉옷'], [rep('0.co', 'ㄷ')]), '겉옷 /ㅌ/ 고침 → 안 건드림');
   check(R.touchedLink(byId['닭이'], [{ op: 'delete', at: '0.co' }]), '닭이 /ㄹ/ 뺌 → 건드림');

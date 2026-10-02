@@ -83,22 +83,36 @@ try {
   ea.push(...await a1.evaluate(async () => {
     const G = D.G(), T = D.T();
     await D.load('먹는');
+    // 음운 먼저(결정 0024): 교정 부호 단추가 없고, 처음 안내는 음운이나 틈을 누르라는 것
+    if (D.$('.rw-mark, .rw-marks')) D.bad('교정 부호 단추가 남아 있음');
+    if (D.say() !== T.review.prompt.none) D.bad('처음 안내: ' + D.say());
     // 다름: 교정 없이 송출 → [먹는] ≠ 표준 → 1곳
     if ((await D.send('다름')) !== 'diff') D.bad('다름 신호가 아님: ' + D.kind());
     if (!D.say().includes(G.text.signal('diff', { n: 1 }))) D.bad('다름 한 줄: ' + D.say());
     const bd = D.$('.rw-badge');
     if (!bd || !bd.querySelector('svg[data-glyph="diff"]') || !bd.textContent.includes(G.text.signalName('diff'))) D.bad('다름 배지(색 + 기호)');
     if (D.$('.rw-prompter').textContent.replace(/\\s+/g, '') !== '먹는') D.bad('프롬프터: ' + D.$('.rw-prompter').textContent);
-    // 온에어: /ㄱ/ → /ㅇ/ (고침표 → 블록 → 도표)
+    // 온에어: /ㄱ/ → /ㅇ/ (음운 → 판의 도표)
     D.mark('replace');
-    if (!D.say().includes(T.review.prompt.replace)) D.bad('고침표 안내: ' + D.say());
     D.slot('0.co');
     await D.until(() => D.sheet() && D.$('.rw-sheet .ch-cell'), 2000, '조음 도표');
+    if (D.sheetKind() !== 'slot' || !D.say().includes(T.review.prompt.slot)) D.bad('음운을 누른 판 · 안내: ' + D.sheetKind() + ' / ' + D.say());
+    if (!D.visible(D.$('[data-act="rw-op-delete"]')) || !D.visible(D.$('[data-act="rw-op-merge"]'))) D.bad('판에 빼기 · 합치기 단추 없음');
+    if (!D.$('.rw-sheet-title').textContent.includes('/ㄱ/')) D.bad('판 제목: ' + D.$('.rw-sheet-title').textContent);
     if (!D.$('.rw-sheet .ch-part[data-part="consonant"]') || D.$('.rw-sheet .ch-part[data-part="vowel"]')) D.bad('종성인데 자음표가 아님');
     const curCell = D.$('.rw-sheet .ch-cell[data-id="ㄱ"]');
     if (!curCell || !curCell.disabled) D.bad('지금 음운 칸이 꺼지지 않음');
+    // 기본 단계 띠: /ㄱ/과 같은 열(여린입천장) · 같은 줄(파열). 블록의 바로 옆 음운(/ㅓ/ · /ㄴ/)에 점선
+    const colIds = D.$$('.rw-sheet .ch-td.is-band-col .ch-cell').map((c) => c.getAttribute('data-id')).sort().join('');
+    const rowIds = D.$$('.rw-sheet .ch-td.is-band-row .ch-cell').map((c) => c.getAttribute('data-id')).sort().join('');
+    if (colIds !== ['ㄱ', 'ㄲ', 'ㅋ', 'ㅇ'].sort().join('') || rowIds !== ['ㅂ', 'ㅃ', 'ㅍ', 'ㄷ', 'ㄸ', 'ㅌ', 'ㄱ', 'ㄲ', 'ㅋ'].sort().join('')) D.bad('띠: ' + colIds + ' / ' + rowIds);
+    const near = D.$$('.rw-blocks .bk-slot.is-near').map((b) => b.getAttribute('data-s') + '.' + b.getAttribute('data-slot')).join();
+    if (near !== '0.nu,1.on') D.bad('바로 옆 음운 점선: ' + near);
+    if (!D.$('.rw-legend').textContent.includes(G.text.fill(T.review.sheet.legend.band, { axis: G.text.term('h1', 'axis', 'place') }))) D.bad('읽는 법(띠)');
     D.cell('ㅇ');
     if (D.logN() !== 1) D.bad('고침이 기록되지 않음');
+    if (D.say() !== G.text.fill(T.review.done, { mark: T.review.marks.replace, change: G.text.change('h1', 'replace') })) D.bad('고친 뒤 한 줄(부호 · 갈래): ' + D.say());
+    if (D.$('.rw-blocks .bk-slot.is-near')) D.bad('고친 뒤에도 점선이 남음');
     const li = D.$('.rw-log-item');
     if (li && li.textContent.replace(/\\s+/g, ' ').trim().indexOf(G.text.logLine(1, { op: 'replace', from: 'ㄱ', to: 'ㅇ' })) !== 0) D.bad('기록 줄: ' + li.textContent);
     if (D.sheet()) D.bad('고른 뒤에도 도표가 열려 있음');
@@ -128,13 +142,17 @@ try {
     if (D.dbg().cur().sends !== 3 || D.dbg().cur().kinds.join() !== 'diff,onair,offrule') D.bad('다시 감수가 송출 기록을 지움: ' + JSON.stringify(D.dbg().cur()));
     // 할 수 없는 교정: 넣을 빈자리 없음(/는/의 초성) · 같은 음운 두 번 · 이웃 아님 — 기록 안 됨
     D.mark('insert');
-    if (!D.say().includes(T.review.prompt.insert)) D.bad('넣음표 안내');
     D.gap(0); await D.until(() => D.sheet() && D.$('.rw-ins'), 2000, '넣을 음운 고르기');
+    if (D.sheetKind() !== 'insert' || !D.say().includes(T.review.prompt.insertPick)) D.bad('틈을 누른 판 · 안내: ' + D.sheetKind() + ' / ' + D.say());
     D.ins('ㄴ');
     if (D.say() !== T.review.notice.noRoom) D.bad('빈자리 없음 안내: ' + D.say());
     if (D.logN() !== 0) D.bad('빈자리 없는 넣음이 기록됨');
     D.mark('merge');
-    D.slot('0.on'); D.slot('0.on');
+    D.slot('0.on');
+    if (D.sheetKind() !== 'merge-wait' || D.say() !== T.review.prompt.mergeSecond) D.bad('합치기 → 옆 음운 기다림: ' + D.sheetKind() + ' / ' + D.say());
+    const mergeable = D.$$('.rw-blocks .bk-slot.is-mergeable').map((b) => b.getAttribute('data-s') + '.' + b.getAttribute('data-slot')).join();
+    if (mergeable !== '0.nu') D.bad('합칠 수 있는 옆 음운 표시(엔진이 받는 것만): ' + mergeable);
+    D.slot('0.on');
     if (D.say() !== T.review.notice.samePick) D.bad('같은 음운 안내: ' + D.say());
     D.slot('1.nu');
     if (D.say() !== T.review.notice.notAdjacent) D.bad('이웃 아님 안내: ' + D.say());
@@ -176,6 +194,9 @@ try {
     await D.toReview(1, { seed: 5 });
     // 옷이: 연음 자리 받침 /ㅅ/을 고침 → 신호 줄 먼저, 잠시 뒤 같은 자리가 연음 안내로(배지는 남음)
     await D.load('옷이');
+    // 빈 초성(이어 읽기 자리)을 누르면 한 줄로(넣으려면 틈을 누르라고) — 판은 열리지 않음
+    D.slot('1.on');
+    if (D.say() !== T.review.notice.emptySlot || D.sheet()) D.bad('빈 자리 안내: ' + D.say());
     D.mark('replace'); D.slot('0.co'); await D.until(() => D.sheet(), 2000, '도표'); D.cell('ㄷ');
     D.act('rw-send');
     await D.until(() => D.kind() === 'diff', 3000, '옷이 신호');
@@ -608,7 +629,7 @@ try {
     D.mark('replace'); D.slot('0.co'); await D.until(() => D.sheet() && D.$('.rw-sheet .ch-cell'), 2000, '도표');
     if (D.$('.rw-sheet .ch-cell.is-like')) D.bad('심화인데 닮은 칸');
     noCuts('심화 도표');
-    D.tapSel('.rw-sheet .ch-close', '도표 닫기');
+    D.tapSel('[data-act="rw-sheet-close"]', '도표 닫기');
     if (D.sheet()) D.bad('도표가 닫히지 않음');
     return D.take();
   }));
@@ -621,11 +642,11 @@ try {
     D.mark('replace'); D.slot('0.co'); await D.until(() => D.sheet() && D.$('.rw-sheet .ch-cell'), 2000, '도표');
     const like = D.$$('.rw-sheet .ch-cell.is-like').map((c) => c.getAttribute('data-id'));
     if (like.join() !== 'ㅇ') D.bad('먹는 /ㄱ/ 닮은 칸: ' + like.join());
-    D.tapSel('.rw-sheet .ch-close', '도표 닫기');
+    D.tapSel('[data-act="rw-sheet-close"]', '도표 닫기');
     await D.load('감기');
     D.mark('replace'); D.slot('0.co'); await D.until(() => D.sheet() && D.$('.rw-sheet .ch-cell'), 2000, '도표');
     if (D.$('.rw-sheet .ch-cell.is-like')) D.bad('감기 /ㅁ/에 닮은 칸');
-    D.tapSel('.rw-sheet .ch-close', '도표 닫기');
+    D.tapSel('[data-act="rw-sheet-close"]', '도표 닫기');
     await D.load('막론');
     D.mark('replace'); D.slot('0.co'); await D.until(() => D.sheet() && D.$('.rw-sheet .ch-cell'), 2000, '도표');
     if (D.$('.rw-sheet .ch-cell.is-like')) D.bad('막론 /ㄱ/ 먼저에 닮은 칸');
@@ -635,7 +656,7 @@ try {
     // 중성을 누르면 모음표
     D.slot('0.nu'); await D.until(() => D.$('.rw-sheet .ch-part[data-part="vowel"]'), 2000, '모음표');
     if (D.$('.rw-sheet .ch-part[data-part="consonant"]')) D.bad('중성인데 자음표');
-    D.tapSel('.rw-sheet .ch-close', '도표 닫기');
+    D.tapSel('[data-act="rw-sheet-close"]', '도표 닫기');
     return D.take();
   }));
   ${fin('ee')}
@@ -657,18 +678,8 @@ try {
     const G = D.G();
     await D.toReview(2, { seed: 12, grade: 'h1' });
     D.targets(MIN, tag + ' 처음'); D.noScroll(tag + ' 처음'); D.noBad(tag);
-    // 스튜디오 무대(결정 0020): 두 아나운서 그림(기다림 상태 · 대체 글), 배경 그림(꾸밈 — 대체 글 없음), 자막 띠 안의 프롬프터.
-    //   모든 크기에서 보인다(휴대폰 세로도 — 송출 결과를 그림으로 보여 주는 자리). 아나운서 그림이 무대 밖으로 넘치지 않음
-    const an = D.$('.rw-anchors'), stg = D.$('.rw-stage');
-    if (!an || !stg) D.bad(tag + ': 스튜디오 무대 · 아나운서 그림 없음');
-    else {
-      if (an.getAttribute('alt') !== D.T().images.anchors.idle || an.getAttribute('data-state') !== 'idle') D.bad(tag + ': 아나운서 그림 상태 · 대체 글 ' + an.getAttribute('data-state'));
-      if (!D.visible(an) || !D.visible(stg)) D.bad(tag + ': 스튜디오 무대가 안 보임');
-      const a = D.box(an), s = D.box(stg);
-      if (a.top < s.top - 1 || a.left < s.left - 1 || a.right > s.right + 1) D.bad(tag + ': 아나운서 그림이 무대 밖으로 넘침');
-      if (D.$('.rw-stage-bg').getAttribute('alt') !== '') D.bad(tag + ': 배경 그림에 대체 글');
-      if (D.box(D.$('.rw-booth-screen')).width < 120) D.bad(tag + ': 프롬프터 자리가 좁음');
-    }
+    // 스튜디오 무대(결정 0020 · 0024): 송출 전에는 닫혀 있다(교정하는 동안은 책상 · 판만). 송출하면 열리는 것은 아래에서 본다
+    if (D.$('.rw-booth') && D.visible(D.$('.rw-booth'))) D.bad(tag + ': 송출 전인데 스튜디오 무대가 보임');
     await D.load('맏며느리');
     const bk = D.$('.rw-blocks .bk');
     await D.wait(150);
@@ -681,6 +692,9 @@ try {
     // 고침표 도표
     D.mark('replace'); D.slot('0.co'); await D.until(() => D.sheet() && D.$('.rw-sheet .ch-cell'), 2000, tag + ' 도표');
     D.targets(MIN, tag + ' 도표'); D.noScroll(tag + ' 도표');
+    // 판 안에서도 가로로 넘치지 않음(옆 칸 · 도표가 판 너비에 듦 — 결정 0024)
+    const sin = D.$('.rw-sheet-in');
+    if (sin && sin.scrollWidth > sin.clientWidth + 1) D.bad(tag + ': 판이 가로로 넘침 ' + sin.scrollWidth + ' > ' + sin.clientWidth);
     D.cell('ㄴ');
     // 넣을 음운 고르기
     D.mark('insert'); D.gap(1); await D.until(() => D.sheet() && D.$('.rw-ins'), 2000, tag + ' 넣을 음운');
@@ -692,8 +706,21 @@ try {
     const pickBox = D.$('.rw-ins-pick'), lab = pickBox && D.d().getElementById(pickBox.getAttribute('aria-labelledby') || '');
     if (!lab || lab.textContent.trim() !== ask) D.bad(tag + ': 넣을 음운 고르기 묶음의 읽기 이름');
     D.tapSel('.rw-sheet .rw-sheet-close', tag + ' 넣을 음운 닫기');
-    // 송출 · 도움
+    // 송출 → 스튜디오 무대가 열림: 두 아나운서 그림(신호에 맞는 상태 · 대체 글), 배경 그림(꾸밈 — 대체 글 없음), 자막 띠 안의 프롬프터.
+    //   모든 크기에서 보인다(휴대폰 세로도 — 송출 결과를 그림으로 보여 주는 자리). 아나운서 그림이 무대 밖으로 넘치지 않음
     await D.send(tag);
+    const an = D.$('.rw-anchors'), stg = D.$('.rw-stage');
+    if (!an || !stg) D.bad(tag + ': 스튜디오 무대 · 아나운서 그림 없음');
+    else {
+      const st = an.getAttribute('data-state');
+      if (st === 'idle' || an.getAttribute('alt') !== D.T().images.anchors[st]) D.bad(tag + ': 아나운서 그림 상태 · 대체 글 ' + st);
+      if (!D.visible(an) || !D.visible(stg)) D.bad(tag + ': 송출했는데 스튜디오 무대가 안 보임');
+      const a = D.box(an), s = D.box(stg);
+      if (a.top < s.top - 1 || a.left < s.left - 1 || a.right > s.right + 1) D.bad(tag + ': 아나운서 그림이 무대 밖으로 넘침');
+      if (D.$('.rw-stage-bg').getAttribute('alt') !== '') D.bad(tag + ': 배경 그림에 대체 글');
+      if (D.box(D.$('.rw-booth-screen')).width < 120) D.bad(tag + ': 프롬프터 자리가 좁음');
+    }
+    D.targets(MIN, tag + ' 송출 뒤'); D.noScroll(tag + ' 송출 뒤');
     D.act('rw-help'); await D.until(() => D.$('.rw-help') && D.visible(D.$('.rw-help')), 2000, tag + ' 도움');
     ['1', '2', '3'].forEach((n) => D.tapSel('.rw-help-step[data-step="' + n + '"]', tag + ' 도움 ' + n));
     D.targets(MIN, tag + ' 도움'); D.noScroll(tag + ' 도움');
@@ -725,7 +752,7 @@ try {
     await D.load('굳이');
     D.mark('replace'); D.slot('0.co'); await D.until(() => D.sheet() && D.$('.rw-sheet .ch-cell'), 2000, '도표');
     if (D.$('.rw-sheet .ch-cell.is-like')) D.bad('3장 기본인데 닮은 칸');
-    D.tapSel('.rw-sheet .ch-close', '도표 닫기');
+    D.tapSel('[data-act="rw-sheet-close"]', '도표 닫기');
     // 4장 기본: 신고 = 어간 + 어미 이름표(중3), 안기다 = 형식 경계 그대로
     await D.toReview(4, { level: 'basic', grade: 'm3', seed: 4 });
     await D.load('신고');

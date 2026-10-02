@@ -21,16 +21,22 @@ if (window.D && !D.toReview) {
     D.dbg().load(id);
     await D.until(() => D.dbg().script().id === id && D.$('.rw-blocks .bk-slot'), 3000, '연습 원고 ' + id);
   };
-  D.mark = (m) => {
-    const b = D.$('.rw-mark[data-mark="' + m + '"]');
-    if (b && b.getAttribute('aria-pressed') === 'true') return true; // 이미 고름
-    return D.tap(b, '교정 부호 ' + m);
-  };
+  // 음운 먼저(결정 0024): 화면에는 교정 부호 단추가 없다. D.mark(op)는 '이 다음 음운을 누르면 판에서 무엇을 고를지'만 기억한다
+  //   (replace = 판의 도표를 그대로 둠, delete = 판의 [빼기], merge = 판의 [옆 음운과 합치기] → 다음 D.slot이 둘째 음운, insert = 틈은 언제나 넣을 음운 판).
+  D.mark = (m) => { D._op = m; return true; };
+  D.sheetKind = () => { const s = D.sheet(); return s ? s.getAttribute('data-sheet') : null; };
   D.slotSel = (p) => {
     const m = /^(\d+)\.(on|gl|nu|co)(\d)?$/.exec(p);
     return '.rw-blocks .bk-slot[data-s="' + m[1] + '"][data-slot="' + m[2] + '"]' + (m[2] === 'co' ? '[data-k="' + (m[3] || 0) + '"]' : '');
   };
-  D.slot = (p) => D.tapSel(D.slotSel(p), '칸 ' + p);
+  D.slot = (p) => {
+    const waiting = D.sheetKind() === 'merge-wait'; // 합칠 옆 음운을 기다리는 중이면 이 칸이 둘째 음운
+    const ok = D.tapSel(D.slotSel(p), '칸 ' + p);
+    if (!ok || waiting || D.sheetKind() !== 'slot') return ok;
+    if (D._op === 'delete') return D.tapSel('[data-act="rw-op-delete"]', '판의 빼기');
+    if (D._op === 'merge') return D.tapSel('[data-act="rw-op-merge"]', '판의 합치기');
+    return ok;
+  };
   D.sheet = () => { const s = D.$('.rw-sheet'); return s && !s.hidden ? s : null; };
   D.cell = (id) => D.tapSel('.rw-sheet .ch-cell[data-id="' + id + '"]', '도표 칸 ' + id);
   D.gap = (i) => D.tapSel('.rw-blocks .bk-gap[data-gap="' + i + '"]', '틈 ' + i);

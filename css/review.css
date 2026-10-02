@@ -94,21 +94,13 @@
 @keyframes rw-stamp-in { 0% { opacity: 0; transform: scale(2.4) rotate(-14deg); } 60% { opacity: 1; transform: scale(.92) rotate(-6deg); } 100% { transform: scale(1) rotate(-7deg); } }
 .rw-blocks { min-width: 0; padding: var(--s1) 0; }
 
-/* 교정 부호 넷 */
-.rw-marks { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s2); }
-.rw-mark {
-  min-height: var(--touch); min-width: var(--touch); margin: 0; padding: 4px 8px;
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  border: 2px solid var(--control-line); border-bottom-width: 5px; border-radius: var(--r-btn); background: var(--surface); color: var(--ink);
-  font-family: var(--font-body); font-weight: 800; font-size: var(--app-btn-fs); line-height: 1.2;
-  cursor: pointer; touch-action: manipulation; word-break: keep-all;
-  transition: background-color var(--t-pick), border-color var(--t-pick), color var(--t-pick);
+/* 몸풀기 원고의 선배 한 줄(송출 전에만 — 스튜디오 무대가 아직 닫혀 있음) */
+.rw-senior {
+  margin: 0; align-self: flex-start; display: inline-flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap;
+  padding: 6px 14px; border-radius: var(--r-btn); background: var(--memo); border: 1px solid var(--memo-line);
+  font-size: var(--app-body-fs); font-weight: 700; color: var(--ink);
 }
-.rw-mark:hover { background: var(--accent-soft); }
-.rw-mark:active { transform: translateY(2px); border-bottom-width: 3px; }
-.rw-mark-ico { width: 1.6em; height: 1.6em; color: var(--pen); }
-.rw-mark[aria-pressed="true"] { background: var(--accent); border-color: var(--accent-2); color: var(--on-accent); }
-.rw-mark[aria-pressed="true"] .rw-mark-ico { color: var(--on-accent); }
+.rw-senior-who { font-size: calc(var(--app-body-fs) - 3px); font-weight: 800; color: var(--ink-2); }
 
 /* 한 줄 자리: 안내 · 알림 · 신호 · 연음 안내(줄바꿈 문자 없이, 좁으면 접힘) */
 .rw-say {
@@ -116,6 +108,7 @@
   overflow-wrap: anywhere;
 }
 .rw-say.is-notice { color: var(--ink-2); }
+.rw-say.is-done { color: var(--pen); } /* 교정 하나를 한 뒤: 쓴 부호 · 변동 갈래(맞고 틀림이 아님) */
 .rw-say.is-sig-onair { color: var(--sig-onair-ink); }
 .rw-say.is-sig-offrule { color: var(--sig-offrule); }
 .rw-say.is-sig-diff { color: var(--sig-diff); }
@@ -129,6 +122,7 @@
 /* ── 옆 칸 ── */
 .rw-side { min-width: 0; display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: clamp(10px, 1.2cqw, 20px); align-items: stretch; }
 .rw-help { grid-column: 1 / -1; }
+.rw-side.is-quiet { grid-template-columns: minmax(0, 1fr); } /* 송출 전: 스튜디오 무대가 닫혀 있어 감수 기록이 줄 가득 */
 .rw-h2 { margin: 0 0 var(--s2); display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; font-size: var(--app-h2-fs); font-weight: 800; color: var(--ink); }
 .rw-h2-ico { width: 1.1em; height: 1.1em; color: var(--accent); }
 
@@ -283,11 +277,43 @@
   pointer-events: auto; max-width: 100%; overflow: auto; overscroll-behavior: contain;
   padding: var(--s2); border-radius: var(--r-panel); background: var(--bg); box-shadow: var(--shadow-float); border: 2px solid var(--control-line);
 }
-/* 가로 배치: [닫기]를 표 오른쪽에 두어 판의 높이를 아낀다(블록을 가리지 않게) */
-.rw-sheet .ch { border: 0; padding: var(--s2); flex-direction: row-reverse; align-items: flex-start; justify-content: center; }
+/* 판 안: 머리(제목 · 닫기) 아래에 [옆: 빼기 · 합치기 단추 · 지금 교정 이름표 · 읽는 법] + 도표(가로 배치는 나란히 — 판의 높이를 아낌) */
+.rw-sheet-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s3); padding: var(--s1) var(--s2) var(--s2); }
+.rw-sheet-title { margin: 0; font-size: var(--app-h2-fs); font-weight: 800; color: var(--ink); font-family: var(--font-pron); }
+.rw-sheet-close { padding: 0 16px; flex: none; }
+.rw-sheet-body { display: flex; align-items: flex-start; justify-content: center; gap: var(--s3); }
+.rw-sheet-side { flex: 0 0 224px; min-width: 0; display: flex; flex-direction: column; gap: var(--s2); padding: var(--s1) 0; }
+.rw-ops { display: flex; flex-direction: column; gap: var(--s2); }
+.rw-op, .rw-op-label {
+  margin: 0; display: flex; align-items: center; gap: var(--s2); text-align: left; color: var(--ink);
+  font-family: var(--font-body); line-height: 1.25;
+}
+.rw-op {
+  min-height: var(--touch); padding: 6px 12px; cursor: pointer; touch-action: manipulation;
+  border: 2px solid var(--pen); border-bottom-width: 4px; border-radius: var(--r-btn); background: var(--pen-soft);
+}
+.rw-op:hover { background: var(--surface); }
+.rw-op:active { transform: translateY(2px); border-bottom-width: 2px; }
+.rw-op-label { padding: 2px 2px 0; }
+.rw-op-ico { flex: none; width: 1.6em; height: 1.6em; color: var(--pen); }
+.rw-op-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rw-op-name { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; font-size: var(--app-btn-fs); font-weight: 800; }
+.rw-op-mark { font-size: calc(var(--app-body-fs) - 3px); font-weight: 700; color: var(--pen); }
+.rw-op-note { font-size: calc(var(--app-body-fs) - 2px); font-weight: 600; color: var(--ink-2); }
+.rw-legend { margin: 0; display: flex; flex-direction: column; gap: 4px; font-size: calc(var(--app-body-fs) - 3px); font-weight: 600; color: var(--ink-2); }
+.rw-key { display: inline-flex; align-items: center; gap: 6px; }
+.rw-key-mark { flex: none; width: 18px; height: 14px; border-radius: 3px; }
+.rw-key-mark.is-col { background: var(--band-col); border: 1px solid var(--band-col-line); }
+.rw-key-mark.is-row { background: var(--band-row); border: 1px solid var(--band-row-line); }
+.rw-key-mark.is-near { border: 2px dashed var(--ink-2); }
+.rw-key-mark.is-marked { border: 3px solid var(--ink); }
+.rw-sheet .ch { border: 0; padding: var(--s1) var(--s2); }
 .rw-sheet .ch-parts { flex: 0 1 auto; }
 .rw-chart { min-width: 0; }
-.rw-ins-pick { display: flex; flex-direction: column; align-items: center; gap: var(--s3); padding: var(--s3) var(--s4); min-width: min(420px, 100%); }
+.rw-ins-pick { display: flex; flex-direction: column; align-items: center; gap: var(--s3); padding: var(--s2) var(--s3); min-width: 0; }
+/* 넣을 음운 · 옆 음운 기다림: 도표가 없으니 이름표 아래에 단추를 쌓는다(판이 좁아도 가로로 넘치지 않게) */
+.rw-sheet[data-sheet="insert"] .rw-sheet-body, .rw-sheet[data-sheet="merge-wait"] .rw-sheet-body { flex-direction: column; align-items: stretch; min-width: min(360px, calc(100vw - 48px)); }
+.rw-sheet[data-sheet="insert"] .rw-sheet-side, .rw-sheet[data-sheet="merge-wait"] .rw-sheet-side { flex: none; }
 /* .rw-ins-title은 화면에서 숨긴 읽기 이름(.sr-only) — 같은 안내가 한 줄 자리에 나온다 */
 .rw-ins-row { display: flex; gap: var(--s3); justify-content: center; flex-wrap: wrap; }
 .rw-ins {
@@ -296,8 +322,6 @@
   font-family: var(--font-pron); font-weight: 700; font-size: calc(var(--app-h2-fs) + 6px); cursor: pointer; touch-action: manipulation;
 }
 .rw-ins:hover { background: var(--accent-soft); border-color: var(--accent); }
-.rw-sheet-bar { display: flex; justify-content: center; }
-.rw-sheet-close { padding: 0 16px; }
 
 /* ── 넘김 확인 ── */
 .rw-confirm-wrap { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; padding: var(--s4); background: var(--scrim); }
@@ -331,8 +355,7 @@
   .rw-news { font-size: 17px; flex-basis: 100%; }
   .rw-script-text { font-size: 28px; }
   .rw-stamp { font-size: 16px; }
-  .rw-mark { flex-direction: column; gap: 2px; padding: 4px 2px; font-size: 14px; }
-  .rw-mark-ico { width: 1.4em; height: 1.4em; }
+  .rw-senior { font-size: 15px; }
   .rw-say { font-size: 17px; }
   .rw-stage { min-height: 230px; }
   .rw-anchors { bottom: 52px; height: calc(100% - 52px - 12px); }
@@ -347,9 +370,17 @@
   .rw-foot { flex: 1 1 100%; margin-left: 0; }
   .rw-foot .app-btn { flex: 1 1 calc(50% - var(--s2)); min-width: 0; padding: 0 8px; }
   .rw-sheet { position: static; display: block; padding: 0; pointer-events: auto; }
-  .rw-sheet-in { padding: 0; border: 0; box-shadow: none; background: transparent; overflow: visible; }
-  .rw-sheet .ch { border: 2px solid var(--control-line); padding: var(--s2); flex-direction: column; align-items: stretch; }
-  .rw-ins-pick { min-width: 0; padding: var(--s3) var(--s2); border: 2px solid var(--control-line); border-radius: var(--r-panel); background: var(--surface); }
+  .rw-sheet-in { padding: var(--s2); border: 2px solid var(--accent); box-shadow: none; background: var(--surface); overflow: visible; }
+  .rw-sheet-title { font-size: 18px; }
+  .rw-sheet-body { flex-direction: column; align-items: stretch; gap: var(--s2); }
+  .rw-sheet-side { flex: none; }
+  .rw-ops { flex-direction: row; }
+  .rw-op { flex: 1 1 0; min-height: var(--touch); padding: 4px 8px; }
+  .rw-op-name { font-size: 15px; }
+  .rw-op-note { font-size: 12px; }
+  .rw-legend { flex-direction: row; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; }
+  .rw-sheet .ch { padding: 0; }
+  .rw-ins-pick { min-width: 0; padding: var(--s2) 0; }
   .rw-confirm { padding: var(--s5) var(--s4); }
   .rw-confirm-btns .app-btn { flex: 1 1 100%; min-width: 0; }
 }
