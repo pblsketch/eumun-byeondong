@@ -11,8 +11,17 @@
 }
 @container app (min-width: 1600px) { .gd { max-width: 1560px; } }
 
-/* 머리 */
-.gd-head { display: flex; flex-direction: column; gap: 4px; }
+/* 머리: 제목 + 선배 감수관(그림 · 말풍선 — 메모 색) */
+.gd-head { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--s3) var(--s5); flex-wrap: wrap; }
+.gd-head-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.gd-senior { display: flex; align-items: flex-end; gap: var(--s2); min-width: 0; flex: 0 1 560px; }
+.gd-senior-img { flex: none; width: clamp(96px, 9cqw, 150px); height: auto; margin-bottom: -8px; }
+.gd-senior-bubble {
+  position: relative; flex: 1 1 auto; min-width: 0; align-self: center; padding: 10px 16px; border-radius: 16px 16px 16px 4px;
+  background: var(--memo); border: 2px solid var(--memo-line); box-shadow: var(--stage-shadow);
+}
+.gd-senior-name { display: block; font-size: 13px; font-weight: 800; color: var(--ink-2); }
+.gd-senior-say { margin: 0; font-size: var(--app-body-fs); font-weight: 700; color: var(--ink); line-height: 1.4; }
 .gd-kicker { margin: 0; font-size: calc(var(--app-body-fs) - 2px); font-weight: 600; color: var(--ink-2); }
 .gd-from { margin: 0; font-size: var(--app-body-fs); font-weight: 600; color: var(--accent-2); }
 .gd-intro { margin: 0; font-size: var(--app-body-fs); color: var(--ink); font-weight: 600; }
@@ -21,7 +30,14 @@
 .gd-list { display: flex; flex-direction: column; gap: clamp(12px, 1.4cqw, 24px); }
 .gd-card {
   display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: var(--s4) clamp(16px, 2cqw, 32px);
-  padding: clamp(14px, 1.6cqw, 28px); border-radius: var(--r-panel); background: var(--surface); border: 1px solid var(--divider);
+  position: relative; padding: clamp(18px, 1.8cqw, 32px) clamp(14px, 1.6cqw, 28px) clamp(14px, 1.6cqw, 28px);
+  border-radius: 6px var(--r-panel) var(--r-panel) var(--r-panel); background: var(--memo); border: 1px solid var(--memo-line);
+  box-shadow: 0 2px 0 var(--memo-line);
+}
+/* 메모지를 붙인 테이프(장식 — 움직이지 않음) */
+.gd-card::before {
+  content: ''; position: absolute; left: 50%; top: -10px; width: 96px; height: 20px; margin-left: -48px;
+  background: var(--accent-soft); border: 1px solid var(--divider); transform: rotate(-3deg); opacity: .9;
 }
 .gd-card-main { display: flex; gap: var(--s3); min-width: 0; }
 .gd-card-num {
@@ -89,7 +105,10 @@
 /* 휴대폰 세로 */
 @media (max-width: 760px), (orientation: portrait) {
   .gd { padding: var(--s3) var(--s4) calc(var(--s5) + env(safe-area-inset-bottom, 0px)); gap: var(--s3); }
-  .gd-card { grid-template-columns: minmax(0, 1fr); padding: var(--s3); gap: var(--s3); }
+  .gd-senior { flex: 1 1 100%; }
+  .gd-senior-img { width: 72px; }
+  .gd-senior-say { font-size: 15px; }
+  .gd-card { grid-template-columns: minmax(0, 1fr); padding: var(--s4) var(--s3) var(--s3); gap: var(--s3); }
   .gd-card-main { gap: var(--s2); }
   .gd-card-num { font-size: 16px; }
   .gd-text { font-size: 17px; line-height: 1.7; }

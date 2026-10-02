@@ -5,11 +5,14 @@
 // 2 모양: 화면에 보일 조항 이름, 원문 문장, 원문 예시 낱말([표기, 발음] 또는 [표기, 발음, 틀린 발음]), 대조 출처
 // 3 문구 규칙: 금지 낱말 없음, 한자 없음(명세 §3-6 · §13 — 조항 원문은 원문 그대로이므로 빗금 표기만 예외)
 // 4 제15항 원고(src '표준 15')는 제15항 원문 예시에 그대로 있음(표기·발음) — 원문에 없는 낱말을 원고로 지어내지 않았는지
+// 5 뉴스 원고 문장(js/data/news.js — 결정 0020): 원고마다 하나, {…}가 한 번이고 그 안이 원고 표기 그대로, 길이 · 금지 낱말 · 한자 ·
+//   대괄호(발음 표시) · 빗금(음운 표기) 없음, 감수할 말 바로 뒤에 모음으로 시작하는 말이 붙지 않음(이어 읽으면 발음이 달라짐)
 import { loadScripts, check, done } from './lib/load.mjs';
+import * as WORDS from './lib/words.mjs';
 
 let ctx;
 try {
-  ctx = loadScripts(['js/data/articles.js', 'js/data/scripts.js']);
+  ctx = loadScripts(['js/data/articles.js', 'js/data/scripts.js', 'js/data/news.js']);
 } catch (e) {
   check(false, '스크립트 불러오기 실패: ' + e.message);
   done('데이터 점검');
@@ -106,5 +109,33 @@ for (const s of SC || []) for (const src of s.src || []) {
   else if (hit[1] !== s.pron && !hit[1].endsWith('→' + s.pron)) off.push(`${s.id}(원문 [${hit[1]}] · 원고 [${s.pron}])`);
 }
 if (off.length) console.log('  참고: 현행 원문과 다른 원고 —', off.join(', '));
+
+// ───────────────────────── 5. 뉴스 원고 문장 ─────────────────────────
+{
+  const N = ctx.NEWS;
+  check(!!N && typeof N === 'object', 'window.NEWS 있음');
+  const ids = (SC || []).map((s) => s.id);
+  const keys = N ? Object.keys(N) : [];
+  check(ids.every((id) => N && typeof N[id] === 'string'), '원고마다 뉴스 문장이 있음 (' + ids.filter((id) => !N || typeof N[id] !== 'string').slice(0, 5).join(', ') + ')');
+  check(keys.every((k) => ids.includes(k)), '원고에 없는 뉴스 키가 없음 (' + keys.filter((k) => !ids.includes(k)).slice(0, 5).join(', ') + ')');
+  const bad = [];
+  for (const s of SC || []) {
+    const line = N && N[s.id];
+    if (typeof line !== 'string') continue;
+    const m = /^([^{}]*)\{([^{}]*)\}([^{}]*)$/.exec(line);
+    if (!m) { bad.push(s.id + ': {…} 모양'); continue; }
+    if (m[2] !== s.text) bad.push(s.id + ': {' + m[2] + '} ≠ 표기');
+    const plain = m[1] + m[2] + m[3];
+    if (plain.length < 6 || plain.length > 40) bad.push(s.id + ': 길이 ' + plain.length);
+    if (/[[\]/\n]/.test(line)) bad.push(s.id + ': 대괄호 · 빗금 · 줄바꿈');
+    if (HANJA.test(line)) bad.push(s.id + ': 한자');
+    for (const w of WORDS.FORBIDDEN.concat(WORDS.BROADCASTERS)) if (line.includes(w)) bad.push(s.id + ': 금지 낱말 ' + w);
+    // 감수할 말이 받침으로 끝나는데 바로 뒤에 모음으로 시작하는 음절이 붙으면(띄어쓰기 없이) 이어 읽혀 발음이 달라진다
+    const last = m[2].charCodeAt(m[2].length - 1) - 0xAC00, next = m[3].charCodeAt(0) - 0xAC00;
+    if (last >= 0 && last < 11172 && last % 28 && next >= 0 && next < 11172 && Math.floor(next / 588) === 11) bad.push(s.id + ': 뒤에 모음이 붙음');
+  }
+  check(bad.length === 0, '뉴스 문장 모양 (' + bad.slice(0, 8).join(' / ') + ')');
+  console.log('  뉴스 문장 ' + keys.length + '개');
+}
 
 done('데이터 점검');

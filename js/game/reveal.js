@@ -29,21 +29,24 @@
 
   const sound = U.sound, finished = U.finished; // finished: 끝난 진행 장인가(원고 모두 결과가 있음)
 
-  function exampleItem(e) {
-    return el('li', { class: 'rv-ex' }, [
+  // mine = 이번 장에서 감수한 원고의 표기 목록 — 같은 말인 예시에 '이번에 감수한 말' 표(펜 밑줄)를 단다(그림일 뿐)
+  function exampleItem(e, mine) {
+    const own = mine && mine.indexOf(e[0]) >= 0;
+    return el('li', { class: 'rv-ex' + (own ? ' is-mine' : '') }, [
+      own ? el('span', { class: 'rv-ex-mine' }, T().reveal.mine) : null,
       el('span', { class: 'rv-ex-text' }, e[0]),
       el('span', { class: 'rv-ex-pron' }, G.text.pron(e[1])),
       e[2] ? el('span', { class: 'rv-ex-wrong' }, '(×' + G.text.pron(e[2]) + ')') : null,
     ]);
   }
 
-  function articleCard(id) {
+  function articleCard(id, mine) {
     const A = window.ARTICLES && window.ARTICLES[id];
     const R = T().reveal;
     const parts = A ? A.parts.map((p) => el('div', { class: 'rv-part' }, [
       p.label ? el('p', { class: 'rv-part-label' }, p.label) : null,
       p.text ? el('p', { class: 'rv-part-text' }, p.text) : null,
-      p.examples && p.examples.length ? el('ul', { class: 'rv-ex-list' }, p.examples.map(exampleItem)) : null,
+      p.examples && p.examples.length ? el('ul', { class: 'rv-ex-list' }, p.examples.map((e) => exampleItem(e, mine))) : null,
     ])) : [];
     return el('article', { class: 'rv-art', 'data-article': id }, [
       el('header', { class: 'rv-art-head' }, [
@@ -77,9 +80,15 @@
           el('p', { class: 'rv-kicker' }, G.text.t('common.chapterLevel', { chapter: G.text.chapterTitle(run.ch), level: G.text.levelName(run.level) })),
           el('h1', { class: 'app-h1 rv-title' }, R.title),
         ]),
-        el('p', { class: 'rv-heading' }, G.text.fill(heading, { articles: G.text.articleList(ids) })),
+        el('div', { class: 'rv-senior' }, [
+          el('img', { class: 'rv-senior-img', src: 'assets/img/senior.webp', alt: T().images.senior, draggable: 'false', decoding: 'async' }),
+          el('div', { class: 'rv-senior-bubble' }, [
+            el('span', { class: 'rv-senior-say' }, Array.isArray(guides) && guides.length ? R.senior : R.seniorNoGuide),
+            el('p', { class: 'rv-heading' }, G.text.fill(heading, { articles: G.text.articleList(ids) })),
+          ]),
+        ]),
         el('p', { class: 'rv-note' }, [el('span', { class: 'rv-orig' }, T().common.original), el('span', null, R.note)]),
-        el('div', { class: 'rv-list' }, ids.map(articleCard)),
+        el('div', { class: 'rv-list' }, ids.map((id) => articleCard(id, scripts.map((x) => x.text)))),
         el('footer', { class: 'rv-foot' }, el('button', {
           type: 'button', class: 'app-btn is-primary is-big rv-next', 'data-act': 'reveal-next',
           onclick: () => G.app.go('result', { run }),

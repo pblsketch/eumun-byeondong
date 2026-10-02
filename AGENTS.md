@@ -25,11 +25,11 @@
 │       └── findings.md                 ← 아직 못 푼 문제
 ├── js/
 │   ├── core/AGENTS.md                  ← 규칙 엔진·한글 음절·저장·소리 재생·공용 도구
-│   ├── data/AGENTS.md                  ← 음운·원고·지침·조항 원문·화면 문구(선생님이 고치는 곳)
+│   ├── data/AGENTS.md                  ← 음운·원고·뉴스 한 줄·지침·조항 원문·화면 문구(선생님이 고치는 곳)
 │   └── game/AGENTS.md                  ← 화면(시작·지침·감수·조항 공개·결과)과 부품(음절 블록·조음 도표·게임 방법 창)
 ├── css/                                ← base.css(색·크기 토큰) + fonts.css(만들어진 것) + 화면·부품마다 짝 CSS
-├── assets/                             ← fonts(Pretendard 수정본 + OFL) · audio(지금은 비어 있음, README에 파일 이름표)
-├── tools/AGENTS.md                     ← 글꼴 만들기(build_fonts.py), 그림 견본 생성(gen.ps1)
+├── assets/                             ← fonts(Pretendard 수정본 + OFL) · img(화풍 B 그림 — 아나운서 상태·스튜디오·타이틀·선배) · audio(지금은 비어 있음, README에 파일 이름표)
+├── tools/AGENTS.md                     ← 글꼴 만들기(build_fonts.py), 그림 생성(gen.ps1)·게임 그림 만들기(process_assets.py)
 ├── tests/                              ← `npm test` 점검 모음(Node 규칙·데이터·저장·문구 점검 + aside 브라우저 점검)
 └── design/                             ← 조사(research/01~03 — 내용의 진실), 구현 2단계 명세, 화풍 견본, 시안, 음원 후보(게임이 읽지 않음)
 ```

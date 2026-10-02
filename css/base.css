@@ -9,6 +9,10 @@
      · 형태소 경계 종류(--cut-*): 기본 단계의 '+'와 이름표에만. formal 뒤에 붙는 말(녹슨 주황) · content 뜻이 있는 말(올리브 초록)
          · sino 한자어(회청). space · null은 색이 없다(띄어쓰기 틈).
      · 방송(--onair-lamp 빨강, --prompter 검정 화면): ON AIR 램프와 프롬프터에만. 빨강은 오답 · 오류에 쓰지 않는다.
+     · 교정 펜(--pen 주홍): 감수관이 원고에 남기는 교정 흔적(음절 블록 위 부호 자국 · 감수할 말 밑줄 · 교정 부호 단추 기호)에만.
+         오답 표시가 아니다 — 맞든 틀리든 학생이 고친 자리에 남는다.
+     · 메모(--memo 연노랑 종이): 선배 감수관의 말풍선 · 지침 메모지 바탕에만.
+     · 스튜디오(--studio-*): 감수 화면 스튜디오 무대의 자막 띠 · 시청자 댓글 풍선에만.
    명암비(흰 바탕 / 종이 바탕 --bg, 글씨로 쓰는 색은 4.5 이상): ink 15.2/13.6 · ink-2 6.9/6.2 · accent 5.4/4.9
      · sig-onair-ink 7.1/6.4 · sig-offrule 6.7/6.0 · sig-diff 6.9/6.2 · sig-nonstandard 6.7/5.9
      · cut-formal 5.6/5.0 · cut-content 5.1/4.6 · cut-sino 6.2/5.5 · 흰 글씨 on accent 5.4.
@@ -49,6 +53,19 @@
   --onair-lamp-off: #C9C3B8;
   --prompter: #121A24;
   --prompter-ink: #F4F1E8;
+
+  /* 교정 펜(감수 흔적에만) · 선배 메모 · 스튜디오 무대 */
+  --pen: #C2410C;          /* 흰 바탕 5.2 · 종이 바탕 4.7 */
+  --pen-soft: #FDE8DC;
+  --memo: #FFF5D1;
+  --memo-line: #E7D59A;
+  --studio-caption: #16233A;   /* 자막 띠(글씨는 --prompter-ink) */
+  --studio-accent: #1C9C8C;    /* 자막 띠 위 청록 줄 */
+  --bubble: #FFFFFF;           /* 시청자 댓글 풍선 */
+  --stage-shadow: 0 4px 12px rgba(18, 26, 36, .22);                                   /* 무대 위에 뜬 것(띠 · 풍선 · 램프) */
+  --stage-scrim: rgba(18, 26, 36, .38);                                               /* 초읽기 때 무대를 살짝 어둡게 */
+  --lamp-glow: 0 0 0 4px rgba(214, 58, 46, .28), 0 0 18px rgba(214, 58, 46, .55);      /* 켜진 ON AIR 램프 */
+  --lamp-ring: 0 0 0 8px rgba(214, 58, 46, .3);                                       /* 초읽기 숫자 둘레 */
 
   /* 간격(4 · 8 · 12 · 16 · 24 · 32 · 48)과 반경 · 그림자 */
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px; --s7: 48px;

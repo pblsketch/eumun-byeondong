@@ -94,10 +94,23 @@
         type: 'button', class: 'app-btn is-big rs-chapters', 'data-act': 'chapters', onclick: () => G.app.go('start'),
       }, R.chapters);
 
+      // 방송 마무리: 모두 온에어면 활짝 웃는 아나운서 + '사고 없이', 아니면 기다리는 아나운서 + '수고했어요'
+      const onairN = run.done.filter((d) => d && d.result === 'onair').length;
+      const clean = onairN === run.ids.length;
+      const mood = clean ? 'happy' : 'idle';
       root.appendChild(el('div', { class: 'rs' }, [
         el('header', { class: 'rs-head' }, [
-          el('h1', { class: 'app-h1 rs-title' }, R.title),
-          el('p', { class: 'rs-sub' }, G.text.fill(R.subtitle, { chapter: G.text.chapterTitle(run.ch), level: G.text.levelName(run.level) })),
+          el('div', { class: 'rs-head-text' }, [
+            el('h1', { class: 'app-h1 rs-title' }, R.title),
+            el('p', { class: 'rs-sub' }, G.text.fill(R.subtitle, { chapter: G.text.chapterTitle(run.ch), level: G.text.levelName(run.level) })),
+          ]),
+          el('div', { class: 'rs-wrap' + (clean ? ' is-clean' : '') }, [
+            el('img', { class: 'rs-wrap-img', src: 'assets/img/anchors_' + mood + '.webp', alt: T().images.anchors[mood], draggable: 'false', decoding: 'async' }),
+            el('div', { class: 'rs-wrap-text' }, [
+              el('p', { class: 'rs-wrap-line' }, clean ? R.wrap.clean : R.wrap.done),
+              el('p', { class: 'rs-wrap-count' }, [U.glyph('onair', 'glyph rs-wrap-ico'), G.text.fill(R.onairCount, { n: onairN, total: run.ids.length })]),
+            ]),
+          ]),
         ]),
         el('div', { class: 'rs-main' }, [
           el('section', { class: 'rs-box rs-scripts' }, table),

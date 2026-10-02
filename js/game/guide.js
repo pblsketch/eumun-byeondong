@@ -115,11 +115,19 @@
       }, [U.glyph('check', 'glyph gd-check-ico'), el('span', null, TG.check)]);
       const foot = el('footer', { class: 'gd-foot' }, [msg, checkBtn]);
 
+      // 선배 감수관(그림 + 말풍선): 처음 · 틀렸을 때 · 다 맞았을 때 한 줄씩 바뀐다(정답에 관한 말은 하지 않음)
+      const seniorSay = el('p', { class: 'gd-senior-say' }, TG.senior);
       const wrap = el('div', { class: 'gd' }, [
         el('header', { class: 'gd-head' }, [
-          el('p', { class: 'gd-kicker' }, G.text.t('common.chapterLevel', { chapter: G.text.chapterTitle(run.ch), level: G.text.levelName(run.level) })),
-          el('h1', { class: 'app-h1 gd-title' }, TG.title),
-          el('p', { class: 'gd-from' }, TG.from),
+          el('div', { class: 'gd-head-text' }, [
+            el('p', { class: 'gd-kicker' }, G.text.t('common.chapterLevel', { chapter: G.text.chapterTitle(run.ch), level: G.text.levelName(run.level) })),
+            el('h1', { class: 'app-h1 gd-title' }, TG.title),
+            el('p', { class: 'gd-from' }, TG.from),
+          ]),
+          el('div', { class: 'gd-senior' }, [
+            el('img', { class: 'gd-senior-img', src: 'assets/img/senior.webp', alt: T().images.senior, draggable: 'false', decoding: 'async' }),
+            el('div', { class: 'gd-senior-bubble' }, [el('span', { class: 'gd-senior-name' }, TG.seniorName), seniorSay]),
+          ]),
         ]),
         el('p', { class: 'gd-intro' }, TG.intro),
         el('div', { class: 'gd-list' }, cards),
@@ -149,6 +157,7 @@
         const wrong = G.rules.gradeGuides(guides, picks);
         if (wrong > 0) {
           say(G.text.fill(TG.wrong, { n: wrong }), 'wrong');
+          seniorSay.textContent = TG.seniorWrong;
           sound(() => G.audio.sfx('guideWrong'));
           return;
         }
@@ -163,6 +172,7 @@
         G.save.saveChapter(next);
         blanks.forEach((x) => x.opts.forEach((o) => { o.disabled = true; }));
         say(TG.allRight, 'ok');
+        seniorSay.textContent = TG.seniorOk;
         const goBtn = el('button', {
           type: 'button', class: 'app-btn is-primary is-big gd-go', 'data-act': 'guide-go',
           onclick: () => G.app.go('review', { run: G.save.loadChapter() || next }),

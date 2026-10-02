@@ -86,3 +86,26 @@
 /* 경계 표시가 없는 줄 바뀜 틈: 가는 점선 하나로 '이어짐'만 보인다(심화 단계 · 경계 없는 자리 모두 같은 모양) */
 .bk-gap.is-break:empty { position: relative; }
 .bk-gap.is-break:empty::before { content: ''; position: absolute; left: 30%; right: 30%; top: 50%; border-top: 2px dotted var(--divider); }
+
+/* 교정 흔적(감수관의 펜 자국 — b.setPen). 색은 교정 펜(--pen)만. 오답 표시가 아니다: 학생이 고친 자리에 남는 흔적.
+   부호마다 모양이 다르다(색만으로 가르지 않음): 고침 = 동그라미, 뺌 = 빗금, 넣음 = 아래 꺾쇠, 합침 = 둥근 고리. 처음 붙을 때 한 번만 그려진다. */
+.bk-slot[class*="is-pen-"] { position: relative; border-color: var(--pen); background: var(--pen-soft); }
+.bk-slot[class*="is-pen-"]::after {
+  content: ''; position: absolute; pointer-events: none;
+}
+.bk-slot.is-pen-new::after { animation: bk-pen-in 260ms ease-out both; }
+.bk-slot.is-pen-replace::after { inset: 3px; border: 3px solid var(--pen); border-radius: 50%; transform: rotate(-8deg); }
+.bk-slot.is-pen-delete::after { left: 10%; right: 10%; top: 50%; height: 0; border-top: 4px solid var(--pen); transform: rotate(-24deg); border-radius: 2px; }
+.bk-slot.is-pen-insert::after {
+  left: 50%; bottom: -10px; width: 22px; height: 14px; margin-left: -11px;
+  border-left: 4px solid var(--pen); border-top: 4px solid var(--pen); transform: rotate(45deg); border-radius: 2px 0 0 0;
+}
+.bk-slot.is-pen-merge::after { inset: 2px -4px; border: 3px solid var(--pen); border-radius: 999px; }
+.bk-syl.is-pen { position: relative; border-color: var(--pen); }
+.bk-syl.is-pen::after {
+  content: ''; position: absolute; right: -6px; top: -6px; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--pen); box-shadow: 0 0 0 3px var(--surface); pointer-events: none;
+}
+@keyframes bk-pen-in { from { opacity: 0; transform: scale(1.3) rotate(-8deg); } to { opacity: 1; } }
+.bk-slot.is-pen-new.is-pen-delete::after { animation-name: bk-pen-strike; }
+@keyframes bk-pen-strike { from { opacity: 0; clip-path: inset(0 100% 0 0); } to { opacity: 1; clip-path: inset(0 0 0 0); } }

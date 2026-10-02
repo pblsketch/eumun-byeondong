@@ -57,3 +57,18 @@
   .rv-ex { font-size: 15px; padding: 2px 8px; }
   .rv-next { flex: 1 1 100%; min-width: 0; }
 }
+
+/* 선배 감수관 + 머리 문장(말풍선 — 메모 색), 이번에 감수한 말(펜 밑줄 — 결정 0020) */
+.rv-senior { display: flex; align-items: flex-end; gap: var(--s3); min-width: 0; }
+.rv-senior-img { flex: none; width: clamp(96px, 9cqw, 150px); height: auto; margin-bottom: -6px; }
+.rv-senior-bubble {
+  flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 12px 18px;
+  border-radius: 18px 18px 18px 4px; background: var(--memo); border: 2px solid var(--memo-line); box-shadow: var(--stage-shadow);
+}
+.rv-senior-say { font-size: var(--app-body-fs); font-weight: 700; color: var(--ink-2); }
+.rv-ex.is-mine { border-color: var(--pen); background: var(--pen-soft); box-shadow: inset 0 -3px 0 var(--pen); }
+.rv-ex-mine { margin-right: 4px; padding: 0 6px; border-radius: 999px; background: var(--pen); color: var(--on-accent); font-size: .78em; font-weight: 800; }
+@media (max-width: 760px), (orientation: portrait) {
+  .rv-senior-img { width: 72px; }
+  .rv-senior-bubble { padding: 10px 12px; }
+}
