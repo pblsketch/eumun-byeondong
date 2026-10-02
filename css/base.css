@@ -39,6 +39,10 @@
   --link-soft: #EEF3FC;
   --on-accent: #FFFFFF;
 
+  /* 조음 도표의 띠(기본 단계 — 누른 음운과 같은 열 · 같은 줄). 도표 칸 바탕에만, 글씨에는 쓰지 않는다 */
+  --band-col: #E3EDF9;  --band-col-line: #9DB8DE;    /* 같은 조음 위치(자음) · 같은 앞뒤·입술(모음) */
+  --band-row: #FCEFD9;  --band-row-line: #E2BE85;    /* 같은 조음 방법(자음) · 같은 높이(모음) */
+
   /* 신호 넷(G.rules.broadcast의 kind) — 색 + 기호 */
   --sig-onair: #E9B42E;      --sig-onair-ink: #7A4F00;  --sig-onair-soft: #FBF1D6;
   --sig-offrule: #6A47AE;    --sig-offrule-soft: #F0EBFA;

@@ -41,7 +41,8 @@ if (!D.playScript) {
     plan[sk] = 'skip';
     const off = sc.findIndex((s, i) => free(i) && (s.steps || []).some((x) => x[1] === 'replace'));
     if (off >= 0) plan[off] = 'offrule';
-    const df = sc.findIndex((s, i) => free(i) && (s.steps || []).length > 0);
+    // 다름 뒤 온에어: 교정 없이 송출이 다름 · 표준 아님인 원고만(야금야금은 교정 없이도 허용 발음 [야그먀금] — 제29항)
+    const df = sc.findIndex((s, i) => free(i) && (s.steps || []).length > 0 && ['diff', 'nonstandard'].indexOf(D.G().rules.broadcast(s, []).kind) >= 0);
     if (df >= 0) plan[df] = 'diffhelp';
     const sv = sc.findIndex((s, i) => free(i) && (s.steps || []).length > 0);
     if (sv >= 0) plan[sv] = 'solve';

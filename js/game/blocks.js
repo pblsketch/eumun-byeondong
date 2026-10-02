@@ -21,6 +21,8 @@
 //   b.render(상태)        상태를 그린다(교정할 때마다 다시 부름). 학생이 만든 어떤 상태든 그린다:
 //                         빈 중성 · 빈 음절 · 반모음만 · 적을 수 없는 조합 · 음절이 사라져 줄어든 cuts
 //   b.setPicked([자리…])  고른 음운 칸 표시(합침표 첫 음운 · 고침표로 누른 칸). 자리 = Pos 또는 '1.on' 꼴. null이면 지움
+//   b.setNear([자리…], 'near'|'merge')  누른 음운의 바로 옆 소리(.is-near 점선) · 합칠 수 있는 옆 소리(.is-mergeable). null이면 지움.
+//                         어느 칸인지는 감수 화면이 정한다(합칠 수 있는지는 엔진에 물어봄). 다시 그려도 남는다
 //   b.setMode('slot'|'gap'|null)  지금 고를 것(음운 칸 / 틈)을 모양으로 돋보이게(뿌리에 is-mode-slot · is-mode-gap).
 //                         누르기를 막지는 않는다(원칙 3) — 어느 것을 눌러도 알림은 간다
 //   b.setPen([{ at, op }…])  교정 흔적(감수관의 펜 자국): 그 자리 칸에 .is-pen-<op>(replace · delete · insert · merge).
@@ -91,7 +93,7 @@ G.blocks = (function () {
     const showCuts = o.level !== 'advanced';
     const root = U.el('div', { class: 'bk', role: 'group', 'aria-label': o.label || null });
     container.appendChild(root);
-    let state = null, picked = [], syls = [], gaps = [], lastW = -1, ro = null;
+    let state = null, picked = [], near = [], nearKind = 'near', syls = [], gaps = [], lastW = -1, ro = null;
     let linkTo = {}, linkFrom = {}; // 이어 읽기: 음절 번호 → 옮겨 올 받침 / 옮겨 갈 받침의 k
 
     // ── 칸 하나 ──
@@ -233,6 +235,7 @@ G.blocks = (function () {
       gaps = syls.slice(1).map((_, i) => gapEl(i, st.cuts ? st.cuts[i] : null));
       layout();
       paintPicked();
+      paintNear();
       paintPen();
       watch();
     }
@@ -274,6 +277,21 @@ G.blocks = (function () {
       picked = (list || []).map(posOf);
       paintPicked();
     }
+    // 바로 옆 소리(누른 음운의 앞뒤) · 합칠 수 있는 옆 소리 — 그림일 뿐 판정하지 않는다(어느 칸이 이웃인지는 감수 화면이 정함)
+    function paintNear() {
+      const keys = near.map(posKey);
+      root.querySelectorAll('.bk-slot').forEach((b) => {
+        const p = { s: +b.getAttribute('data-s'), slot: b.getAttribute('data-slot'), k: +(b.getAttribute('data-k') || 0) };
+        const on = keys.indexOf(posKey(p)) >= 0;
+        b.classList.toggle('is-near', on && nearKind === 'near');
+        b.classList.toggle('is-mergeable', on && nearKind === 'merge');
+      });
+    }
+    function setNear(list, kind) {
+      near = (list || []).map(posOf);
+      nearKind = kind === 'merge' ? 'merge' : 'near';
+      paintNear();
+    }
     function setMode(m) {
       root.classList.remove('is-mode-slot', 'is-mode-gap');
       if (m === 'slot' || m === 'gap') root.classList.add('is-mode-' + m);
@@ -308,7 +326,7 @@ G.blocks = (function () {
     }
 
     return {
-      el: root, render, setPicked, setPen, setMode, setSplit, destroy,
+      el: root, render, setPicked, setNear, setPen, setMode, setSplit, destroy,
       lines: () => root.querySelectorAll('.bk-line').length,
     };
   }

@@ -85,9 +85,9 @@ const walk = (v, ch, grade, level) => {
     const tag = ${J(`${ch}장 ${grade} ${level}`)};
     await D.load('먹는');
     D.mark('replace'); D.slot('0.co'); await D.until(() => D.sheet() && D.$('.rw-sheet .ch-cell'), 2000, '도표'); D.scanText(tag + ' 자음표');
-    D.tapSel('.rw-sheet .ch-close', '도표 닫기');
+    D.tapSel('[data-act="rw-sheet-close"]', '도표 닫기');
     D.slot('0.nu'); await D.until(() => D.$('.rw-sheet .ch-part[data-part="vowel"]'), 2000, '모음표'); D.scanText(tag + ' 모음표');
-    D.tapSel('.rw-sheet .ch-close', '도표 닫기');
+    D.tapSel('[data-act="rw-sheet-close"]', '도표 닫기');
     D.mark('insert'); D.gap(0); await D.until(() => D.sheet() && D.$('.rw-ins'), 2000, '넣을 음운'); D.scanText(tag + ' 넣을 음운');
     D.ins('ㄴ'); D.scanText(tag + ' 빈자리 없음');
     D.mark('merge'); D.slot('0.on'); D.slot('1.nu'); D.scanText(tag + ' 이웃 아님');
@@ -225,7 +225,7 @@ const walkLater = (v, c) => {
         const ab = m[2].split('+');
         D.mark('merge'); D.slot(ab[0]); D.slot(ab[1]);
         await D.until(() => D.sheet() && D.$('.rw-sheet .ch-cell'), 2000, '합침 도표'); D.scanText(t + ' 합침 도표');
-        D.tapSel('.rw-sheet .ch-close', '도표 닫기');
+        D.tapSel('[data-act="rw-sheet-close"]', '도표 닫기');
       }
     }
     D.dbg().exit();

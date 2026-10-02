@@ -249,6 +249,15 @@ try {
     if (picked.join() !== '0.co,1.on') D.bad('고른 자리 표시: ' + picked.join());
     K.b.setPicked(null);
     if (D.$$('.is-picked', K.b.el).length) D.bad('고른 자리 지우기');
+    // 바로 옆 음운 점선 · 합칠 수 있는 옆 음운(결정 0024) — 다시 그려도 남고, null이면 지움
+    const nearOf = (cls) => D.$$('.bk-slot.' + cls, K.b.el).map((e) => e.getAttribute('data-s') + '.' + e.getAttribute('data-slot')).join();
+    K.b.setNear(['0.nu', { s: 1, slot: 'on', k: 0 }], 'near');
+    K.b.render(st);
+    if (nearOf('is-near') !== '0.nu,1.on' || nearOf('is-mergeable')) D.bad('바로 옆 음운 점선: ' + nearOf('is-near'));
+    K.b.setNear(['1.on'], 'merge');
+    if (nearOf('is-mergeable') !== '1.on' || nearOf('is-near')) D.bad('합칠 수 있는 옆 음운: ' + nearOf('is-mergeable'));
+    K.b.setNear(null);
+    if (D.$$('.is-near, .is-mergeable', K.b.el).length) D.bad('옆 음운 표시 지우기');
     K.b.setMode('gap');
     if (!K.b.el.classList.contains('is-mode-gap')) D.bad('틈 고르기 모양 표시');
     K.b.setMode(null);

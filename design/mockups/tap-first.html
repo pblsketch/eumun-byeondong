@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>시안 — 음운 먼저 누르기</title>
+  <!-- 시안(게임이 읽지 않음). 감수 화면 조작을 '부호 먼저'에서 '음운 먼저'로 바꿔 보는 누름 시안이다.
+       판정은 실제 엔진(G.rules), 블록 · 도표는 실제 부품(G.blocks · G.chart)을 그대로 불러 쓴다. 이 파일만 새로 짰다.
+       A 음운 먼저: 음운을 누르면 곧바로 도표 + [빼기] [옆 소리와 합치기], 틈을 누르면 [넣기]. 부호 이름은 교정한 뒤에 붙는다.
+       B 도표가 원리를 보이게: 누른 음운과 같은 줄(같은 방법) · 같은 열(같은 자리)을 옅게, 블록에서는 바로 옆 소리를 점선으로.
+       C 화면 덜기: 교정할 때는 원고 · 블록 · 판만. 스튜디오는 송출하는 순간 펼쳐지는 방송 장면으로. -->
+  <link rel="stylesheet" href="../../css/base.css">
+  <link rel="stylesheet" href="../../css/fonts.css">
+  <link rel="stylesheet" href="../../css/blocks.css">
+  <link rel="stylesheet" href="../../css/chart.css">
+  <link rel="stylesheet" href="../../css/app.css">
+  <style>
+    body { background: var(--bg); color: var(--ink); }
+    .pt { max-width: 1080px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+    .pt-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+    .pt-top h1 { margin: 0; font-size: 20px; }
+    .pt-top h1 small { font-weight: 500; color: var(--ink-2); font-size: 14px; margin-left: 6px; }
+    .pt-top a { color: var(--link); font-weight: 600; }
+    .pt-pick { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .pt-pick span { color: var(--ink-2); font-size: 14px; margin-right: 4px; }
+    .pt-pick button { min-height: 44px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--control-line); background: var(--surface); font: inherit; font-weight: 600; cursor: pointer; }
+    .pt-pick button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+    .pt-pick em { font-style: normal; font-weight: 500; font-size: 12px; opacity: .8; margin-left: 4px; }
+
+    .pt-desk { background: var(--surface); border: 1px solid var(--divider); border-radius: var(--r-panel); padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+    .pt-word { margin: 0; font-size: 15px; color: var(--ink-2); }
+    .pt-word b { font-size: 28px; color: var(--ink); margin-left: 8px; font-family: var(--font-pron); }
+    .pt-now { margin: 0; font-size: 16px; color: var(--ink-2); }
+    .pt-now b { font-family: var(--font-pron); font-size: 22px; color: var(--ink); margin-left: 6px; }
+    .pt-say { margin: 0; min-height: 1.6em; font-size: 16px; font-weight: 600; }
+    .pt-say.is-done { color: var(--pen); }
+    .pt-say.is-notice { color: var(--sig-diff); }
+
+    /* B: 바로 옆 소리(블록) */
+    .bk-slot.pt-near { outline: 3px dashed var(--ink-2); outline-offset: 2px; }
+    .bk-slot.pt-mergeable { outline: 3px dashed var(--accent); outline-offset: 2px; background: var(--accent-soft); }
+
+    /* 판 */
+    .pt-panel { border: 2px solid var(--accent); border-radius: var(--r-panel); background: var(--surface); padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+    .pt-panel[hidden] { display: none; }
+    .pt-ph { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+    .pt-ph h2 { margin: 0; font-size: 18px; }
+    .pt-x { min-height: 44px; min-width: 44px; border-radius: var(--r-btn); border: 1px solid var(--control-line); background: var(--surface); font: inherit; cursor: pointer; }
+    .pt-acts { display: flex; flex-wrap: wrap; gap: 8px; }
+    .pt-act { min-height: 56px; padding: 6px 16px; border-radius: var(--r-btn); border: 2px solid var(--pen); background: var(--pen-soft); font: inherit; font-weight: 700; color: var(--ink); cursor: pointer; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; }
+    .pt-act small { font-weight: 500; color: var(--ink-2); font-size: 12px; }
+    .pt-sub { margin: 0; font-size: 15px; font-weight: 700; }
+    .pt-legend { margin: 0; font-size: 13px; color: var(--ink-2); display: flex; flex-wrap: wrap; gap: 12px; }
+    .pt-legend i { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: -2px; margin-right: 4px; }
+    .pt-legend .k-col { background: #E3EDF9; border: 1px solid #9DB8DE; }
+    .pt-legend .k-row { background: #FCEFD9; border: 1px solid #E2BE85; }
+    .pt-legend .k-near { border: 2px dashed var(--ink-2); }
+    /* B: 도표의 같은 자리(열) · 같은 방법(줄) */
+    .pt-chart { overflow-x: auto; }
+    .pt-panel .ch { --ch-cell: 52px; --ch-head: 14px; border: 0; padding: 0; align-items: center; }
+    .ch-td.pt-col, .ch-td.pt-col .ch-cell { background: #E3EDF9; border-color: #9DB8DE; }
+    .ch-td.pt-row, .ch-td.pt-row .ch-cell { background: #FCEFD9; border-color: #E2BE85; }
+    .ch-td.pt-col.pt-row, .ch-td.pt-col.pt-row .ch-cell { background: var(--surface-2); }
+    .ch-td.pt-col.pt-row .ch-cell.pt-src { border-color: var(--ink); }
+    .ch-table th.pt-col, .ch-table th.pt-row { color: var(--ink); text-decoration: underline; }
+    .ch-cell.pt-src { border: 3px solid var(--ink); }
+    .ch-bar { display: none; }
+
+    .pt-log { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
+    .pt-log li { padding: 4px 10px; border-radius: 999px; background: var(--pen-soft); border: 1px solid var(--pen); font-size: 14px; }
+    .pt-bar { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+    .pt-btn { min-height: 56px; padding: 0 20px; border-radius: var(--r-btn); border: 1px solid var(--control-line); background: var(--surface); font: inherit; font-weight: 700; cursor: pointer; }
+    .pt-btn.is-main { background: var(--onair-lamp); border-color: var(--onair-lamp); color: #fff; }
+
+    /* C: 방송 장면 */
+    .pt-scene { position: fixed; inset: 0; background: var(--scrim); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 10; }
+    .pt-scene[hidden] { display: none; }
+    .pt-stage { width: min(720px, 100%); border-radius: var(--r-panel); overflow: hidden; background: var(--surface); box-shadow: var(--shadow-float); }
+    .pt-studio { position: relative; aspect-ratio: 16 / 8; background: center / cover no-repeat url('../../assets/img/studio_bg.webp'); }
+    .pt-studio img { position: absolute; left: 50%; bottom: 0; height: 92%; transform: translateX(-50%); }
+    .pt-banner { position: absolute; left: 0; right: 0; top: 12px; text-align: center; }
+    .pt-banner span { display: inline-block; padding: 6px 18px; border-radius: 999px; font-weight: 800; font-size: 20px; background: var(--studio-caption); color: var(--prompter-ink); box-shadow: var(--stage-shadow); }
+    .pt-prompter { background: var(--prompter); color: var(--prompter-ink); text-align: center; padding: 14px; font-family: var(--font-pron); font-size: 30px; font-weight: 700; }
+    .pt-result { padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; }
+    .pt-result p { margin: 0; font-size: 18px; font-weight: 700; }
+    .pt-result .pt-bar { justify-content: flex-end; }
+    @media (max-width: 760px) {
+      .pt { padding: 12px; }
+      .pt-desk { padding: 12px; }
+      .pt-panel { padding: 10px; margin: 0 -6px; }
+      .pt-panel .ch { --ch-cell: 46px; --ch-head: 13px; }
+      .pt-acts .pt-act { flex: 1 1 0; min-width: 0; }
+    }
+    .pt-notes { font-size: 14px; color: var(--ink-2); line-height: 1.6; }
+    .pt-notes h2 { font-size: 15px; color: var(--ink); margin: 0 0 4px; }
+    .pt-notes ul { margin: 0; padding-left: 20px; }
+  </style>
+</head>
+<body>
+  <div id="app"><section class="screen">
+    <div class="pt">
+      <div class="pt-top">
+        <h1>음운 먼저 누르기 <small>감수 화면 조작 시안</small></h1>
+        <a href="../../index.html" target="_blank" rel="noopener">지금 게임 열어 비교하기 ↗</a>
+      </div>
+      <div class="pt-pick" id="pick"><span>원고</span></div>
+
+      <div class="pt-desk">
+        <p class="pt-word">감수할 말 <b id="word"></b></p>
+        <div id="blocks"></div>
+        <p class="pt-now">지금 교정대로 읽으면 <b id="now"></b></p>
+        <p class="pt-say" id="say" aria-live="polite"></p>
+        <div class="pt-panel" id="panel" hidden></div>
+        <ol class="pt-log" id="log"></ol>
+        <div class="pt-bar">
+          <button class="pt-btn" id="undo" type="button">되돌리기</button>
+          <button class="pt-btn" id="redo" type="button">처음부터</button>
+          <button class="pt-btn is-main" id="send" type="button">송출</button>
+        </div>
+      </div>
+
+      <div class="pt-notes">
+        <h2>이 시안에서 바뀐 것</h2>
+        <ul>
+          <li><b>음운 먼저</b> — 교정 부호를 먼저 고르지 않아요. 음운을 누르면 곧바로 바꿀 소리(도표)와 [빼기] [옆 소리와 합치기]가 뜨고, 음절 사이 틈을 누르면 [넣기]가 떠요.</li>
+          <li><b>부호 이름은 한 뒤에</b> — 교정하면 펜 자국과 함께 '고침표 · 교체'처럼 한 일의 이름이 붙어요.</li>
+          <li><b>원리가 보이는 도표</b> — 누른 소리와 같은 자리(파랑 열) · 같은 방법(노랑 줄)이 옅게 보여요. 블록에서는 바로 옆 소리에 점선이 둘려요.</li>
+          <li><b>화면 덜기</b> — 교정하는 동안은 원고 · 블록 · 판만. 스튜디오는 송출할 때 펼쳐져요.</li>
+          <li>'지금 교정대로 읽으면'은 교정이 소리를 어떻게 바꾸는지 바로 보이는 줄이에요(연음도 여기서 보여요). <b>게임에는 넣지 않았어요</b> — 교정이 표준 발음에 닿으면 결과 전에 표준 발음이 화면에 나와서요(결정 0024).</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="pt-scene" id="scene" hidden role="dialog" aria-modal="true" aria-label="방송 장면">
+      <div class="pt-stage">
+        <div class="pt-studio"><div class="pt-banner" id="banner"></div><img id="anchors" alt=""></div>
+        <div class="pt-prompter" id="prompter"></div>
+        <div class="pt-result">
+          <p id="line"></p>
+          <div class="pt-bar">
+            <button class="pt-btn" id="again" type="button">다시 감수</button>
+            <button class="pt-btn is-main" id="next" type="button">다음 원고</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section></div>
+
+  <script src="../../js/core/util.js"></script>
+  <script src="../../js/data/sounds.js"></script>
+  <script src="../../js/data/scripts.js"></script>
+  <script src="../../js/data/text.js"></script>
+  <script src="../../js/core/hangul.js"></script>
+  <script src="../../js/core/rules.js"></script>
+  <script src="../../js/game/blocks.js"></script>
+  <script src="../../js/game/chart.js"></script>
+  <script>
+  'use strict';
+  (function () {
+    const U = G.util, el = U.el, T = window.TEXT;
+    const IDS = ['부엌', '국물', '신라', '좋고', '밟는', '솜이불', '옷이'];
+    const NOTE = { '옷이': '연음 함정', '밟는': '두 번 교정' };
+    const GRADE = 'h1', LEVEL = 'basic';
+    const SLOTS = ['on', 'gl', 'nu', 'co'];
+    const PART_OF = { on: 'consonant', co: 'consonant', nu: 'vowel', gl: 'glide' };
+    const PROBE = { consonant: 'ㄱ', vowel: 'ㅏ', glide: 'j' };
+    const MARK = { replace: ['고침표', '교체'], delete: ['뺌표', '탈락'], insert: ['넣음표', '첨가'], merge: ['합침표', '축약'] };
+    const $ = (id) => document.getElementById(id);
+    const ph = (id) => G.text.phoneme(id);
+    const seqKey = (p) => p.s * 10 + SLOTS.indexOf(p.slot) * 2 + (p.k || 0);
+    const same = (a, b) => a.s === b.s && a.slot === b.slot && (a.k || 0) === (b.k || 0);
+
+    let script = null, cs = [], st = null, blocks = null, chart = null;
+    let pick = null;      // { kind: 'slot', at, id } | { kind: 'gap', p } | { kind: 'merge', a, id, pair? }
+    let idx = 0;
+
+    // ── 원고 고르기 ──
+    IDS.forEach((id, i) => {
+      const b = el('button', { type: 'button', 'data-i': i }, [id, NOTE[id] ? el('em', null, NOTE[id]) : null].filter(Boolean));
+      b.addEventListener('click', () => load(i));
+      $('pick').appendChild(b);
+    });
+
+    function at(st0, p) {
+      const y = st0.syl[p.s];
+      if (!y) return null;
+      return p.slot === 'co' ? (y.co[p.k] || null) : (y[p.slot] || null);
+    }
+    // 지금 상태의 음운 자리들(자리 차례)
+    function seq(st0) {
+      const out = [];
+      st0.syl.forEach((y, s) => {
+        if (y.on) out.push({ s, slot: 'on', k: 0 });
+        if (y.gl) out.push({ s, slot: 'gl', k: 0 });
+        if (y.nu) out.push({ s, slot: 'nu', k: 0 });
+        y.co.forEach((_, k) => out.push({ s, slot: 'co', k }));
+      });
+      return out;
+    }
+    function neighbors(p) {
+      const list = seq(st);
+      const i = list.findIndex((q) => same(q, p));
+      return [list[i - 1], list[i + 1]].filter(Boolean);
+    }
+    function slotEl(p) {
+      return blocks.el.querySelector('.bk-slot[data-s="' + p.s + '"][data-slot="' + p.slot + '"]' + (p.slot === 'co' ? '[data-k="' + p.k + '"]' : ''));
+    }
+    function clearMarks() {
+      blocks.el.querySelectorAll('.pt-near, .pt-mergeable').forEach((b) => b.classList.remove('pt-near', 'pt-mergeable'));
+      blocks.setPicked(null);
+    }
+    function say(text, cls) { const s = $('say'); s.textContent = text || ''; s.className = 'pt-say' + (cls ? ' ' + cls : ''); }
+
+    function load(i) {
+      idx = i;
+      script = window.SCRIPTS.find((x) => x.id === IDS[i]);
+      cs = [];
+      document.querySelectorAll('#pick button').forEach((b) => b.setAttribute('aria-pressed', String(+b.getAttribute('data-i') === i)));
+      $('word').textContent = script.text;
+      if (blocks) blocks.destroy();
+      $('blocks').innerHTML = '';
+      blocks = G.blocks.create($('blocks'), { grade: GRADE, level: LEVEL, split: 'auto', caption: true, onTap });
+      closePanel();
+      redraw();
+      say('아나운서가 실제로 낼 소리를 떠올리며, 바뀌는 음운이나 음절 사이 틈을 눌러 보세요.');
+    }
+    function redraw() {
+      st = G.rules.start(script);
+      cs.forEach((c) => { st = G.rules.apply(st, c); });
+      blocks.render(st);
+      const pens = {};
+      cs.forEach((c) => (c.op === 'merge' ? c.at : [c.at]).forEach((a) => { const p = G.rules.pos(a); pens[p.s + '.' + p.slot + '.' + (p.k || 0)] = { at: p, op: c.op }; }));
+      blocks.setPen(Object.keys(pens).map((k) => pens[k]));
+      $('now').textContent = '[' + G.rules.reading(st) + ']';
+      const log = $('log');
+      log.innerHTML = '';
+      let s0 = G.rules.start(script);
+      cs.forEach((c, i) => {
+        log.appendChild(el('li', null, G.text.circled(i + 1) + ' ' + MARK[c.op][0] + ' · ' + MARK[c.op][1] + '  ' + detail(s0, c)));
+        s0 = G.rules.apply(s0, c);
+      });
+    }
+    function detail(s0, c) {
+      if (c.op === 'replace') return ph(at(s0, G.rules.pos(c.at))) + '→' + ph(c.to);
+      if (c.op === 'delete') return ph(at(s0, G.rules.pos(c.at)));
+      if (c.op === 'insert') return ph(c.to);
+      const ab = c.at.map(G.rules.pos);
+      return ph(at(s0, ab[0])) + '+' + ph(at(s0, ab[1])) + '→' + ph(c.to);
+    }
+
+    // ── 블록을 누름: 음운 먼저 ──
+    function onTap(p) {
+      if (pick && pick.kind === 'merge' && p.type === 'slot' && !p.empty) { mergeSecond(G.rules.pos(p.at)); return; }
+      clearMarks();
+      if (p.type === 'gap') { pick = { kind: 'gap', p }; openInsert(); return; }
+      if (p.empty) { closePanel(); say('빈 자리예요. 소리를 넣으려면 음절 사이 틈을 눌러 주세요.', 'is-notice'); return; }
+      const pos = G.rules.pos(p.at);
+      pick = { kind: 'slot', at: pos, id: p.id };
+      blocks.setPicked([pos]);
+      neighbors(pos).forEach((q) => { const b = slotEl(q); if (b) b.classList.add('pt-near'); });
+      openSlot(pos, p.id);
+    }
+
+    function panelHead(title) {
+      const panel = $('panel');
+      panel.innerHTML = '';
+      const x = el('button', { type: 'button', class: 'pt-x', 'aria-label': '닫기' }, '✕');
+      x.addEventListener('click', () => { closePanel(); clearMarks(); say(''); });
+      panel.appendChild(el('div', { class: 'pt-ph' }, [el('h2', null, title), x]));
+      panel.hidden = false;
+      return panel;
+    }
+    function act(label, sub, fn) {
+      const b = el('button', { type: 'button', class: 'pt-act' }, [label, el('small', null, sub)]);
+      b.addEventListener('click', fn);
+      return b;
+    }
+    function openSlot(pos, id) {
+      const panel = panelHead(ph(id) + ' — 이 소리를 어떻게 할까요?');
+      panel.appendChild(el('div', { class: 'pt-acts' }, [
+        act('빼기', '이 소리가 없어져요', () => commit({ op: 'delete', at: pos })),
+        act('옆 소리와 합치기', '바로 옆 소리와 하나로', () => startMerge(pos, id)),
+      ]));
+      panel.appendChild(el('p', { class: 'pt-sub' }, '다른 소리로 바꾸기 — 바뀔 소리를 누르세요'));
+      showChart(panel, [PART_OF[pos.slot]], id, [id]);
+      say('');
+    }
+    function showChart(panel, parts, current, srcs) {
+      const host = el('div', { class: 'pt-chart' });
+      panel.appendChild(host);
+      chart = G.chart.create(host, { grade: GRADE, onPick: (c) => chartPick(c.id) });
+      chart.show({ parts, current, like: [] });
+      // B: 누른 소리와 같은 자리(열) · 같은 방법(줄)
+      srcs.forEach((sid) => {
+        const cell = host.querySelector('.ch-cell[data-id="' + sid + '"]');
+        if (!cell) return;
+        cell.classList.add('pt-src');
+        if (srcs.length > 1) return; // 합칠 때는 두 소리의 칸만 굵게(띠가 겹치면 헷갈림)
+        const td = cell.closest('td');
+        const row = td.getAttribute('data-row'), col = td.getAttribute('data-col');
+        const table = td.closest('table');
+        table.querySelectorAll('[data-col="' + col + '"]').forEach((n) => n.classList.add('pt-col'));
+        table.querySelectorAll('[data-row="' + row + '"]').forEach((n) => n.classList.add('pt-row'));
+      });
+      const consonant = parts.includes('consonant');
+      if (srcs.length > 1) { panel.appendChild(el('p', { class: 'pt-legend' }, '굵은 테두리 = 합치는 두 소리')); return; }
+      panel.appendChild(el('p', { class: 'pt-legend' }, [
+        el('span', null, [el('i', { class: 'k-col' }), consonant ? '같은 자리(조음 위치)' : '같은 앞뒤 · 입술']),
+        el('span', null, [el('i', { class: 'k-row' }), consonant ? '같은 방법(조음 방법)' : '같은 높이']),
+        el('span', null, [el('i', { class: 'k-near' }), '블록의 점선 = 바로 옆 소리']),
+      ]));
+    }
+    function chartPick(to) {
+      if (!pick) return;
+      if (pick.kind === 'slot') commit({ op: 'replace', at: pick.at, to });
+      else if (pick.kind === 'merge' && pick.pair) commit({ op: 'merge', at: pick.pair, to });
+    }
+    function startMerge(pos, id) {
+      clearMarks();
+      blocks.setPicked([pos]);
+      const ok = neighbors(pos).filter((q) => partsFor([pos, q]).length);
+      if (!ok.length) { say('이 소리와 합칠 수 있는 바로 옆 소리가 없어요.', 'is-notice'); return; }
+      ok.forEach((q) => { const b = slotEl(q); if (b) b.classList.add('pt-mergeable'); });
+      pick = { kind: 'merge', a: pos, id };
+      const panel = panelHead(ph(id) + '와 합칠 바로 옆 소리를 블록에서 누르세요');
+      panel.appendChild(el('p', { class: 'pt-legend' }, '초록 점선이 합칠 수 있는 옆 소리예요.'));
+      say('');
+    }
+    function partsFor(pair) {
+      const sorted = pair.slice().sort((a, b) => seqKey(a) - seqKey(b));
+      return ['consonant', 'vowel', 'glide'].filter((part) => G.rules.apply(st, { op: 'merge', at: sorted, to: PROBE[part] }) !== st);
+    }
+    function mergeSecond(q) {
+      const a = pick.a;
+      if (same(a, q)) return;
+      const parts = partsFor([a, q]);
+      if (!parts.length) { say('바로 옆 소리만 합칠 수 있어요.', 'is-notice'); return; }
+      const pair = [a, q].sort((x, y) => seqKey(x) - seqKey(y));
+      pick.pair = pair;
+      clearMarks();
+      blocks.setPicked(pair);
+      const ids = pair.map((p) => at(st, p));
+      const panel = panelHead(ph(ids[0]) + ' + ' + ph(ids[1]) + ' — 합쳐진 소리를 누르세요');
+      showChart(panel, parts, null, ids);
+    }
+    function openInsert() {
+      const panel = panelHead('이 틈에 소리 넣기');
+      const g = pick.p;
+      panel.appendChild(el('div', { class: 'pt-acts' }, [
+        act(ph('ㄴ') + ' 넣기', '뒤 음절 첫소리 자리에', () => commit({ op: 'insert', at: g.onset, to: 'ㄴ' }, '이 틈에는 /ㄴ/을 넣을 빈자리가 없어요.')),
+        act(ph('j') + ' 넣기', '뒤 음절 반모음 자리에', () => commit({ op: 'insert', at: g.glide, to: 'j' }, '이 틈에는 반모음을 넣을 빈자리가 없어요.')),
+      ]));
+      say('');
+    }
+    function closePanel() {
+      if (chart) { chart.destroy(); chart = null; }
+      $('panel').hidden = true;
+      $('panel').innerHTML = '';
+      pick = null;
+    }
+    function commit(c, fail) {
+      const next = G.rules.apply(st, c);
+      if (next === st) { say(fail || '이 자리에는 할 수 없는 교정이에요.', 'is-notice'); return; }
+      cs.push(c);
+      closePanel();
+      clearMarks();
+      redraw();
+      const m = MARK[c.op];
+      say(m[0] + '를 썼어요 — 소리가 ' + { replace: '다른 소리로 바뀌었으니', delete: '없어졌으니', insert: '새로 생겼으니', merge: '둘에서 하나로 줄었으니' }[c.op] + ' \'' + m[1] + '\'.', 'is-done');
+    }
+
+    $('undo').addEventListener('click', () => { if (!cs.length) return; cs.pop(); closePanel(); clearMarks(); redraw(); say('하나 되돌렸어요.'); });
+    $('redo').addEventListener('click', () => { cs = []; closePanel(); clearMarks(); redraw(); say('처음 원고로 돌아왔어요.'); });
+
+    // ── C: 송출하면 방송 장면 ──
+    $('send').addEventListener('click', () => {
+      closePanel(); clearMarks();
+      const r = G.rules.broadcast(script, cs);
+      const img = { onair: 'happy', offrule: 'puzzled', diff: 'oops', nonstandard: 'puzzled' }[r.kind];
+      $('anchors').src = '../../assets/img/anchors_read.webp';
+      $('banner').innerHTML = '';
+      $('prompter').textContent = '[' + r.reading + ']';
+      $('line').textContent = '';
+      $('scene').hidden = false;
+      setTimeout(() => {
+        $('anchors').src = '../../assets/img/anchors_' + img + '.webp';
+        $('banner').appendChild(el('span', null, T.signal.banner[r.kind]));
+        $('line').textContent = T.signal.line[r.kind].replace('{n}', r.diff);
+        $('next').focus();
+      }, 900);
+    });
+    $('again').addEventListener('click', () => { $('scene').hidden = true; });
+    $('next').addEventListener('click', () => { $('scene').hidden = true; load((idx + 1) % IDS.length); });
+
+    load(0);
+  })();
+  </script>
+</body>
+</html>

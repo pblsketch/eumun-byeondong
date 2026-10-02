@@ -16,14 +16,18 @@
 // ── 화면 ────────────────────────────────────────────────────────────────
 //   머리: 장 · 단계 | 원고 n/7 | 음운 수 '표기 n → 지금 m' | 큐시트(원고 7개의 차례와 결과 — 결정 0020) | [게임 방법] [소리]
 //   책상(화면 너비 가득, 원고지 모양): 뉴스 한 줄(js/data/news.js — 감수할 말 .rw-script-text에 펜 밑줄) · 감수 도장 ·
-//     음절 블록(G.blocks — 고친 자리에 펜 자국 setPen) · 교정 부호 넷 · 한 줄 자리(.rw-say — 안내 · 알림 · 신호 · 연음 안내가 차례로)
+//     (몸풀기 원고 송출 전) 선배 한 줄 · 음절 블록(G.blocks — 고친 자리에 펜 자국 setPen, 누른 음운의 바로 옆 음운 점선 setNear) ·
+//     한 줄 자리(.rw-say — 안내 · 알림 · 교정 뒤 부호 · 갈래 한 줄 · 신호 · 연음 안내가 차례로)
 //   그 아래(가로 배치는 나란히, 휴대폰 세로는 차례로): 스튜디오 무대(.rw-booth — 배경 그림 · 두 아나운서 그림(상태마다 바뀜) ·
 //     ON AIR 램프 · 초읽기 · 결과 띠 · 시청자 반응 · 자막 띠 안의 프롬프터와 신호 배지) · 감수 기록 · 도움.
+//     스튜디오 무대는 그 원고를 처음 송출할 때 열린다(결정 0024 — 교정하는 동안은 책상 · 판만). 송출 기록(cur.last)이 있으면 처음부터 열림.
 //   그림은 assets/img(화풍 B, tools/process_assets.py가 만듦). 아나운서 상태: idle 기다림 · read 읽는 중 · 송출 결과마다
 //     happy(온에어) · oops(다름) · puzzled(규칙 밖 · 표준 아님) — 신호 종류만 보고 고른다(판정은 G.rules가 이미 함).
 //   아래: [되돌리기] [다시 감수] [도움] [송출] [다음 원고 / 조항 공개로]
-//   판(.rw-sheet — 가로 배치는 화면 아래에 떠 있고, 휴대폰 세로는 책상 안에 펼쳐짐): 조음 도표(고침표 · 합침표) 또는
-//     넣을 음운 고르기(/ㄴ/ · /j/)
+//   판(.rw-sheet — 가로 배치는 화면 아래에 떠 있고, 휴대폰 세로는 책상 안에 펼쳐짐). 음운 먼저(결정 0024) — 교정 부호를 먼저 고르지 않는다:
+//     음운을 누름 → data-sheet 'slot': [빼기(뺌표)] [옆 음운과 합치기(합침표)] + 바꾸기(고침표) 조음 도표(기본 단계는 같은 열 · 줄 띠)
+//     [옆 음운과 합치기] → 'merge-wait': 블록에서 옆 음운을 누름(합칠 수 있는 옆 음운에 점선) → 'merge': 합쳐진 음운 도표
+//     틈을 누름 → 'insert': 넣을 음운(/ㄴ/ · /j/)
 //
 // ── 판정은 모두 G.rules에서(명세 원칙 1) — 여기서 규칙을 다시 만들지 않는다 ──────────
 //   지금 상태 = 교정들을 G.rules.apply로 차례로 적용한 것. 할 수 없는 교정은 apply가 받은 상태를 그대로 돌려준다
@@ -74,7 +78,6 @@
   const PART_OF = { on: 'consonant', co: 'consonant', nu: 'vowel', gl: 'glide' };   // 누른 자리에 맞는 도표(명세 §8-2)
   const PROBE = { consonant: 'ㄱ', vowel: 'ㅏ', glide: 'j' };                         // 합침표: 받는 표를 엔진에 물어볼 대표 음운
   const INSERTS = [['ㄴ', 'onset'], ['j', 'glide']];                                   // 넣음표: /ㄴ/은 뒤 음절 초성, j는 반모음 자리
-  const MARKS = ['replace', 'delete', 'insert', 'merge'];
 
   const sound = U.sound, fillNodes = U.fillNodes;
   const keepPh = (s) => U.keepPh(s, 'rw-ph'); // 음운 표기(/ㄱ/)를 줄에서 끊지 않는 덩어리로
@@ -128,11 +131,10 @@
     // 지금 원고 자리 S와 화면 상태
     let S = null;            // { script, cur, sandbox, state, from }
     let real = null;         // 연습 자리에 있을 때 원래 원고 { script, cur }
-    let mode = null;         // 고른 교정 부호
-    let pick = null;         // 고침표로 누른 자리
-    let mergeA = null;       // 합침표 첫 음운 자리
-    let mergePair = null;    // 합침표 두 자리(도표가 열림)
-    let gapP = null;         // 넣음표로 누른 틈
+    let pick = null;         // 누른 음운 자리(판: 바꾸기 도표 · 빼기 · 옆 음운과 합치기)
+    let mergeA = null;       // 합칠 첫 음운 자리(옆 음운을 기다림)
+    let mergePair = null;    // 합칠 두 자리(도표가 열림)
+    let gapP = null;         // 누른 틈(판: 넣을 음운)
     let outRule = [];        // 마지막 송출의 규칙 밖 교정 번호(교정이 바뀌면 지움)
     let busy = false, finalize = null, timers = [], sayToken = 0;
     let helpOpen = false, helpView = 0;
@@ -166,10 +168,9 @@
     ]);
     const stamp = el('div', { class: 'rw-stamp', hidden: true }, [U.glyph('onair', 'glyph rw-stamp-ico'), el('span', { class: 'rw-stamp-text' }, R.stamp)]);
     const blocksHost = el('div', { class: 'rw-blocks' });
-    const markBtns = MARKS.map((m) => el('button', {
-      type: 'button', class: 'rw-mark', 'data-mark': m, 'aria-pressed': 'false', onclick: () => pickMode(m),
-    }, [U.glyph(m, 'glyph rw-mark-ico'), el('span', { class: 'rw-mark-name' }, R.marks[m])]));
     const sayEl = el('p', { class: 'rw-say', role: 'status', 'aria-live': 'polite' });
+    // 몸풀기 원고(지침 전 — 1장 처음 두 원고, 송출 전): 책상에 선배 한 줄(무엇을 고칠지는 말하지 않음)
+    const seniorEl = el('p', { class: 'rw-senior', hidden: true }, [el('span', { class: 'rw-senior-who' }, T().signal.nudge.who), el('span', null, T().signal.warmup)]);
 
     const lamp = el('span', { class: 'rw-lamp', 'aria-hidden': 'true' }, R.onAir);
     const prompter = el('div', { class: 'rw-prompter' });
@@ -231,7 +232,21 @@
     const nextBtn = btn('rw-next', 'next', R.buttons.next, () => next());
     const nextLabel = nextBtn.querySelector('.rw-btn-label');
 
-    // 떠 있는 판: 조음 도표 · 넣을 음운
+    // 떠 있는 판(음운 먼저 — 결정 0024): 음운을 누르면 [빼기] [옆 음운과 합치기] + 바꾸기 도표, 틈을 누르면 넣을 음운.
+    //   판의 종류(data-sheet): slot(누른 음운) · merge-wait(합칠 옆 음운을 블록에서 기다림) · merge(합쳐진 음운 도표) · insert(넣을 음운)
+    const SH = R.sheet;
+    const sheetTitleId = 'rw-sheet-title-' + Date.now();
+    const sheetTitle = el('h2', { class: 'rw-sheet-title', id: sheetTitleId });
+    const opText = (op, note) => [U.glyph(op, 'glyph rw-op-ico'), el('span', { class: 'rw-op-text' }, [
+      el('span', { class: 'rw-op-name' }, [SH.ops[op], el('span', { class: 'rw-op-mark' }, R.marks[op])]),
+      el('span', { class: 'rw-op-note' }, note || SH.notes[op]),
+    ])];
+    const opBtns = ['delete', 'merge'].map((op) => el('button', {
+      type: 'button', class: 'rw-op', 'data-op': op, 'data-act': 'rw-op-' + op, onclick: () => opPick(op),
+    }, opText(op)));
+    const opsBox = el('div', { class: 'rw-ops', role: 'group' }, opBtns);
+    const opLabel = el('p', { class: 'rw-op-label' });   // 지금 판이 하는 교정(바꾸기 · 합치기 · 넣기) — 단추가 아니라 이름표
+    const legend = el('p', { class: 'rw-legend' });
     const chartHost = el('div', { class: 'rw-chart' });
     const insBtns = INSERTS.map(([id, where]) => el('button', {
       type: 'button', class: 'rw-ins', 'data-id': id,
@@ -243,12 +258,27 @@
     const insHost = el('div', { class: 'rw-ins-pick', role: 'group', 'aria-labelledby': insTitleId, hidden: true }, [
       el('p', { class: 'rw-ins-title sr-only', id: insTitleId }, R.prompt.insertPick),
       el('div', { class: 'rw-ins-row' }, insBtns),
-      el('div', { class: 'rw-sheet-bar' }, el('button', { type: 'button', class: 'app-btn rw-sheet-close', onclick: () => cancelPick() }, [U.glyph('close', 'glyph rw-btn-ico'), C.close])),
     ]);
-    const sheetIn = el('div', { class: 'rw-sheet-in' }, [chartHost, insHost]);
-    const sheet = el('div', { class: 'rw-sheet', hidden: true }, sheetIn);
-    const chart = G.chart.create(chartHost, { grade, onPick: (p) => chartPick(p), onClose: () => cancelPick() });
+    const sheetIn = el('div', { class: 'rw-sheet-in' }, [
+      el('div', { class: 'rw-sheet-head' }, [
+        sheetTitle,
+        el('button', { type: 'button', class: 'app-btn rw-sheet-close', 'data-act': 'rw-sheet-close', onclick: () => cancelPick() }, [U.glyph('close', 'glyph rw-btn-ico'), C.close]),
+      ]),
+      el('div', { class: 'rw-sheet-body' }, [
+        el('div', { class: 'rw-sheet-side' }, [opsBox, opLabel, legend]),
+        chartHost,
+        insHost,
+      ]),
+    ]);
+    const sheet = el('section', { class: 'rw-sheet', hidden: true, 'aria-labelledby': sheetTitleId }, sheetIn);
+    const chart = G.chart.create(chartHost, { grade, onPick: (p) => chartPick(p) });
 
+    // 스튜디오 무대는 이 원고를 처음 송출할 때 열린다(교정하는 동안은 책상 · 판만 — 결정 0024). 닫혀 있으면 감수 기록이 줄 가득
+    const side = el('div', { class: 'rw-side' }, [booth, logBox, helpBox]);
+    function showBooth(on) {
+      booth.hidden = !on;
+      side.classList.toggle('is-quiet', !on);
+    }
     const wrap = el('div', { class: 'rw' }, [
       el('header', { class: 'rw-head' }, [
         el('div', { class: 'rw-head-id' }, [
@@ -261,16 +291,16 @@
       el('div', { class: 'rw-main' }, [
         el('section', { class: 'rw-desk' }, [
           el('div', { class: 'rw-script' }, [el('span', { class: 'rw-script-label' }, [U.glyph('script', 'glyph rw-script-ico'), R.newsLabel]), newsLine, stamp]),
+          seniorEl,
           blocksHost,
-          el('div', { class: 'rw-marks', role: 'group' }, markBtns),
-          // 한 줄 자리와 단추를 한 줄에(송출 단추가 교정 부호 바로 아래 — 스튜디오 무대를 보느라 화면을 내리지 않게)
+          // 한 줄 자리와 단추를 한 줄에(송출 단추가 음절 블록 바로 아래)
           el('div', { class: 'rw-act' }, [
             sayEl,
             el('div', { class: 'rw-foot' }, [undoBtn, redoBtn, helpBtn, sendBtn, nextBtn]),
           ]),
           sheet,
         ]),
-        el('div', { class: 'rw-side' }, [booth, logBox, helpBox]),
+        side,
       ]),
     ]);
     root.appendChild(wrap);
@@ -282,7 +312,7 @@
 
     function onKey(e) {
       if (e.key !== 'Escape' || (G.howto.current && G.howto.current())) return;
-      if (confirmEl) { e.stopPropagation(); closeConfirm(); } else if (!sheet.hidden) { e.stopPropagation(); cancelPick(); }
+      if (confirmEl) { e.stopPropagation(); closeConfirm(); } else if (!sheet.hidden || mergeA) { e.stopPropagation(); cancelPick(); }
     }
     document.addEventListener('keydown', onKey, true);
 
@@ -293,7 +323,7 @@
       U.append(sayEl, content);
       sayEl.className = 'rw-say' + (kind ? ' is-' + kind : '');
     }
-    const promptText = () => (mode ? R.prompt[mode] : R.prompt.none);
+    const promptText = () => R.prompt.none;
 
     // ── 저장(연습 자리는 저장하지 않음) ──
     function save() {
@@ -309,7 +339,7 @@
       closeConfirm();
       S = { script, cur, sandbox: !!sandbox, state: null, from: G.rules.phonemes(G.rules.start(script)) };
       helpBtn.classList.remove('is-nudge');
-      mode = null; outRule = []; helpView = 0;
+      outRule = []; helpView = 0;
       resetPicks();
       closeSheet();
       toggleHelp(false);
@@ -323,12 +353,8 @@
       stamp.classList.remove('is-pop');
       setLamp(false);
       clearStage();
-      // 몸풀기 원고(지침 전 — 1장 처음 두 원고, 송출 전): 무대에 선배 한 줄(무엇을 고칠지는 말하지 않음)
-      if (!run.guideDone && !sandbox && !cur.last) {
-        const SG = T().signal;
-        reactEl.appendChild(el('li', { class: 'rw-react-item is-senior is-still' }, [
-          el('span', { class: 'rw-react-who' }, SG.nudge.who), el('span', { class: 'rw-react-text' }, SG.warmup)]));
-      }
+      showBooth(!!cur.last);
+      seniorEl.hidden = !(!run.guideDone && !sandbox && !cur.last);
       if (blocks) blocks.destroy();
       blocks = G.blocks.create(blocksHost, { grade, level, split: 'auto', caption: true, label: R.scriptLabel, onTap: (p) => onTap(p) });
       refresh();
@@ -349,7 +375,7 @@
       say(promptText());
     }
 
-    // ── 다시 그리기(교정 · 되돌리기 · 모드가 바뀔 때마다) ──
+    // ── 다시 그리기(교정 · 되돌리기 · 누를 때마다) ──
     function refresh() {
       const r = replay(S.script, S.cur.corrections);
       S.state = r.state;
@@ -357,7 +383,6 @@
       blocks.setPen(penMarks(S.cur.corrections));
       blocks.setPicked(mergePair || (mergeA ? [mergeA] : pick ? [pick] : null));
       paintRundown();
-      blocks.setMode(mode === 'insert' ? 'gap' : mode ? 'slot' : null);
       const no = Math.min(run.done.length + 1, run.ids.length);
       noEl.textContent = G.text.t('review.header.script', { i: no, n: run.ids.length });
       countVal.textContent = G.text.t('review.header.countValue', { from: S.from, now: G.rules.phonemes(r.state) });
@@ -374,8 +399,6 @@
         ]));
       });
       logMark.hidden = !outRule.length;
-      // 교정 부호
-      markBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.getAttribute('data-mark') === mode)));
       // 단추: 온에어 뒤 [다음 원고]가 앞에, 규칙 밖 뒤 [다시 감수]가 앞에(명세 §8-3)
       const onair = S.cur.kinds.indexOf('onair') >= 0;
       const offrule = !!(S.cur.last && S.cur.last.kind === 'offrule') && S.cur.corrections.length > 0;
@@ -393,63 +416,91 @@
       paintHelp();
     }
 
-    // ── 교정 부호 고르기 ──
-    function pickMode(m) {
-      mode = mode === m ? null : m;
-      resetPicks();
-      closeSheet();
-      say(promptText());
-      refresh();
+    // ── 블록을 누름(음운 먼저 — 결정 0024): 음운이면 그 음운의 판, 틈이면 넣을 음운 판 ──
+    //   합칠 옆 음운을 기다리는 중(mergeA)이면 누른 음운이 둘째 음운이다.
+    function resetPicks() {
+      pick = null; mergeA = null; mergePair = null; gapP = null;
+      if (blocks) { blocks.setPicked(null); blocks.setNear(null); }
     }
-    function resetPicks() { pick = null; mergeA = null; mergePair = null; gapP = null; }
-
-    // ── 블록을 누름 ──
     function onTap(p) {
-      if (!mode) { say(R.prompt.none); return; }
-      if (mode === 'insert') {
-        if (p.type !== 'gap') { say(R.prompt.insert); return; }
+      if (p.type === 'gap') {
         resetPicks();
         gapP = p;
-        openInsert();
+        openSheet('insert');
         say(R.prompt.insertPick);
         return;
       }
-      if (p.type !== 'slot') { say(promptText()); return; }
-      if (mode === 'merge' && mergePair) { mergePair = null; mergeA = null; closeSheet(); }
-      if (p.empty) { say(mode === 'merge' && mergeA ? R.prompt.mergeSecond : promptText()); return; }
+      if (p.type !== 'slot') return;
       const at = posOf(p.at);
-      if (mode === 'delete') { commit({ op: 'delete', at }); return; }
-      if (mode === 'replace') {
-        pick = at;
-        blocks.setPicked([at]);
-        let like = [];
-        if (likeNow()) { const id = G.rules.similarCell(S.state, at); if (id) like = [id]; }
-        openChart({ parts: [PART_OF[at.slot]], current: p.id, like });
-        say(R.prompt.replaceChart);
+      if (mergeA && !mergePair) {
+        if (p.empty) { say(R.prompt.mergeSecond); return; }
+        if (samePos(mergeA, at)) { say(R.notice.samePick, 'notice'); return; }
+        mergeWith(at);
         return;
       }
-      // 합침표
-      if (!mergeA) { mergeA = at; blocks.setPicked([at]); say(R.prompt.mergeSecond); return; }
-      if (samePos(mergeA, at)) { say(R.notice.samePick, 'notice'); return; }
+      resetPicks();
+      if (p.empty) { closeSheet(); say(R.notice.emptySlot, 'notice'); return; }
+      pick = at;
+      blocks.setPicked([at]);
+      blocks.setNear(neighbors(at), 'near');
+      let like = [];
+      if (likeNow()) { const id = G.rules.similarCell(S.state, at); if (id) like = [id]; }
+      openSheet('slot', { phoneme: p.id, chart: { parts: [PART_OF[at.slot]], current: p.id, like, bands: level === 'basic' } });
+      say(R.prompt.slot);
+    }
+    // 판의 [빼기] · [옆 음운과 합치기]
+    function opPick(op) {
+      if (!pick) return;
+      const at = pick;
+      if (op === 'delete') { resetPicks(); closeSheet(); commit({ op: 'delete', at }); return; }
+      // 합치기: 블록에서 바로 옆 음운을 기다린다. 합칠 수 있는 옆 음운(엔진이 받는 것)을 점선으로 — 다른 칸을 눌러도 막지 않음
+      const id = phonemeAt(S.state, at);
+      resetPicks();
+      mergeA = at;
+      blocks.setPicked([at]);
+      blocks.setNear(neighbors(at).filter((q) => mergeParts([at, q]).length), 'merge');
+      openSheet('merge-wait', { phoneme: id });
+      say(R.prompt.mergeSecond);
+    }
+    // 두 음운을 자리 차례로 놓고, 결과가 들어갈 표(자음 · 모음 · 반모음)를 엔진에 대표 음운을 넣어 봐서 고른다(받는 표가 없으면 이웃이 아님)
+    function mergeParts(two) {
+      const pair = two.slice().sort((a, b) => seqKey(a) - seqKey(b));
+      return ['consonant', 'vowel', 'glide'].filter((part) => G.rules.apply(S.state, { op: 'merge', at: pair, to: PROBE[part] }) !== S.state);
+    }
+    function mergeWith(at) {
       const pair = [mergeA, at].sort((a, b) => seqKey(a) - seqKey(b));
-      const parts = ['consonant', 'vowel', 'glide'].filter((part) => G.rules.apply(S.state, { op: 'merge', at: pair, to: PROBE[part] }) !== S.state);
+      const parts = mergeParts(pair);
       if (!parts.length) {
         resetPicks();
-        blocks.setPicked(null);
+        closeSheet();
         say(R.notice.notAdjacent, 'notice');
         return;
       }
+      const ids = pair.map((q) => phonemeAt(S.state, q));
+      resetPicks();
       mergePair = pair;
       blocks.setPicked(pair);
-      openChart({ parts, current: null, like: [] });
+      openSheet('merge', { a: ids[0], b: ids[1], chart: { parts, current: null, like: [], marked: ids } });
       say(R.prompt.mergeChart);
     }
+    // 지금 상태에서 누른 음운의 바로 앞 · 뒤 음운 자리(음절 차례 → 초성 · 반모음 · 중성 · 종성). 그림용 — 판정은 엔진이
+    function neighbors(at) {
+      const list = [];
+      S.state.syl.forEach((y, s) => {
+        SLOTS.forEach((slot) => {
+          if (slot === 'co') (y.co || []).forEach((_, k) => list.push({ s, slot, k }));
+          else if (y[slot]) list.push({ s, slot, k: 0 });
+        });
+      });
+      const i = list.findIndex((q) => samePos(q, at));
+      return i < 0 ? [] : [list[i - 1], list[i + 1]].filter(Boolean);
+    }
     function chartPick(c) {
-      if (mode === 'replace' && pick) {
+      if (pick) {
         const at = pick;
         resetPicks(); closeSheet();
         commit({ op: 'replace', at, to: c.id });
-      } else if (mode === 'merge' && mergePair) {
+      } else if (mergePair) {
         const at = mergePair;
         resetPicks(); closeSheet();
         commit({ op: 'merge', at, to: c.id });
@@ -464,11 +515,10 @@
     function cancelPick() {
       resetPicks();
       closeSheet();
-      if (blocks) blocks.setPicked(null);
       say(promptText());
     }
 
-    // 교정 하나: 할 수 없는 교정(상태가 그대로)이면 알리고 기록하지 않는다
+    // 교정 하나: 할 수 없는 교정(상태가 그대로)이면 알리고 기록하지 않는다. 한 교정은 쓴 부호와 변동 갈래를 한 줄로(맞고 틀림은 송출 때)
     function commit(c, failText) {
       const next = G.rules.apply(S.state, c);
       if (next === S.state) {
@@ -479,7 +529,7 @@
       S.cur.corrections.push(c);
       sound(() => G.audio.sfx('mark'));
       changed();
-      say(promptText());
+      say(G.text.fill(R.done, { mark: R.marks[c.op], change: G.text.change(grade, c.op) }), 'done');
       return true;
     }
     // 교정 목록이 바뀜: 연출 끝내기 · 도장 · 램프 · 규칙 밖 표시 지우기 → 저장 → 다시 그리기
@@ -496,9 +546,9 @@
     }
     function undo() {
       closeSheet();
+      resetPicks();
       if (!S.cur.corrections.length) { say(R.notice.nothingToUndo, 'notice'); return; }
       S.cur.corrections.pop();
-      resetPicks();
       changed();
       say(promptText());
     }
@@ -524,19 +574,46 @@
       const room = vh - Math.max(0, blocksHost.getBoundingClientRect().bottom) - 12;
       sheetIn.style.maxHeight = Math.round(Math.max(room, vh * 0.5)) + 'px';
     }
-    function openChart(v) {
-      insHost.hidden = true;
-      chart.show(v);
+    // 판 열기: kind = slot · merge-wait · merge · insert. v = { phoneme | a · b, chart: G.chart.show에 넘길 값 }
+    function openSheet(kind, v) {
+      v = v || {};
+      sheet.setAttribute('data-sheet', kind);
+      const op = kind === 'slot' ? 'replace' : kind === 'insert' ? 'insert' : 'merge';
+      const note = kind === 'merge-wait' ? SH.notes.mergeWait : kind === 'merge' ? SH.notes.mergeChart : null;
+      const tpl = kind === 'slot' ? SH.slot : kind === 'merge-wait' ? SH.mergeWait : kind === 'merge' ? SH.merge : SH.insert;
+      const ph = (id) => (id ? G.text.phoneme(id) : '');
+      U.clear(sheetTitle);
+      U.append(sheetTitle, keepPh(G.text.fill(tpl, { phoneme: ph(v.phoneme), a: ph(v.a), b: ph(v.b) })));
+      opsBox.hidden = kind !== 'slot';
+      U.clear(opLabel);
+      U.append(opLabel, opText(op, note));
+      opLabel.setAttribute('data-op', op);
+      insHost.hidden = kind !== 'insert';
+      if (v.chart) { chart.show(v.chart); chartHost.hidden = false; } else { chart.hide(); chartHost.hidden = true; }
+      paintLegend(kind, v.chart);
       sheet.hidden = false;
-      sheet.setAttribute('data-sheet', 'chart');
+      sheetIn.scrollTop = 0; // 앞 판에서 내려 둔 자리가 남으면 제목 · [빼기]가 위로 가려진다
       placeSheet();
     }
-    function openInsert() {
-      chart.hide();
-      insHost.hidden = false;
-      sheet.hidden = false;
-      sheet.setAttribute('data-sheet', 'insert');
-      placeSheet();
+    // 도표 옆 읽는 법: 기본 단계의 띠(같은 열 · 같은 줄의 축 이름) · 블록의 점선 · 합치는 두 음운
+    function paintLegend(kind, cv) {
+      U.clear(legend);
+      const items = [];
+      const key = (cls, text) => el('span', { class: 'rw-key' }, [el('span', { class: 'rw-key-mark ' + cls, 'aria-hidden': 'true' }), text]);
+      const band = (axis) => G.text.fill(SH.legend.band, { axis });
+      const ax = (k) => G.text.term(grade, 'axis', k);
+      if (kind === 'slot') {
+        const part = cv && cv.parts[0];
+        if (cv && cv.bands && chartHost.querySelector('.has-bands')) {
+          if (part === 'consonant') items.push(key('is-col', band(ax('place'))), key('is-row', band(ax('manner'))));
+          else if (part === 'vowel') items.push(key('is-col', band(ax('backness') + '·' + ax('lips'))), key('is-row', band(ax('height'))));
+        }
+        items.push(key('is-near', SH.legend.near));
+      } else if (kind === 'merge') {
+        items.push(key('is-marked', SH.legend.marked));
+      }
+      U.append(legend, items);
+      legend.hidden = !items.length;
     }
     function closeSheet() {
       sheet.hidden = true;
@@ -579,6 +656,8 @@
       badge.hidden = true;
       badge.removeAttribute('data-kind');
       clearStage();
+      showBooth(true);         // 이 원고를 처음 송출하면 스튜디오 무대가 열린다
+      seniorEl.hidden = true;
       setLamp(true);
       const syl = Array.from(res.reading);
       const quick = U.reducedMotion();

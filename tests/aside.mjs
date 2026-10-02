@@ -64,13 +64,18 @@ openTab = async (...__a) => {
 `;
 
 // 코드 한 조각을 aside로 돌린다. { ok, out } 을 돌려준다.
+// Windows는 명령 줄 길이가 32,767자까지라(aside repl에 대본을 인자로 넘김) 줄 전체가 // 주석인 줄은 보내기 전에 뺀다.
+//   점검 대본 · 도우미(DRIVER · RUNS · REVIEW · FLOW)의 주석이 길어 3~8장 전체 흐름 대본이 한도를 넘은 적이 있다(ENAMETOOLONG).
+//   그래서 점검 대본의 여러 줄 문자열 안에 // 로 시작하는 줄을 두지 않는다.
+const slim = (src) => src.split('\n').filter((l) => !/^\s*\/\//.test(l)).join('\n');
 export function runAside(code, { label = '' } = {}) {
+  code = slim(code);
   // ASIDE_DRY=1: aside를 부르지 않고 대본의 문법만 확인한다(점검을 고칠 때)
   if (process.env.ASIDE_DRY === '1') {
-    try { new (Object.getPrototypeOf(async function () {}).constructor)('openTab', 'closeTab', 'sleep', 'fs', 'path', PRELUDE + code); return { ok: true, out: 'DRY', label }; }
+    try { new (Object.getPrototypeOf(async function () {}).constructor)('openTab', 'closeTab', 'sleep', 'fs', 'path', slim(PRELUDE) + code); return { ok: true, out: 'DRY', label }; }
     catch (e) { return { ok: false, out: '문법 오류: ' + e.message, label }; }
   }
-  const r = spawnSync(asideBin(), ['repl', PRELUDE + code], { encoding: 'utf8', timeout: 170000, windowsHide: true });
+  const r = spawnSync(asideBin(), ['repl', slim(PRELUDE) + code], { encoding: 'utf8', timeout: 170000, windowsHide: true });
   const out = strip((r.stdout || '') + (r.stderr || ''));
   if (r.error) return { ok: false, out: out + '\n[도우미] aside 실행 실패: ' + r.error.message, label };
   for (const m of out.matchAll(/SHOTFILE:(.+\.png)/g)) {

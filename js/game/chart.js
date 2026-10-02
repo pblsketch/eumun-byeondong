@@ -19,6 +19,10 @@
 //                누른 자리에 맞는 표는 감수 화면이 고른다(초성 · 종성 → 자음표, 중성 → 모음표, 반모음 → 반모음 줄; 합침표는 둘 이상도 됨).
 //       current: 지금 음운 id(그 칸은 누를 수 없음 — 이미 그 음운). 표에 없는 음운(ㅢ 등)이면 아무 칸도 꺼지지 않는다.
 //       like:    닮은 칸으로 은은히 보일 음운 id 목록(넘긴 칸만, 보이는 표에 있는 칸만). 비우면 없음.
+//       marked:  굵은 테두리로 보일 음운 id 목록(합침표 — 합치는 두 음운. 누를 수는 있음). 비우면 없음.
+//       bands:   true면 지금 음운(current) 칸과 같은 열 · 같은 줄의 칸 · 머리글에 띠(.is-band-col · .is-band-row, 뿌리에 .has-bands).
+//                자음표는 같은 조음 위치 · 같은 조음 방법, 모음표는 같은 앞뒤·입술 · 같은 높이. 반모음 줄 · 지금 음운이 표에 없으면 띠 없음.
+//                칸의 자리만 보고 그린다(정답을 알지 못함) — 기본 단계에서만 켤지는 감수 화면이 정한다.
 //   c.setLike(목록|null)          닮은 칸만 바꾸기
 //   c.hide() · c.destroy()
 //
@@ -92,21 +96,32 @@ G.chart = (function () {
       root.appendChild(U.el('div', { class: 'ch-parts' }, view.parts.map(part)));
     }
     function paint() {
-      const like = view.like || [];
+      const like = view.like || [], marked = view.marked || [];
       root.querySelectorAll('.ch-cell').forEach((b) => {
         const id = b.getAttribute('data-id'), ph = G.text.phoneme(id);
         const cur = id === view.current, lk = !cur && like.indexOf(id) >= 0;
         b.disabled = cur;
         b.classList.toggle('is-current', cur);
         b.classList.toggle('is-like', lk);
+        b.classList.toggle('is-marked', !cur && marked.indexOf(id) >= 0);
         b.setAttribute('aria-label', T(cur ? 'review.aria.cellCurrent' : lk ? 'review.aria.cellLike' : 'review.aria.cell', { phoneme: ph }));
       });
+      // 띠: 지금 음운 칸과 같은 열(자음 = 조음 위치, 모음 = 앞뒤·입술) · 같은 줄(자음 = 조음 방법, 모음 = 높이). 칸의 자리만 본다(판단 아님)
+      root.querySelectorAll('.is-band-col, .is-band-row').forEach((n) => n.classList.remove('is-band-col', 'is-band-row'));
+      const curCell = view.bands && view.current ? root.querySelector('.ch-table .ch-cell[data-id="' + view.current + '"]') : null;
+      const td = curCell && curCell.closest('td');
+      if (td) {
+        const table = td.closest('table'), r = td.getAttribute('data-row'), c = td.getAttribute('data-col');
+        table.querySelectorAll('[data-col="' + c + '"]').forEach((n) => n.classList.add('is-band-col'));
+        table.querySelectorAll('[data-row="' + r + '"]').forEach((n) => n.classList.add('is-band-row'));
+      }
+      root.classList.toggle('has-bands', !!td);
     }
 
     function show(v) {
       v = v || {};
       const want = Array.isArray(v.parts) ? v.parts : [v.parts];
-      view = { parts: PARTS.filter((p) => want.indexOf(p) >= 0), current: v.current || null, like: (v.like || []).slice() };
+      view = { parts: PARTS.filter((p) => want.indexOf(p) >= 0), current: v.current || null, like: (v.like || []).slice(), marked: (v.marked || []).slice(), bands: !!v.bands };
       build();
       paint();
       root.hidden = false;
