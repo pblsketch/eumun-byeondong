@@ -70,6 +70,17 @@
 
 `parts`는 `{ text, examples? }` 또는 `{ label: '(1)', examples }`의 목록, 예시는 `[표기, 발음]`(제21항은 `[표기, 발음, 틀린 발음]`). 문장은 현행 고시(문화체육관광부 고시 제2017-13호) 원문 그대로다.
 
+### 뉴스 한 줄 `js/data/news.js` → `window.NEWS = { 원고 id: '앞 {감수할 말} 뒤' }`
+
+- 원고마다 하나(빠진 원고·남는 키 없음). 중괄호는 꼭 한 번, 그 안은 원고 `text`와 한 자도 다르지 않게(띄어쓰기 포함).
+- 감수 화면이 '앞'과 '뒤'를 차분한 글씨로, 감수할 말을 크게 + 펜 밑줄로 보인다. 음절 블록 · 판정은 감수할 말만 다룬다.
+- 대괄호 · 빗금 · 줄바꿈 · 한자 · 금지 낱말 없음, 길이 6~40자. 뉴스를 한 마디로 이어 읽어도 감수할 말의 발음이 바뀌지 않게 앞뒤 말을 고른다(받침 뒤 모음 · 비음 · ㄹ · ㅎ, 모음으로 시작하는 말 앞 받침, 된소리 · 거센소리 자리 — 점검: `check-data` 5절 `edgeRisk`). 같은 표기에 뜻이 여럿이면 원고의 형태소 분석(`morphs`)과 같은 뜻으로 읽히는 문맥에 둔다(밭이랑 = 밭 + 조사 '이랑').
+- 모양이 틀리거나 문장이 없으면 화면은 감수할 말만 보인다(게임은 멈추지 않음).
+
+### 그림 `assets/img/` (파일 이름 약속 — 결정 0020)
+
+`anchors_idle|read|oops|happy|puzzled.webp`(같은 크기 1200×704, 투명 배경, 책상 자리 같음), `studio_bg.webp`, `title.webp`, `senior.webp`. 원본은 `assets/raw/`(저장소 제외), 만들기는 `tools/gen.ps1` → `python tools/process_assets.py`.
+
 ### 화면 문구 `js/data/text.js` → `window.TEXT`
 
 화면별 묶음(app·common·chapters·levels·start·settings·howto·guide·review·signal·help·reveal·result·terms·shortTerms·rotate·images). 학년마다 다른 문구는 `{ m3, h1 }`, 값을 채울 자리는 `{이름}`. 신호 문구의 키는 엔진 신호 kind와 같다(`onair`·`offrule`·`diff`·`nonstandard`). 문구를 고친 뒤 `npm test -- text`와 글꼴 다시 만들기.

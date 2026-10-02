@@ -657,16 +657,17 @@ try {
     const G = D.G();
     await D.toReview(2, { seed: 12, grade: 'h1' });
     D.targets(MIN, tag + ' 처음'); D.noScroll(tag + ' 처음'); D.noBad(tag);
-    // 그림 자리(빈 틀 — 명세 §14): 감수실 · 아나운서. 글 없이 aria-label만, 휴대폰 세로에서는 숨김
-    ['room', 'announcer'].forEach((k) => {
-      const n = D.$('.rw-art-' + k);
-      if (!n) { D.bad(tag + ': 그림 자리 없음 ' + k); return; }
-      if (n.getAttribute('role') !== 'img' || n.getAttribute('aria-label') !== D.T().images[k] || n.textContent.trim()) D.bad(tag + ': 그림 자리 이름 · 글 ' + k);
-      if (PHONE ? D.visible(n) : !D.visible(n)) D.bad(tag + ': 그림 자리 ' + k + (PHONE ? '가 휴대폰 세로에서 보임' : '가 안 보임'));
-    });
-    if (!PHONE) {
-      const pr = D.box(D.$('.rw-prompter')), an = D.box(D.$('.rw-art-announcer'));
-      if (pr.width < an.width * 2) D.bad(tag + ': 아나운서 그림 자리가 프롬프터 자리를 빼앗음 ' + Math.round(pr.width) + ' / ' + Math.round(an.width));
+    // 스튜디오 무대(결정 0020): 두 아나운서 그림(기다림 상태 · 대체 글), 배경 그림(꾸밈 — 대체 글 없음), 자막 띠 안의 프롬프터.
+    //   모든 크기에서 보인다(휴대폰 세로도 — 송출 결과를 그림으로 보여 주는 자리). 아나운서 그림이 무대 밖으로 넘치지 않음
+    const an = D.$('.rw-anchors'), stg = D.$('.rw-stage');
+    if (!an || !stg) D.bad(tag + ': 스튜디오 무대 · 아나운서 그림 없음');
+    else {
+      if (an.getAttribute('alt') !== D.T().images.anchors.idle || an.getAttribute('data-state') !== 'idle') D.bad(tag + ': 아나운서 그림 상태 · 대체 글 ' + an.getAttribute('data-state'));
+      if (!D.visible(an) || !D.visible(stg)) D.bad(tag + ': 스튜디오 무대가 안 보임');
+      const a = D.box(an), s = D.box(stg);
+      if (a.top < s.top - 1 || a.left < s.left - 1 || a.right > s.right + 1) D.bad(tag + ': 아나운서 그림이 무대 밖으로 넘침');
+      if (D.$('.rw-stage-bg').getAttribute('alt') !== '') D.bad(tag + ': 배경 그림에 대체 글');
+      if (D.box(D.$('.rw-booth-screen')).width < 120) D.bad(tag + ': 프롬프터 자리가 좁음');
     }
     await D.load('맏며느리');
     const bk = D.$('.rw-blocks .bk');

@@ -23,6 +23,8 @@
 //   b.setPicked([자리…])  고른 음운 칸 표시(합침표 첫 음운 · 고침표로 누른 칸). 자리 = Pos 또는 '1.on' 꼴. null이면 지움
 //   b.setMode('slot'|'gap'|null)  지금 고를 것(음운 칸 / 틈)을 모양으로 돋보이게(뿌리에 is-mode-slot · is-mode-gap).
 //                         누르기를 막지는 않는다(원칙 3) — 어느 것을 눌러도 알림은 간다
+//   b.setPen([{ at, op }…])  교정 흔적(감수관의 펜 자국): 그 자리 칸에 .is-pen-<op>(replace · delete · insert · merge).
+//                         칸이 없어진 자리(겹받침 하나를 뺀 뒤 등)는 그 음절에 .is-pen. 그림일 뿐 판정하지 않는다. null이면 지움
 //   b.setSplit(값)        split을 바꾸고 다시 배치
 //   b.lines()             지금 줄 수
 //   b.destroy()
@@ -215,7 +217,35 @@ G.blocks = (function () {
       gaps = syls.slice(1).map((_, i) => gapEl(i, st.cuts ? st.cuts[i] : null));
       layout();
       paintPicked();
+      paintPen();
       watch();
+    }
+    // 교정 흔적(펜 자국) — 다시 그릴 때마다 다시 붙인다
+    let pen = [];
+    let penSeen = {}; // 이미 그려진 흔적(다시 그릴 때 펜 그리는 움직임을 되풀이하지 않게 — 새 흔적에만 .is-pen-new)
+    const PEN_OPS = ['replace', 'delete', 'insert', 'merge'];
+    function paintPen() {
+      root.querySelectorAll('.bk-slot, .bk-syl').forEach((n) => {
+        n.classList.remove('is-pen', 'is-pen-new');
+        PEN_OPS.forEach((op) => n.classList.remove('is-pen-' + op));
+      });
+      const seen = {};
+      pen.forEach(({ at, op }) => {
+        const p = posOf(at);
+        const key = posKey(p) + ':' + op;
+        seen[key] = true;
+        const fresh = !penSeen[key];
+        const slot = root.querySelector('.bk-slot[data-s="' + p.s + '"][data-slot="' + p.slot + '"]' + (p.slot === 'co' ? '[data-k="' + p.k + '"]' : ''));
+        const n = slot || root.querySelector('.bk-syl[data-s="' + p.s + '"]');
+        if (!n) return;
+        n.classList.add(slot ? 'is-pen-' + op : 'is-pen');
+        if (fresh) n.classList.add('is-pen-new');
+      });
+      penSeen = seen;
+    }
+    function setPen(list) {
+      pen = (list || []).filter((x) => x && x.at && PEN_OPS.indexOf(x.op) >= 0).map((x) => ({ at: x.at, op: x.op }));
+      paintPen();
     }
     function paintPicked() {
       const keys = picked.map(posKey);
@@ -262,7 +292,7 @@ G.blocks = (function () {
     }
 
     return {
-      el: root, render, setPicked, setMode, setSplit, destroy,
+      el: root, render, setPicked, setPen, setMode, setSplit, destroy,
       lines: () => root.querySelectorAll('.bk-line').length,
     };
   }

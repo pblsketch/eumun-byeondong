@@ -117,7 +117,7 @@ window.SCRIPTS = [
   { id: '물난리', ch: 2, text: '물난리', morphs: '물+난리', cuts: ['content', null], pron: '물랄리', steps: [['lateral', 'replace', '1.on', 'ㄹ'], ['lateral', 'replace', '1.co', 'ㄹ']], count: [8, 8], change: { replace: 2 }, articles: ['20'], src: ['지공1 108', '지공1지도 132'] },
   // 함정: 제20항 다만 — 'ㄴㄹ'을 [ㄴㄴ]으로
   { id: '의견란', ch: 2, text: '의견란', morphs: '의견+란', cuts: [null, 'sino'], marks: { lateralExc: [1] }, pron: '의ː견난', steps: [['r-nasal-exc', 'replace', '2.on', 'ㄴ']], count: [9, 9], change: { replace: 1 }, articles: ['20-다만'], trap: 'exception', src: ['표준 20', '지공1 108'] },
-  { id: '임진란', ch: 2, text: '임진란', morphs: '임진+란', cuts: [null, 'sino'], marks: { lateralExc: [1] }, pron: '임ː진난', steps: [['r-nasal-exc', 'replace', '2.on', 'ㄴ']], count: [8, 8], change: { replace: 1 }, articles: ['20-다만'], trap: 'exception', src: ['지공1지도 132'] },
+  // 임진란(제20항 다만 원문 예시, 지공1지도 132)은 조선 소재 금지 규칙에 걸려 원고로 쓰지 않는다(결정 0020, findings F13 — 선생님 확인)
   { id: '생산량', ch: 2, text: '생산량', morphs: '생산+량', cuts: [null, 'sino'], marks: { lateralExc: [1] }, pron: '생산냥', steps: [['r-nasal-exc', 'replace', '2.on', 'ㄴ']], count: [10, 10], change: { replace: 1 }, articles: ['20-다만'], trap: 'exception', src: ['표준 20', '지공1 108'] },
   { id: '동원령', ch: 2, text: '동원령', morphs: '동원+령', cuts: [null, 'sino'], marks: { lateralExc: [1] }, pron: '동ː원녕', steps: [['r-nasal-exc', 'replace', '2.on', 'ㄴ']], count: [10, 10], change: { replace: 1 }, articles: ['20-다만'], trap: 'exception', src: ['지공1지도 132'] },
   { id: '상견례', ch: 2, text: '상견례', morphs: '상견+례', cuts: [null, 'sino'], marks: { lateralExc: [1] }, pron: '상견녜', steps: [['r-nasal-exc', 'replace', '2.on', 'ㄴ']], count: [10, 10], change: { replace: 1 }, articles: ['20-다만'], trap: 'exception', src: ['표준 20', '지공1지도 132'] },

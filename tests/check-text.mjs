@@ -94,11 +94,11 @@ for (const [p, s] of strings) {
   check(s.trim().length > 0, `빈 문구 없음: ${p}`);
 }
 
-// 한 줄 자리 문구 길이. 여러 줄을 써도 되는 곳(명세 §13): 게임 방법 창 본문, 조항 공개 머리 문장.
+// 한 줄 자리 문구 길이. 여러 줄을 써도 되는 곳(명세 §13): 게임 방법 창 본문, 조항 공개 머리 문장, 만든 사람·출처(라이선스 표기 — 결정 0020).
 // 그 밖의 모든 문구(신호·안내·확인·단추·머리·이름표)는 한 줄 자리로 보고 대략 30자 이내로 쓴다.
 // {이름} 자리는 채운 값이 대개 짧으므로 2자로 센다(예: {n} → '2'). 공백 포함.
 const MAX = 30;
-const MULTI_OK = [/^TEXT\.howto\.sections\./, /^TEXT\.reveal\.heading(NoGuide)?$/];
+const MULTI_OK = [/^TEXT\.howto\.sections\./, /^TEXT\.reveal\.heading(NoGuide)?$/, /^TEXT\.settings\.credits\.lines\./];
 const len = (s) => [...s.replace(/\{\w+\}/g, '00')].length;
 for (const [p, s] of strings) {
   if (MULTI_OK.some((r) => r.test(p))) continue;
@@ -169,8 +169,15 @@ for (const k of ['again', 'chapters', 'articles', 'totalsTitle', 'countLine']) c
 // 조항 공개(§9)
 check(T.reveal.heading.includes('「표준 발음법」') && T.reveal.heading.includes('{articles}'), '조항 공개 머리 문장');
 eq(T.common.original, '원문', '원문 표시');
-// 그림 자리
-for (const k of ['start', 'room', 'announcer']) check(!!T.images[k], `그림 자리 대체 글 ${k}`);
+// 그림(결정 0020): 시작 화면 · 스튜디오 · 선배 감수관 · 아나운서 상태 다섯
+for (const k of ['start', 'studio', 'senior']) check(!!T.images[k], `그림 대체 글 ${k}`);
+for (const k of ['idle', 'read', 'oops', 'happy', 'puzzled']) check(!!(T.images.anchors && T.images.anchors[k]), `아나운서 그림 대체 글 ${k}`);
+// 스튜디오 반응 · 결과 띠: 신호 넷마다 있음(정답 · 발음을 말하지 않는 짧은 글)
+for (const k of ['onair', 'offrule', 'diff', 'nonstandard']) {
+  check(!!T.signal.banner[k], `결과 띠 ${k}`);
+  check(Array.isArray(T.signal.react[k]) && T.signal.react[k].length > 0, `시청자 반응 ${k}`);
+  check(T.signal.reactBy[k] === 'viewer' || T.signal.reactBy[k] === 'pd', `반응 올린 이 ${k}`);
+}
 
 // ── 6. 학년별 용어(중3 = 우리말, 고1 = 우리말 + 한글 한자어) ──
 const REQ = {

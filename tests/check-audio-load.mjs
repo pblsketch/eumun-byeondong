@@ -51,9 +51,13 @@ const readme = path.join(ROOT, 'assets', 'audio', 'README.md');
 const readmeText = fs.existsSync(readme) ? fs.readFileSync(readme, 'utf8') : '';
 check(!!readmeText, 'assets/audio/README.md 있음');
 for (const f of all) check(readmeText.includes(f), 'README에 ' + f);
-// 이번 단계에서는 음원을 하나도 넣지 않는다(명세 §15, 인수인계 관문 5)
+// 동봉 음원(결정 0020): 소리 자리마다 파일이 있고 비어 있지 않으며, CREDITS.md에 출처가 적혀 있음. 다른 음원 파일은 없음
 const audioFiles = fs.readdirSync(path.join(ROOT, 'assets', 'audio')).filter((f) => /\.(mp3|ogg|wav|m4a|flac)$/i.test(f));
-check(audioFiles.length === 0, '음원 파일 없음: ' + J(audioFiles));
+for (const f of all) check(audioFiles.includes(f) && fs.statSync(path.join(ROOT, 'assets', 'audio', f)).size > 1000, '음원 파일 있음: ' + f);
+check(audioFiles.every((f) => all.includes(f)), '정해진 이름 밖의 음원 없음: ' + J(audioFiles.filter((f) => !all.includes(f))));
+const credits = path.join(ROOT, 'assets', 'audio', 'CREDITS.md');
+const creditsText = fs.existsSync(credits) ? fs.readFileSync(credits, 'utf8') : '';
+for (const f of all) check(creditsText.includes(f), 'CREDITS.md에 ' + f);
 
 // 3. 잠기기 전: 기억만 하고 조용함
 const quiet = (fn, msg) => { try { fn(); check(true, msg); } catch (e) { check(false, msg + ' — 던짐: ' + e.message); } };

@@ -95,3 +95,22 @@ $(cat tools/prompts/style_a.txt)" -C "$H" --skip-git-repo-check -c 'model_reason
 
 - 화풍 A·B·C 가운데 하나(또는 섞을 점).
 - 아나운서의 생김새(머리 모양·옷·나이대). 정하면 장면 문구를 고쳐 같은 화풍으로 다시 만든다.
+
+## 게임 그림 (결정 0020, 2026-10-02)
+
+화풍 B 공통 문구 · 공통 금지 문구는 위와 같다. 모두 `tools/gen.ps1`(Codex CLI image_gen)로 만들었고, 프롬프트 전문은 `tools/prompts/<이름>.txt`다.
+
+| 이름 | 크기 | 참조 그림(`-Image`, `-RefMode`) | 게임 파일 | 쓰는 곳 |
+|---|---|---|---|---|
+| anchors_idle | 1536×1024 | 견본 B 축소본(`style`) | `assets/img/anchors_idle.webp` | 감수 화면 무대(기다림) · 장 결과(사고 있음) |
+| anchors_read | 1536×1024 | anchors_idle(`same`) | `anchors_read.webp` | 송출 중 |
+| anchors_oops | 1536×1024 | anchors_idle(`same`) | `anchors_oops.webp` | 다름 |
+| anchors_happy | 1536×1024 | anchors_idle(`same`) | `anchors_happy.webp` | 온에어 · 장 결과(모두 온에어) |
+| anchors_puzzled | 1536×1024 | anchors_idle(`same`) | `anchors_puzzled.webp` | 규칙 밖 · 표준 아님 |
+| studio_bg | 1536×1024 | 견본 B(`style`) | `studio_bg.webp` | 감수 화면 무대 배경 |
+| title | 1024×1536 | 견본 B(`style`) | `title.webp` | 시작 화면 오른쪽 |
+| senior | 1024×1024 | 견본 B(`style`) | `senior.webp` | 감수 지침 · 조항 공개 |
+
+- 아나운서 · 선배는 자홍(#FF00FF) 단색 배경으로 그리고 `python tools/process_assets.py`가 지운다(음운 해전 방식). 아나운서 다섯 장은 책상 윗면 폭을 맞춰 같은 판(1200×704)에 놓으므로 상태를 바꿔 끼워도 책상이 움직이지 않는다.
+- 다섯 상태가 같은 얼굴로 나오도록 기다림 그림을 참조 그림(`same`)으로 넣었다. 눈으로 확인한 것: 글자 · 로고 없음, 원고 종이는 비어 있음, 실제 인물 닮음 없음, 옷 · 머리 · 넥타이 색이 다섯 장에서 같음.
+- 다시 만들기(PowerShell, 저장소 루트): `powershell -NoProfile -ExecutionPolicy Bypass -File tools\gen.ps1 -Name anchors_oops -PromptFile tools\prompts\anchors_oops.txt -Out assets\raw\anchors_oops.png -Image assets\raw\anchors_idle.png -RefMode same` → `python tools/process_assets.py`.

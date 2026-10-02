@@ -1,6 +1,6 @@
 # 소리 파일 자리
 
-지금 이 폴더에는 음원이 하나도 없다. 선생님이 `design/audio-candidates.md`의 후보를 듣고 고른 뒤에 넣는다.
+음원 10개가 들어 있다(출처 · 라이선스 · 손본 것은 `CREDITS.md`). `design/audio-candidates.md`의 추천안을 골라 `python tools/process_audio.py`로 다듬었다(결정 0020).
 파일이 없어도 게임은 조용히 돈다(`js/core/audio.js` — 예외·`console.error` 없이 파일마다 경고 한 번).
 
 음원을 넣을 때는 아래 이름 그대로(모두 소문자) mp3로 저장한다. 이름이 다르면 GitHub Pages에서 찾지 못한다.

@@ -211,6 +211,10 @@ G.app = (function () {
       row(S.sfx, [toggle('sfxOn', S.sfx), slider('sfxVolume', S.sfx, () => { try { G.audio.sfx('mark'); } catch (e) { /* 무시 */ } })]),
       row(S.reduceMotion, [toggle('reduceMotion', S.reduceMotion)], S.reduceMotionHint),
       el('p', { class: 'set-saved' }, S.savedHint),
+      el('details', { class: 'set-credits' }, [
+        el('summary', { class: 'set-credits-title' }, S.credits.title),
+        el('ul', { class: 'set-credits-list' }, S.credits.lines.map((t) => el('li', null, t))),
+      ]),
       el('footer', { class: 'set-foot' }, btn(S.close, () => close(), 'is-primary', { 'data-act': 'settings-close' })),
     ]);
     const overlay = el('div', { class: 'set-overlay', onclick: (e) => { if (e.target === overlay) close(); } }, panel);
@@ -238,7 +242,7 @@ G.app = (function () {
   // ── 시작 화면(명세 §5) ─────────────────────────────────
   //   [제목 · 한 줄 소개 | 게임 방법(처음 표시) · 설정]
   //   [학년 중3/고1] [이어 하기 카드(진행 장이 있을 때)] [장 8개 — 1·2장 고르기, 3~8장 준비 중]
-  //   [단계 기본/심화(고른 장의 마지막 선택) · 풀이 한 줄 · 감수 시작]      오른쪽: 그림 자리(빈 틀, 휴대폰 세로에서는 숨김)
+  //   [단계 기본/심화(고른 장의 마지막 선택) · 풀이 한 줄 · 감수 시작]      오른쪽: 타이틀 그림(assets/img/title.webp, 휴대폰 세로에서는 숨김)
   //   진행 장이 있는데 새로 시작하면 "진행 중인 장이 지워져요"를 묻는다(.st-confirm).
   let chosenCh = 1; // 이번 세션에서 고른 장(진행 장이 있으면 그 장이 먼저)
   const START = {
@@ -267,7 +271,7 @@ G.app = (function () {
         wrap.appendChild(el('div', { class: 'st-main' }, [
           el('div', { class: 'st-col' }, [gradeRow(grade), info ? resumeCard(info) : null, chapterGrid(grade), levelRow(grade, level)]),
           el('div', { class: 'st-art', role: 'img', 'aria-label': T().images.start }, [
-            el('span', { class: 'st-art-ico', 'aria-hidden': 'true' }, U.glyph('image')),
+            el('img', { class: 'st-art-img', src: 'assets/img/title.webp', alt: '', draggable: 'false', decoding: 'async' }),
           ]),
         ]));
         if (fk) { const n = wrap.querySelector('[data-fk="' + fk + '"]'); if (n) try { n.focus({ preventScroll: true }); } catch (e) { /* 무시 */ } }

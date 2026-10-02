@@ -1,6 +1,6 @@
 // 음절 블록 · 형태소 경계 부품 G.blocks 점검(aside) — 명세 §8-1 · §8-2 · §14 · §18.
 //   점검 전용 페이지 tests/pages/blocks.html(부품만 불러 띄움)을 크기별 틀(tests/pages/frame.html)에 띄운다.
-//   1) 원고 377개 모두(1~8장, 기본 · 심화, 두 학년): 음절 · 자리(빈 초성 ○ · 반모음 · ㅢ 한 칸 · 겹받침) · 틈 수가 상태와 같고,
+//   1) 원고 376개 모두(1~8장, 기본 · 심화, 두 학년): 음절 · 자리(빈 초성 ○ · 반모음 · ㅢ 한 칸 · 겹받침) · 틈 수가 상태와 같고,
 //      음운 · 틈을 누르면 엔진 자리(Pos)가 알맞게 온다. 화면 글에 빗금 없는 자모가 없다.
 //   2) 형태소 경계: 기본 단계는 종류별 '+'와 학년별 이름표(G.text.cutLabel), 심화 단계는 '+' · 이름표 · 종류가 DOM · aria에 없다
 //      (심화 블록 = 경계를 모두 지운 상태의 블록과 HTML이 똑같음 — 두 줄 나누기 자리로도 새지 않음).
@@ -145,21 +145,21 @@ if (${v}.length) console.log('FAIL ' + ${v}.join('\\nFAIL '));
 else console.log('PASS');
 `;
 
-// ── 1) 원고 377개 모두 ─────────────────────────────────────
+// ── 1) 원고 376개 모두 ─────────────────────────────────────
 //   CDP 한 번의 evaluate는 30초 안에 끝나야 하므로 단계 · 학년마다 나눠 부른다.
 const LEVELS = [{ level: 'basic', grade: 'm3' }, { level: 'basic', grade: 'h1' }, { level: 'advanced', grade: 'm3' }, { level: 'advanced', grade: 'h1' }];
-step('원고 377개 모두 — 자리 · 경계 · 누르면 자리', `
+step('원고 376개 모두 — 자리 · 경계 · 누르면 자리', `
 ${open('a1', 1280, 800)}
 try {
   const ea = [];
   ea.push(...await a1.evaluate(async () => {
     const G = D.G(), w = D.w();
     if (!G || !G.blocks || typeof G.blocks.create !== 'function') D.bad('G.blocks.create 없음');
-    if (w.SCRIPTS.length !== 377) D.bad('원고 수 ' + w.SCRIPTS.length + ' (377이어야 함)');
+    if (w.SCRIPTS.length !== 376) D.bad('원고 수 ' + w.SCRIPTS.length + ' (376이어야 함 — 임진란은 결정 0020으로 뺌)');
     K.seen = { emptyOn: 0, glide: 0, double: 0, ui: 0, formal: 0, content: 0, sino: 0, space: 0, stem: 0 };
     return D.take();
   }));
-  // 원고 50개씩 나눠 부른다(원고 377개 — 공용 aside가 바빠도 CDP 한 번 30초 안)
+  // 원고 50개씩 나눠 부른다(원고 376개 — 공용 aside가 바빠도 CDP 한 번 30초 안)
   if (!ea.length) for (const lv of ${J(LEVELS)}) for (let from = 0; from < 400; from += 50) {
     ea.push(...await a1.evaluate(async (o) => {
       const G = D.G(), w = D.w();

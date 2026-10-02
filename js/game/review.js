@@ -14,11 +14,13 @@
 //   지금 원고 = run.ids[run.done.length], 그 기록 = run.cur(교정 · 송출 신호 · 도움). 새로 고침하면 교정까지 그대로 돌아온다.
 //
 // ── 화면 ────────────────────────────────────────────────────────────────
-//   머리: 장 · 단계 | 원고 n/7 | 음운 수 '표기 n → 지금 m' | 감수실 그림 자리 | [게임 방법] [소리]
-//   책상(화면 너비 가득): 원고 표기 · 감수 도장 · 음절 블록(G.blocks) · 교정 부호 넷 · 한 줄 자리(.rw-say — 안내 · 알림 · 신호 ·
-//     연음 안내가 차례로)
-//   그 아래(가로 배치는 나란히, 휴대폰 세로는 차례로): 프롬프터(ON AIR 램프 · 아나운서 그림 자리 · 아나운서가 읽는 발음 · 신호 배지)
-//     · 감수 기록 · 도움. 그림 자리 둘은 빈 틀(명세 §14 — aria-label만, 휴대폰 세로에서는 숨김)
+//   머리: 장 · 단계 | 원고 n/7 | 음운 수 '표기 n → 지금 m' | 큐시트(원고 7개의 차례와 결과 — 결정 0020) | [게임 방법] [소리]
+//   책상(화면 너비 가득, 원고지 모양): 뉴스 한 줄(js/data/news.js — 감수할 말 .rw-script-text에 펜 밑줄) · 감수 도장 ·
+//     음절 블록(G.blocks — 고친 자리에 펜 자국 setPen) · 교정 부호 넷 · 한 줄 자리(.rw-say — 안내 · 알림 · 신호 · 연음 안내가 차례로)
+//   그 아래(가로 배치는 나란히, 휴대폰 세로는 차례로): 스튜디오 무대(.rw-booth — 배경 그림 · 두 아나운서 그림(상태마다 바뀜) ·
+//     ON AIR 램프 · 초읽기 · 결과 띠 · 시청자 반응 · 자막 띠 안의 프롬프터와 신호 배지) · 감수 기록 · 도움.
+//   그림은 assets/img(화풍 B, tools/process_assets.py가 만듦). 아나운서 상태: idle 기다림 · read 읽는 중 · 송출 결과마다
+//     happy(온에어) · oops(다름) · puzzled(규칙 밖 · 표준 아님) — 신호 종류만 보고 고른다(판정은 G.rules가 이미 함).
 //   아래: [되돌리기] [다시 감수] [도움] [송출] [다음 원고 / 조항 공개로]
 //   판(.rw-sheet — 가로 배치는 화면 아래에 떠 있고, 휴대폰 세로는 책상 안에 펼쳐짐): 조음 도표(고침표 · 합침표) 또는
 //     넣을 음운 고르기(/ㄴ/ · /j/)
@@ -49,7 +51,9 @@
 //   배경 음악 'review', 효과음 mark(교정) · send(송출) · 신호 kind 그대로(G.audio.sfx(result.kind)). 소리 장치 문제로 멈추지 않게 감싼다.
 //
 // ── 조정 가능한 기본값(명세 §20) ──────────────────────────────────────────
-//   SEND_MS 송출 연출 전체(1.5초 안쪽), LINK_MS 신호 줄이 연음 안내로 바뀌기까지(약 1.5초). 움직임 줄이기면 연출 없이 곧바로.
+//   CUE_MS 송출 직전 초읽기 한 박(3 · 2 · 1), SEND_MS 아나운서가 읽는 연출(초읽기와 합쳐 2초 안쪽 — 결정 0020),
+//   LINK_MS 신호 줄이 연음 안내로 바뀌기까지(약 1.5초), REACT_MS 시청자 반응이 하나씩 올라오는 간격.
+//   움직임 줄이기면 초읽기 · 읽기 연출 없이 곧바로 결과(아나운서 그림 · 띠 · 반응은 움직이지 않고 바로 보임).
 //
 // ── 점검 전용 G.review.debug(게임 화면에 단추 · 글로 드러내지 않음 — 명세 §18) ─────────
 //   script() 지금 원고 · cur() 지금 원고 기록(복사본) · run() 진행 장(복사본) · state() 지금 상태(복사본) · busy() 송출 연출 중인지
@@ -59,8 +63,13 @@
 (function () {
   const U = G.util, el = U.el;
   const T = () => window.TEXT;
-  const SEND_MS = 1400;
+  const CUE_MS = 220;
+  const SEND_MS = 1100;
   const LINK_MS = 1500;
+  const REACT_MS = 380;
+  const IMG = 'assets/img/';
+  const ANCHOR_STATES = ['idle', 'read', 'oops', 'happy', 'puzzled'];
+  const REACT_STATE = { onair: 'happy', offrule: 'puzzled', diff: 'oops', nonstandard: 'puzzled' }; // 신호 → 아나운서 그림
   const SLOTS = ['on', 'gl', 'nu', 'co'];
   const PART_OF = { on: 'consonant', co: 'consonant', nu: 'vowel', gl: 'glide' };   // 누른 자리에 맞는 도표(명세 §8-2)
   const PROBE = { consonant: 'ㄱ', vowel: 'ㅏ', glide: 'j' };                         // 합침표: 받는 표를 엔진에 물어볼 대표 음운
@@ -142,7 +151,16 @@
     const soundBtn = el('button', { type: 'button', class: 'app-btn rw-tool rw-sound', 'data-act': 'rw-sound', onclick: () => toggleSound() });
     const howtoBtn = G.howto.button('rw-tool rw-howto', () => ({ grade }), R.buttons.howto);
 
-    const scriptText = el('p', { class: 'rw-script-text' });
+    const rundown = el('ol', { class: 'rw-rundown', 'aria-label': R.rundown.title });
+    // 뉴스 한 줄: 앞 · 감수할 말(.rw-script-text = 원고 표기 그대로) · 뒤. 문장이 없는 원고는 감수할 말만
+    const scriptText = el('span', { class: 'rw-script-text' });
+    const newsBefore = el('span', { class: 'rw-news-part' });
+    const newsAfter = el('span', { class: 'rw-news-part' });
+    const newsLine = el('p', { class: 'rw-news' }, [
+      newsBefore,
+      el('mark', { class: 'rw-target' }, [scriptText, el('span', { class: 'rw-target-hint', 'aria-hidden': 'true' }, R.targetHint)]),
+      newsAfter,
+    ]);
     const stamp = el('div', { class: 'rw-stamp', hidden: true }, [U.glyph('onair', 'glyph rw-stamp-ico'), el('span', { class: 'rw-stamp-text' }, R.stamp)]);
     const blocksHost = el('div', { class: 'rw-blocks' });
     const markBtns = MARKS.map((m) => el('button', {
@@ -153,12 +171,36 @@
     const lamp = el('span', { class: 'rw-lamp', 'aria-hidden': 'true' }, R.onAir);
     const prompter = el('div', { class: 'rw-prompter' });
     const badge = el('p', { class: 'rw-badge', hidden: true });
-    // 그림 자리(이번에는 빈 틀 — 명세 §14): 아나운서는 프롬프터 옆, 감수실은 머리 가운데. 글 없이 aria-label만, 휴대폰 세로에서는 숨김
-    const art = (cls, label) => el('div', { class: 'rw-art ' + cls, role: 'img', 'aria-label': label }, U.glyph('image', 'glyph rw-art-ico'));
-    const booth = el('section', { class: 'rw-booth', 'aria-label': R.prompter }, [
-      el('div', { class: 'rw-booth-bar' }, [lamp, el('span', { class: 'rw-booth-name' }, R.prompter)]),
-      el('div', { class: 'rw-booth-row' }, [art('rw-art-announcer', T().images.announcer), el('div', { class: 'rw-booth-screen' }, [prompter, badge])]),
+    // 스튜디오 무대: 배경 · 두 아나운서(상태 그림) · 램프 · 초읽기 · 결과 띠 · 시청자 반응 · 자막 띠(프롬프터 · 신호 배지)
+    const anchors = el('img', { class: 'rw-anchors', src: IMG + 'anchors_idle.webp', alt: T().images.anchors.idle, draggable: 'false', decoding: 'async', 'data-state': 'idle' });
+    const cueEl = el('div', { class: 'rw-cue', 'aria-hidden': 'true', hidden: true });
+    const bannerEl = el('p', { class: 'rw-banner', hidden: true });
+    const reactEl = el('ul', { class: 'rw-react', 'aria-label': T().signal.board });
+    const booth = el('section', { class: 'rw-booth', 'aria-label': R.studio }, [
+      el('div', { class: 'rw-stage' }, [
+        el('img', { class: 'rw-stage-bg', src: IMG + 'studio_bg.webp', alt: '', 'aria-hidden': 'true', draggable: 'false', decoding: 'async' }),
+        anchors,
+        el('div', { class: 'rw-booth-bar' }, [lamp]),
+        cueEl,
+        bannerEl,
+        reactEl,
+        el('div', { class: 'rw-caption' }, [
+          el('span', { class: 'rw-booth-name' }, R.prompter),
+          el('div', { class: 'rw-booth-screen' }, [prompter, badge]),
+        ]),
+      ]),
     ]);
+    // 상태 그림을 미리 받아 둔다(바꿔 끼울 때 깜박이지 않게)
+    ANCHOR_STATES.forEach((k) => { try { const im = new Image(); im.src = IMG + 'anchors_' + k + '.webp'; } catch (e) { /* 무시 */ } });
+    function setAnchors(k) {
+      const st = ANCHOR_STATES.indexOf(k) >= 0 ? k : 'idle';
+      if (anchors.getAttribute('data-state') === st) return;
+      anchors.setAttribute('data-state', st);
+      anchors.src = IMG + 'anchors_' + st + '.webp';
+      anchors.alt = T().images.anchors[st];
+      anchors.classList.remove('is-pop');
+      if (st !== 'idle' && !U.reducedMotion()) { void anchors.offsetWidth; anchors.classList.add('is-pop'); }
+    }
 
     const logMark = el('span', { class: 'rw-log-mark', hidden: true }, [U.glyph('offrule', 'glyph rw-log-mark-ico'), R.offruleMark]);
     const logList = el('ol', { class: 'rw-log-list' });
@@ -207,20 +249,23 @@
     const wrap = el('div', { class: 'rw' }, [
       el('header', { class: 'rw-head' }, [
         el('div', { class: 'rw-head-main' }, [kicker, el('div', { class: 'rw-head-row' }, [noEl, countEl])]),
-        art('rw-art-room', T().images.room),
+        el('div', { class: 'rw-rundown-box' }, [el('span', { class: 'rw-rundown-title', 'aria-hidden': 'true' }, R.rundown.title), rundown]),
         el('div', { class: 'rw-tools' }, [howtoBtn, soundBtn]),
       ]),
       el('div', { class: 'rw-main' }, [
         el('section', { class: 'rw-desk' }, [
-          el('div', { class: 'rw-script' }, [el('span', { class: 'rw-script-label' }, [U.glyph('script', 'glyph rw-script-ico'), R.scriptLabel]), scriptText, stamp]),
+          el('div', { class: 'rw-script' }, [el('span', { class: 'rw-script-label' }, [U.glyph('script', 'glyph rw-script-ico'), R.newsLabel]), newsLine, stamp]),
           blocksHost,
           el('div', { class: 'rw-marks', role: 'group' }, markBtns),
-          sayEl,
+          // 한 줄 자리와 단추를 한 줄에(송출 단추가 교정 부호 바로 아래 — 스튜디오 무대를 보느라 화면을 내리지 않게)
+          el('div', { class: 'rw-act' }, [
+            sayEl,
+            el('div', { class: 'rw-foot' }, [undoBtn, redoBtn, helpBtn, sendBtn, nextBtn]),
+          ]),
           sheet,
         ]),
         el('div', { class: 'rw-side' }, [booth, logBox, helpBox]),
       ]),
-      el('footer', { class: 'rw-foot' }, [undoBtn, redoBtn, helpBtn, sendBtn, nextBtn]),
     ]);
     root.appendChild(wrap);
 
@@ -263,8 +308,14 @@
       toggleHelp(false);
       U.clear(helpBody);
       scriptText.textContent = script.text;
+      const news = newsOf(script);
+      newsBefore.textContent = news[0];
+      newsAfter.textContent = news[1];
+      newsLine.classList.toggle('is-word', !news[0] && !news[1]);
       stamp.hidden = true;
+      stamp.classList.remove('is-pop');
       setLamp(false);
+      clearStage();
       if (blocks) blocks.destroy();
       blocks = G.blocks.create(blocksHost, { grade, level, split: 'auto', caption: true, label: R.scriptLabel, onTap: (p) => onTap(p) });
       refresh();
@@ -277,6 +328,7 @@
         const same = sentAsIs();
         fillPrompter(Array.from(last.reading), false);
         showBadge(last.kind);
+        if (same) setAnchors(REACT_STATE[last.kind]);
         stamp.hidden = !(same && last.kind === 'onair');
         outRule = same && last.kind === 'offrule' ? last.outOfRule.slice() : [];
         refresh();
@@ -289,7 +341,9 @@
       const r = replay(S.script, S.cur.corrections);
       S.state = r.state;
       blocks.render(r.state);
+      blocks.setPen(penMarks(S.cur.corrections));
       blocks.setPicked(mergePair || (mergeA ? [mergeA] : pick ? [pick] : null));
+      paintRundown();
       blocks.setMode(mode === 'insert' ? 'gap' : mode ? 'slot' : null);
       const no = Math.min(run.done.length + 1, run.ids.length);
       noEl.textContent = G.text.t('review.header.script', { i: no, n: run.ids.length });
@@ -420,6 +474,7 @@
       if (S.cur.last) { S.cur.last.n = null; S.cur.last.outOfRule = []; } // 송출한 그대로가 아님(js/core/save.js 머리 주석)
       stamp.hidden = true;
       setLamp(false);
+      clearStage();
       save();
       refresh();
     }
@@ -504,8 +559,10 @@
       sound(() => G.audio.sfx('send'));
       outRule = res.kind === 'offrule' ? res.outOfRule.slice() : [];
       stamp.hidden = true;
+      stamp.classList.remove('is-pop');
       badge.hidden = true;
       badge.removeAttribute('data-kind');
+      clearStage();
       setLamp(true);
       const syl = Array.from(res.reading);
       const quick = U.reducedMotion();
@@ -515,34 +572,123 @@
       finalize = () => {
         finalize = null;
         busy = false;
+        cueEl.hidden = true;
         prompter.querySelectorAll('.is-wait').forEach((n) => n.classList.remove('is-wait'));
-        showSignal(res, linking);
+        showSignal(res, linking, quick);
         refresh();
       };
       refresh();
+      showStage(quick);
       if (quick) { finalize(); return; }
-      // 한 음절씩 나타나고, 그다음 신호(전체 SEND_MS 안쪽)
-      const stepMs = Math.max(60, Math.min(220, Math.floor(SEND_MS / (syl.length + 1))));
+      // 초읽기 3 · 2 · 1 → 아나운서가 읽음(한 음절씩) → 신호(전체 2초 안쪽)
+      const cues = [3, 2, 1];
+      const cue = (n) => {
+        U.clear(cueEl);
+        cueEl.appendChild(el('span', { class: 'rw-cue-n' }, G.text.fill(R.cue.count, { n })));
+        cueEl.hidden = false;
+        cueEl.classList.remove('is-tick'); void cueEl.offsetWidth; cueEl.classList.add('is-tick');
+      };
+      cue(cues[0]);
+      cues.slice(1).forEach((n, i) => later(() => cue(n), CUE_MS * (i + 1)));
+      const t0 = CUE_MS * cues.length;
+      later(() => { cueEl.hidden = true; setAnchors('read'); }, t0);
+      const stepMs = Math.max(60, Math.min(200, Math.floor(SEND_MS / (syl.length + 1))));
       syl.forEach((_, i) => later(() => {
         const n = prompter.querySelector('.rw-psyl[data-i="' + i + '"]');
         if (n) n.classList.remove('is-wait');
-      }, stepMs * (i + 1)));
-      later(() => { if (finalize) finalize(); }, stepMs * (syl.length + 1));
+      }, t0 + stepMs * (i + 1)));
+      later(() => { if (finalize) finalize(); }, t0 + stepMs * (syl.length + 1));
     }
     // 연출 중이면 곧바로 끝낸다(다른 조작이 끼어들 때)
     function flush() { if (finalize) { clearTimers(); finalize(); } }
-    function showSignal(res, linking) {
+    function showSignal(res, linking, quick) {
       showBadge(res.kind);
       const line = G.text.signal(res.kind, { n: res.diff });
       if (res.kind === 'nonstandard') say([el('span', { class: 'rw-board' }, T().signal.board), ' ', line], 'sig-nonstandard');
       else say(line, 'sig-' + res.kind);
       sound(() => G.audio.sfx(res.kind));
-      if (res.kind === 'onair') stamp.hidden = false;
+      setAnchors(REACT_STATE[res.kind]);
+      showBanner(res.kind, quick);
+      showReactions(res.kind, quick);
+      if (res.kind === 'onair') {
+        stamp.hidden = false;
+        if (!quick) { stamp.classList.remove('is-pop'); void stamp.offsetWidth; stamp.classList.add('is-pop'); }
+      }
       // 연음 자리 받침을 고친 채 송출: 신호 줄 다음, 같은 자리가 연음 안내로(배지는 남음)
       if (linking) {
         const tok = sayToken;
         later(() => { if (sayToken === tok) say(T().signal.linking, 'linking'); }, LINK_MS);
       }
+    }
+
+    // ── 뉴스 한 줄(js/data/news.js): '앞 {감수할 말} 뒤' → [앞, 뒤]. 없거나 모양이 틀리면 감수할 말만 ──
+    function newsOf(script) {
+      const line = window.NEWS && window.NEWS[script.id];
+      const m = typeof line === 'string' ? /^([^{}]*)\{([^{}]*)\}([^{}]*)$/.exec(line) : null;
+      return m && m[2] === script.text ? [m[1], m[3]] : ['', ''];
+    }
+    // ── 펜 자국: 교정마다 그 자리(그림일 뿐 — 판정 아님). 같은 자리는 마지막 교정의 부호 ──
+    function penMarks(cs) {
+      const out = {};
+      (cs || []).forEach((c) => {
+        const ats = c.op === 'merge' ? c.at : [c.at];
+        ats.forEach((a) => { const p = posOf(a); out[p.s + '.' + p.slot + '.' + (p.slot === 'co' ? p.k : 0)] = { at: p, op: c.op }; });
+      });
+      return Object.keys(out).map((k) => out[k]);
+    }
+    // ── 큐시트: 원고 7개의 차례와 결과(지난 원고 결과 · 지금 · 대기). 결과 이름은 장 결과와 같은 말 ──
+    function paintRundown() {
+      U.clear(rundown);
+      run.ids.forEach((id, i) => {
+        const d = run.done[i];
+        const now = !d && i === run.done.length;
+        const kind = d ? d.result : null;
+        const label = d ? G.text.t('review.rundown.done', { i: i + 1, outcome: G.text.outcome(kind) })
+          : G.text.t(now ? 'review.rundown.now' : 'review.rundown.wait', { i: i + 1 });
+        rundown.appendChild(el('li', { class: 'rw-rd' + (kind ? ' is-' + kind : '') + (now ? ' is-now' : ''), 'aria-label': label, title: label },
+          kind && kind !== 'skip' ? U.glyph(kind, 'glyph rw-rd-ico') : el('span', { class: 'rw-rd-no', 'aria-hidden': 'true' }, String(i + 1))));
+      });
+    }
+    // ── 송출하면 스튜디오 무대(자막 띠의 프롬프터까지)가 화면에 들도록 필요한 만큼만 내린다(이미 보이면 그대로) ──
+    function showStage(quick) {
+      try {
+        const r = booth.getBoundingClientRect(), vh = window.innerHeight || 0;
+        if (r.bottom > vh || r.top < 0) booth.scrollIntoView({ block: 'nearest', behavior: quick ? 'auto' : 'smooth' });
+      } catch (e) { /* 무시 */ }
+    }
+    // ── 스튜디오 무대: 결과 띠 · 시청자 반응(송출 뒤 한 번만 나타남, 계속 움직이지 않음) ──
+    function clearStage() {
+      bannerEl.hidden = true;
+      bannerEl.removeAttribute('data-kind');
+      U.clear(reactEl);
+      cueEl.hidden = true;
+      setAnchors('idle');
+    }
+    function showBanner(kind, quick) {
+      U.clear(bannerEl);
+      bannerEl.setAttribute('data-kind', kind);
+      U.append(bannerEl, [U.glyph(kind, 'glyph rw-banner-ico'), el('span', null, T().signal.banner[kind])]);
+      bannerEl.hidden = false;
+      bannerEl.classList.toggle('is-still', !!quick);
+    }
+    function pickSome(list, n) {
+      const a = list.slice();
+      for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = a[i]; a[i] = a[j]; a[j] = t; }
+      return a.slice(0, n);
+    }
+    function showReactions(kind, quick) {
+      const SG = T().signal;
+      U.clear(reactEl);
+      const who = SG.reactBy[kind] === 'pd' ? 'pd' : 'viewer';
+      const lines = pickSome(SG.react[kind] || [], who === 'pd' ? 1 : 2);
+      const nicks = pickSome(SG.nicks || [], lines.length);
+      lines.forEach((text, i) => {
+        const add = () => reactEl.appendChild(el('li', { class: 'rw-react-item is-' + who + (quick ? ' is-still' : '') }, [
+          el('span', { class: 'rw-react-who' }, who === 'pd' ? SG.who.pd : (nicks[i] || SG.who.viewer)),
+          el('span', { class: 'rw-react-text' }, text),
+        ]));
+        if (quick || i === 0) add(); else later(add, REACT_MS * i);
+      });
     }
 
     // ── 도움 사다리(명세 §8-4): 한 칸씩 학생이 엶, 감점 없음 ──
@@ -589,7 +735,10 @@
           helpBody.appendChild(el('p', { class: 'rw-help-line' }, H.diffMarked));
           record(1);
         } else {
-          helpBody.appendChild(el('p', { class: 'rw-help-line' }, H.needBroadcast)); // 도움으로 세지 않음(연 단계만 저장 — ②가 열림)
+          // 아직 송출 안 함 → '먼저 송출해 보세요', 송출했지만 '다름'이 아님 → 그 신호에 맞는 한 줄(위치를 알릴 다른 음절이 없음).
+          //   어느 쪽도 도움으로 세지 않음(연 단계만 저장 — ②가 열림)
+          const msg = last && H.notDiff[last.kind] ? H.notDiff[last.kind] : H.needBroadcast;
+          helpBody.appendChild(el('p', { class: 'rw-help-line' }, msg));
           if (opened) save();
         }
       } else if (n === 2) {

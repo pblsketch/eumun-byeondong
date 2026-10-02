@@ -9,11 +9,13 @@
 #   - stdin is closed (piped $null) so codex never waits for input.
 #   - a stamp file is touched before each run; only a PNG newer than the stamp is copied.
 #   - hard timeout (-TimeoutSec); only the codex process started here is stopped on timeout.
-#   - no reference-image mode (not needed for the style samples).
+#   - optional reference image (-Image ref.png, -RefMode same|style), ported from sori-haejeon gen.ps1:
+#     'style' = match the art style only, 'same' = keep the subject (characters) identical (state variants).
 # This file is kept pure ASCII on purpose: Windows PowerShell 5.1 misreads non-ASCII in BOM-less scripts.
 #
 # Usage (repo root, PowerShell):
 #   powershell -NoProfile -ExecutionPolicy Bypass -File tools\gen.ps1 -Name style_a -PromptFile tools\prompts\style_a.txt -Out assets\raw\style_a.png
+#   ... -Image assets\raw\anchors_idle.png -RefMode same     (state variant of the same characters)
 # Prompts must be English ASCII only (they go straight into the command line).
 param(
   [Parameter(Mandatory=$true)][string]$Name,
@@ -23,7 +25,9 @@ param(
   [string]$Quality = "high",
   [string]$Model = "gpt-6-astra",
   [string]$Effort = "medium",
-  [int]$TimeoutSec = 900
+  [int]$TimeoutSec = 900,
+  [string]$Image = "",
+  [string]$RefMode = "same"
 )
 $ErrorActionPreference = "Continue"
 
@@ -49,7 +53,19 @@ Copy-Item -LiteralPath $auth -Destination (Join-Path $ch "auth.json") -Force
 $prompt = (Get-Content -LiteralPath $PromptFile -Encoding UTF8 -Raw).Replace('"', "'").Trim()
 if ($prompt -match '[^\x00-\x7F]') { "WARN $Name : prompt has non-ASCII characters" }
 
-$instr = "Use the built-in image_gen tool to generate exactly 1 image, size $Size, quality $Quality, using the following prompt verbatim. Do not run shell commands and do not read any files. Then print only DONE.`n`n$prompt"
+$refNote = ""
+$imgArgs = @()
+if ($Image -ne "") {
+  Copy-Item -LiteralPath $Image -Destination (Join-Path $ch "ref.png") -Force
+  $imgArgs = @("--image=" + (Join-Path $ch "ref.png"))
+  if ($RefMode -eq "style") {
+    $refNote = " The attached image is an ART STYLE reference only: pass it to image_gen as the reference image and match its painting style, brush texture, light and colors exactly, but draw the new subject described in the prompt, not the objects in the reference."
+  } else {
+    $refNote = " The attached image is the character reference: pass it to image_gen as the reference image and keep both characters identical (faces, hair, clothes, proportions, colors, art style), changing only what the prompt describes."
+  }
+}
+
+$instr = "Use the built-in image_gen tool to generate exactly 1 image, size $Size, quality $Quality, using the following prompt verbatim. Do not run shell commands and do not read any files.$refNote Then print only DONE.`n`n$prompt"
 
 # Stamp: only images written after this point count.
 $stamp = Join-Path $ch "stamp.txt"
@@ -60,11 +76,11 @@ Start-Sleep -Seconds 1
 $log = Join-Path $ch "log.txt"
 $env:CODEX_HOME = $ch
 $job = Start-Job -ScriptBlock {
-  param($codex, $instr, $ch, $effort, $log, $home2)
+  param($codex, $instr, $ch, $effort, $log, $home2, $imgArgs)
   $env:CODEX_HOME = $home2
-  $null | & $codex exec $instr -C $ch --skip-git-repo-check -c "model_reasoning_effort=`"$effort`"" *> $log
+  $null | & $codex exec $instr -C $ch --skip-git-repo-check -c "model_reasoning_effort=`"$effort`"" @imgArgs *> $log
   $LASTEXITCODE
-} -ArgumentList $codex, $instr, $ch, $Effort, $log, $ch
+} -ArgumentList $codex, $instr, $ch, $Effort, $log, $ch, $imgArgs
 
 if (-not (Wait-Job $job -Timeout $TimeoutSec)) {
   "TIMEOUT $Name after $TimeoutSec s"
