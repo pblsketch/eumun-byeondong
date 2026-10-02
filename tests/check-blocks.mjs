@@ -41,6 +41,12 @@ if (!window.K) {
     const root = K.b.el;
     const syls = D.$$('.bk-syl', root);
     if (syls.length !== st.syl.length) D.bad(tag + ': 음절 수 ' + syls.length + ' ≠ ' + st.syl.length);
+    // 이어 읽기(연음, 결정 0023): 엔진 linkMoves가 고른 빈 초성에만 옮겨 올 받침을 옅게, 그 받침 칸 · 틈에 짝 표시
+    const into = {}, outOf = {};
+    G.rules.linkMoves(st).forEach((m) => { into[m.to.s] = m.id; outOf[m.from.s] = m.from.k; });
+    D.$$('.bk-slot.is-link-in', root).forEach((n) => { if (!(n.getAttribute('data-s') in into) || n.getAttribute('data-slot') !== 'on') D.bad(tag + ': 이어 읽기가 아닌 칸에 옮겨 올 받침 ' + n.getAttribute('data-s')); });
+    D.$$('.bk-slot.is-link-out', root).forEach((n) => { const s = n.getAttribute('data-s'); if (!(s in outOf) || +n.getAttribute('data-k') !== outOf[s]) D.bad(tag + ': 이어 읽기가 아닌 받침에 짝 표시 ' + s); });
+    D.$$('.bk-gap', root).forEach((g) => { const has = !!D.$('.bk-link', g), want = (+g.getAttribute('data-gap') + 1) in into; if (has !== want) D.bad(tag + ': 틈 ' + g.getAttribute('data-gap') + ' 이어 읽기 표시 ' + has); });
     st.syl.forEach((y, s) => {
       const sy = D.$('.bk-syl[data-s="' + s + '"]', root);
       if (!sy) { D.bad(tag + ': ' + s + '번 음절 없음'); return; }
@@ -49,6 +55,7 @@ if (!window.K) {
       // 초성: 빈 자리는 ○
       const on = slot('on');
       if (!on) D.bad(tag + ': ' + s + '번 초성 칸 없음');
+      else if (y.on == null && into[s]) { if (!on.classList.contains('is-empty') || !on.classList.contains('is-link-in') || on.textContent.trim() !== G.text.phoneme(into[s])) D.bad(tag + ': 이어 읽을 빈 초성 ' + on.textContent + ' / ' + into[s]); }
       else if (y.on == null) { if (!on.classList.contains('is-empty') || on.textContent.trim() !== '○') D.bad(tag + ': 빈 초성이 ○이 아님 ' + on.textContent); }
       else if (on.textContent.trim() !== '/' + y.on + '/' || on.classList.contains('is-empty')) D.bad(tag + ': 초성 ' + on.textContent);
       // 반모음: 있을 때만 따로

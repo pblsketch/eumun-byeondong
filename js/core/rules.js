@@ -302,15 +302,24 @@ G.rules = (function () {
 
   // ── 읽기(프롬프터): 연음은 여기서 저절로 ───────────────
   // 모음으로 시작하는 음절 앞의 종성을 옮긴다(겹받침은 뒤엣것만, /ㅇ/은 옮기지 않음). 연음은 변동이 아니다(0회).
-  function surface(state) {
-    const syl = clone(state.syl);
+  // linkMoves(상태) → [{ from: 앞 음절 마지막 받침 Pos, to: 뒤 음절 초성 Pos, id }] — 읽을 때 옮겨질 받침.
+  //   소리 모양만 본다(형태소 경계를 보지 않음). 감수 화면 블록의 '이어 읽기' 표시도 이것을 그린다(결정 0023).
+  //   한 음절의 초성이 채워져도 그 음절의 종성은 그대로라, 원래 상태에서 한꺼번에 구해도 차례로 옮긴 것과 같다.
+  function linkMoves(state) {
+    const syl = (state && state.syl) || [];
+    const out = [];
     for (let i = 0; i + 1 < syl.length; i++) {
       const a = syl[i], b = syl[i + 1];
-      if (b.on == null && b.nu && a.nu && a.co.length) {
-        const last = a.co[a.co.length - 1];
-        if (last !== 'ㅇ') { b.on = last; a.co = a.co.slice(0, -1); }
+      const co = (a && Array.isArray(a.co)) ? a.co : [];
+      if (b && b.on == null && b.nu && a.nu && co.length && co[co.length - 1] !== 'ㅇ') {
+        out.push({ from: { s: i, slot: 'co', k: co.length - 1 }, to: { s: i + 1, slot: 'on', k: 0 }, id: co[co.length - 1] });
       }
     }
+    return out;
+  }
+  function surface(state) {
+    const syl = clone(state.syl);
+    linkMoves(state).forEach((m) => { syl[m.to.s].on = m.id; syl[m.from.s].co = syl[m.from.s].co.slice(0, -1); });
     return syl;
   }
   function vowelText(y) {
@@ -957,7 +966,7 @@ G.rules = (function () {
   }
 
   return {
-    RULES, ORDER, slash, strip, pos, start, surface, reading, phonemes, applicable, allowable, apply, check, tally, derive, broadcast, parseStep,
+    RULES, ORDER, slash, strip, pos, start, surface, linkMoves, reading, phonemes, applicable, allowable, apply, check, tally, derive, broadcast, parseStep,
     kindOf, orderPairs, draw, exampleIds, twin, twins, linkSites, touchedLink, similarCell, hasCondition, gradeGuides, checkGuide, checkGuides,
     revealArticles, scriptResult, chapterTotals,
   };
