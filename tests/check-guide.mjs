@@ -82,7 +82,7 @@ try {
     if (!G.screens.guide || typeof G.screens.guide.mount !== 'function') D.bad('G.screens.guide 등록 없음');
     D.tapSel('.st-ch[data-ch="1"]', '1장');
     D.tapSel('[data-act="begin"]', '감수 시작');
-    await D.until(() => D.cur() === 'guide' && D.$('.gd-card'), 3000, '지침 화면');
+    await D.passWarmup(); await D.until(() => D.cur() === 'guide' && D.$('.gd-card'), 3000, '지침 화면');
     const run = G.save.loadChapter();
     const gs = w.GUIDES[1];
     if (D.$('.gd-title').textContent.trim() !== T.guide.title) D.bad('제목: ' + D.$('.gd-title').textContent);
@@ -172,7 +172,7 @@ try {
     const T = D.T(), G = D.G(), w = D.w();
     const CH = ${ch};
     G.app.beginChapter({ ch: CH, grade: '${grade}', level: 'basic', seed: 11 });
-    await D.until(() => D.cur() === 'guide' && D.$('.gd-card'), 3000, '지침 화면');
+    await D.passWarmup(); await D.until(() => D.cur() === 'guide' && D.$('.gd-card'), 3000, '지침 화면');
     const gs = w.GUIDES[CH];
     // 고1 문장
     gs.forEach((g) => {
@@ -231,7 +231,7 @@ try {
   ec.push(...await c1.evaluate(async () => {
     const T = D.T(), G = D.G(), w = D.w();
     G.app.beginChapter({ ch: 2, grade: 'h1', level: 'advanced', seed: 5 });
-    await D.until(() => D.cur() === 'guide' && D.$('.gd-card'), 3000, '지침 화면');
+    await D.passWarmup(); await D.until(() => D.cur() === 'guide' && D.$('.gd-card'), 3000, '지침 화면');
     const before = G.save.loadChapter();
     // 한 번 틀린 뒤 다 맞게
     D.gdPick(2, () => 0, '틀림');
@@ -278,7 +278,7 @@ try {
     const G = D.G();
     for (const [ch, grade] of [[1, 'm3'], [2, 'h1'], [4, 'm3']]) {
       G.app.beginChapter({ ch, grade, level: 'basic', seed: 3 });
-      await D.until(() => D.cur() === 'guide' && D.$('.gd-card'), 3000, tag + ' 지침 ' + ch);
+      await D.passWarmup(); await D.until(() => D.cur() === 'guide' && D.$('.gd-card'), 3000, tag + ' 지침 ' + ch);
       D.targets(MIN, tag + ' ' + ch + '장 처음'); D.noScroll(tag + ' ' + ch + '장 처음');
       D.gdPick(ch, () => 0, tag);
       const m = D.gdCheck(tag);

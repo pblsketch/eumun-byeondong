@@ -78,7 +78,7 @@
       root.appendChild(el('div', { class: 'rv' }, [
         el('header', { class: 'rv-head' }, [
           el('p', { class: 'rv-kicker' }, G.text.t('common.chapterLevel', { chapter: G.text.chapterTitle(run.ch), level: G.text.levelName(run.level) })),
-          el('h1', { class: 'app-h1 rv-title' }, R.title),
+          el('div', { class: 'app-titlebar' }, [U.art('ic_rule', 'app-title-ico'), el('h1', { class: 'app-h1 rv-title' }, R.title)]),
         ]),
         el('div', { class: 'rv-senior' }, [
           el('img', { class: 'rv-senior-img', src: 'assets/img/senior.webp', alt: T().images.senior, draggable: 'false', decoding: 'async' }),

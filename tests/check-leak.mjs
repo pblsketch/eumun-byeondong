@@ -103,8 +103,16 @@ if (!D.secrets) {
   // 한 판: 지침(정답 전 · 한 칸 틀린 뒤) → 감수 원고 7개(처음 · 도표 · 넣을 음운 · 도움 ①, 송출 뒤 도움 ② · ③) → 결과
   D.leakGuide = async (o) => {
     const tag = o.ch + '장 ' + o.grade + ' ' + o.level;
-    const run = await D.startChapter(o);
+    const warm = (D.G().save.WARMUP || {})[o.ch] || 0;
+    const run = await D.startChapter(Object.assign({ keepWarmup: true }, o));
+    window.__from = 0;
     if (!D.w().GUIDES[o.ch]) return run; // 지침이 없는 장(8장): 곧바로 감수
+    // 1장 몸풀기(결정 0021): 원고 몇 개를 먼저 감수한 뒤 지침 화면
+    if (warm) {
+      await D.leakScripts(o, run, 0, warm);
+      await D.until(() => D.cur() === 'guide' && D.$('.gd-card'), 4000, tag + ' 몸풀기 뒤 지침');
+      window.__from = warm;
+    }
     D.noSecret(tag + ' 지침 처음', run, { guides: true });
     D.guideNoAnswer(tag + ' 지침 처음');
     let first = true;
@@ -187,7 +195,7 @@ try {
   const e${v} = [];
   e${v}.push(...await ${v}.evaluate(async () => { await D.fresh(); D.G().save.setSettings({ reduceMotion: true }); window.__sent = []; return D.take(); }));
   // 한 번의 evaluate가 CDP 30초 안에 끝나게 잘게(공용 aside가 바쁠 때 — docs/engineering-notes.md)
-  e${v}.push(...await ${v}.evaluate(async () => { window.__run = await D.leakGuide(${o}); await D.leakScripts(${o}, window.__run, 0, 2); return D.take(); }));
+  e${v}.push(...await ${v}.evaluate(async () => { window.__run = await D.leakGuide(${o}); await D.leakScripts(${o}, window.__run, Math.min(window.__from, 2), 2); return D.take(); }));
   e${v}.push(...await ${v}.evaluate(async () => { await D.leakScripts(${o}, window.__run, 2, 4); return D.take(); }));
   e${v}.push(...await ${v}.evaluate(async () => { await D.leakScripts(${o}, window.__run, 4, 6); return D.take(); }));
   e${v}.push(...await ${v}.evaluate(async () => { await D.leakScripts(${o}, window.__run, 6, 7); await D.leakResult(${o}, window.__run); return D.take(); }));

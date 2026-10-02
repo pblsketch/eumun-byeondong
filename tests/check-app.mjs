@@ -123,7 +123,7 @@ try {
     D.tapSel('.st-ch[data-ch="2"]', '2장');
     D.tapSel('[data-level="advanced"]', '심화');
     D.tapSel('[data-act="begin"]', '감수 시작');
-    await D.until(() => D.cur() === 'guide', 3000, '지침 화면');
+    await D.passWarmup(); await D.until(() => D.cur() === 'guide', 3000, '지침 화면');
     if (!D.$('.screen-guide')) D.bad('지침 화면 자리 없음');
     const info = G.save.chapterInfo();
     if (!info || info.ch !== 2 || info.level !== 'advanced' || info.grade !== 'm3' || info.phase !== 'guide' || info.no !== 0) D.bad('저장된 진행 장: ' + JSON.stringify(info));
@@ -151,7 +151,7 @@ try {
     if (!D.$('.st-resume').textContent.includes(T.start.resume.title)) D.bad('이어 하기 제목');
     if (D.$('.st-ch[data-ch="2"]').getAttribute('aria-pressed') !== 'true') D.bad('이어 하기 장(2장)이 골라져 있지 않음');
     D.tapSel('[data-act="resume"]', '이어 하기');
-    await D.until(() => D.cur() === 'guide', 3000, '이어 하기 → 지침');
+    await D.passWarmup(); await D.until(() => D.cur() === 'guide', 3000, '이어 하기 → 지침');
     // 감수 단계(원고 3/7)로 저장된 장
     const G2 = D.G();
     const r2 = G2.save.loadChapter();
@@ -198,7 +198,7 @@ try {
   ed.push(...await d1.evaluate(async () => {
     const T = D.T(), G = D.G();
     D.tapSel('[data-act="begin"]', '감수 시작(1장)');
-    await D.until(() => D.cur() === 'guide', 3000, '지침 화면');
+    await D.passWarmup(); await D.until(() => D.cur() === 'guide', 3000, '지침 화면');
     const ids1 = JSON.stringify(G.save.loadChapter().ids);
     G.app.go('start');
     if (D.$('.st-confirm')) D.bad('묻기 창이 미리 떠 있음');
@@ -217,7 +217,7 @@ try {
     if (!keep || keep.ch !== 1 || JSON.stringify(keep.ids) !== ids1) D.bad('그만두기인데 진행 장이 바뀜');
     D.tapSel('[data-act="begin"]', '감수 시작(2장, 다시)');
     D.tapSel('[data-act="overwrite-yes"]', '새로 시작');
-    await D.until(() => D.cur() === 'guide', 3000, '새 장 지침 화면');
+    await D.passWarmup(); await D.until(() => D.cur() === 'guide', 3000, '새 장 지침 화면');
     const now = G.save.loadChapter();
     if (!now || now.ch !== 2 || now.phase !== 'guide') D.bad('새로 시작이 덮어쓰지 않음: ' + JSON.stringify(now && { ch: now.ch, phase: now.phase }));
     // 이어 하기 카드의 [새로 시작]도 같은 확인을 거친다(고른 장 = 진행 중인 2장)
@@ -225,7 +225,7 @@ try {
     D.tapSel('[data-act="restart"]', '이어 하기 카드의 새로 시작');
     if (!D.$('.st-confirm')) D.bad('새로 시작에서 묻기 창이 안 뜸');
     D.tapSel('[data-act="overwrite-yes"]', '새로 시작(확인)');
-    await D.until(() => D.cur() === 'guide', 3000, '다시 지침 화면');
+    await D.passWarmup(); await D.until(() => D.cur() === 'guide', 3000, '다시 지침 화면');
     const again = G.save.loadChapter();
     if (!again || again.ch !== 2 || again.phase !== 'guide') D.bad('카드의 새로 시작: ' + JSON.stringify(again && again.ch));
     return D.take();
@@ -390,7 +390,7 @@ try {
     if (G.app.isLowLandscape()) D.bad(tag + ' 낮은 가로로 봄');
     D.targets(MIN, tag + ' 시작'); D.noScroll(tag + ' 시작');
     D.tapSel('[data-act="begin"]', tag + ' 감수 시작');
-    await D.until(() => D.cur() === 'guide', 3000, tag + ' 지침');
+    await D.passWarmup(); await D.until(() => D.cur() === 'guide', 3000, tag + ' 지침');
     G.app.go('start');
     if (!D.$('.st-resume')) D.bad(tag + ' 이어 하기 카드 없음');
     D.targets(MIN, tag + ' 시작+이어 하기'); D.noScroll(tag + ' 시작+이어 하기');

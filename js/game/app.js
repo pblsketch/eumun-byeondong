@@ -29,6 +29,7 @@
 //   G.app.beginChapter({ ch, level?, grade?, skipGuide?, seed? }) → ChapterRun
 //     원고 7개 = G.rules.draw(ch, SCRIPTS, G.rules.exampleIds(GUIDES && GUIDES[ch]), 시드) → 새 진행 장을 저장(옛 진행 장은 덮임)
 //     → go('guide', { run }). skipGuide: true면 지침을 건너뛰고 go('review', { run })(장 결과의 [다시 하기], 명세 §10).
+//     몸풀기 장(G.save.WARMUP — 1장, 결정 0021)은 원고 몇 개를 먼저: go('review') → 몸풀기 원고가 끝나면 감수 화면이 go('guide').
 //     지침이 없는 장(GUIDES에 그 장이 없음 — 8장, 결정 0019)은 늘 감수부터: phase 'review' · guideDone true로 시작한다.
 //     level · grade를 안 주면 마지막 선택(G.save.levelOf(ch) · getSelection().grade). 덮어쓰기 확인은 부르는 쪽이 한다
 //     (시작 화면은 묻고 부름, 장 결과의 [다시 하기]는 같은 장이라 묻지 않음).
@@ -126,7 +127,9 @@ G.app = (function () {
     const guides = window.GUIDES && window.GUIDES[ch];
     const ids = G.rules.draw(ch, window.SCRIPTS || [], G.rules.exampleIds(guides), seed);
     const skip = !!o.skipGuide || !(Array.isArray(guides) && guides.length); // 지침이 없는 장(8장)은 감수부터
-    const run = { grade, ch, level, seed, ids, phase: skip ? 'review' : 'guide', guideDone: skip, done: [], cur: null };
+    // 몸풀기 장(G.save.WARMUP — 1장): 지침 전에 원고 몇 개를 먼저 감수한다(phase 'review' · guideDone false로 시작, 결정 0021)
+    const warm = !skip && (G.save.WARMUP || {})[ch] > 0;
+    const run = { grade, ch, level, seed, ids, phase: skip || warm ? 'review' : 'guide', guideDone: skip, done: [], cur: null };
     G.save.saveChapter(run);
     const saved = G.save.loadChapter();
     const r = saved && saved.ch === ch && JSON.stringify(saved.ids) === JSON.stringify(ids) ? saved : run;
@@ -243,6 +246,7 @@ G.app = (function () {
   //   [제목 · 한 줄 소개 | 게임 방법(처음 표시) · 설정]
   //   [학년 중3/고1] [이어 하기 카드(진행 장이 있을 때)] [장 8개 — 1·2장 고르기, 3~8장 준비 중]
   //   [단계 기본/심화(고른 장의 마지막 선택) · 풀이 한 줄 · 감수 시작]      오른쪽: 타이틀 그림(assets/img/title.webp, 휴대폰 세로에서는 숨김)
+//   휴대폰 세로 · 좁은 화면: 제목 아래 머리 그림(assets/img/start_banner.webp). 장 카드마다 장 배지(assets/img/ch1~8.webp)
   //   진행 장이 있는데 새로 시작하면 "진행 중인 장이 지워져요"를 묻는다(.st-confirm).
   let chosenCh = 1; // 이번 세션에서 고른 장(진행 장이 있으면 그 장이 먼저)
   const START = {
@@ -268,6 +272,11 @@ G.app = (function () {
         const grade = sel.grade;
         const level = G.save.levelOf(chosenCh);
         wrap.appendChild(head());
+        // 휴대폰 세로 · 좁은 화면 머리 그림(손 흔드는 두 아나운서) — 넓은 화면에서는 오른쪽 타이틀 그림이 대신한다(CSS로 하나만 보임)
+        wrap.appendChild(el('div', { class: 'st-banner', role: 'img', 'aria-label': T().images.startBanner }, [
+          el('img', { class: 'st-banner-img', src: 'assets/img/start_banner.webp', alt: '', draggable: 'false', decoding: 'async' }),
+          el('span', { class: 'st-banner-lamp', 'aria-hidden': 'true' }),
+        ]));
         wrap.appendChild(el('div', { class: 'st-main' }, [
           el('div', { class: 'st-col' }, [gradeRow(grade), info ? resumeCard(info) : null, chapterGrid(grade), levelRow(grade, level)]),
           el('div', { class: 'st-art', role: 'img', 'aria-label': T().images.start }, [
@@ -335,9 +344,13 @@ G.app = (function () {
         const cards = CHAPTERS.map((ch) => {
           const active = ACTIVE.indexOf(ch) >= 0;
           const parts = [
+            // 장 배지(assets/img/ch1~8.webp — 그 장의 변동을 빗댄 그림, 꾸밈이라 alt 없음)
+            el('span', { class: 'st-ch-badge', 'aria-hidden': 'true' }, [
+              el('img', { class: 'st-ch-badge-img', src: 'assets/img/ch' + ch + '.webp', alt: '', draggable: 'false', decoding: 'async' }),
+            ]),
             el('span', { class: 'st-ch-no' }, String(ch)),
-            el('span', { class: 'st-ch-name' }, G.text.chapterName(ch)),
-            el('span', { class: 'st-ch-topic' }, G.text.chapterTopic(grade, ch)),
+            el('span', { class: 'st-ch-name' }, U.keepPh(G.text.chapterName(ch), 'st-ph')), // 음운 표기(/ㅣ/)는 한 덩어리
+            el('span', { class: 'st-ch-topic' }, U.keepPh(G.text.chapterTopic(grade, ch), 'st-ph')),
           ];
           if (!active) {
             parts.push(el('span', { class: 'st-ch-tag is-soon' }, [U.glyph('lock'), S.comingSoon]));

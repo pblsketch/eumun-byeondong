@@ -702,6 +702,7 @@ G.rules = (function () {
     },
   };
   const DRAW_TOTAL = 7;
+  const DRAW_LEAD = 3; // 처음 세 원고는 일반 원고
   function draw(ch, pool, exclude, seed) {
     const plan = DRAW[ch];
     if (!plan) throw new Error('뽑기 조건이 없는 장: ' + ch);
@@ -731,7 +732,11 @@ G.rules = (function () {
       if (c.length || !nd.optional) take(c, 1, nd.what);
     });
     take(normal, DRAW_TOTAL - picked.length, '일반 원고');
-    return shuffle(picked, rand).map((s) => s.id);
+    // 차례: 앞 DRAW_LEAD개는 일반 원고(대표 사례로 조작과 규칙부터 — 결정 0021), 나머지(일반 · 함정 · 예외)는 섞는다.
+    //   함정이 늘 끝에 오면 '마지막은 고치지 말 것'으로 읽히므로 뒤쪽 안에서는 무작위다.
+    const mixed = shuffle(picked, rand);
+    const lead = mixed.filter((s) => !s.trap).slice(0, DRAW_LEAD);
+    return lead.concat(mixed.filter((s) => lead.indexOf(s) < 0)).map((s) => s.id);
   }
   // 지침 예시 원고 id(뽑기에서 뺄 원고). 지침이 없으면 빈 목록
   function exampleIds(guides) {

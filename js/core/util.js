@@ -2,7 +2,7 @@
 // 모든 스크립트가 함께 쓰는 전역 이름 G와 작은 도구들. 가장 먼저 불러온다(층 순서 util → data → core → game → main).
 //   작업마다 이름 하나씩: G.util, G.hangul, G.rules, G.text, G.audio, G.save, G.howto, G.app, 화면 G.screens.<이름>
 //   G.util: DOM · SVG 도우미(el · append · svg · clear), 기호(glyph), 움직임 줄이기(reducedMotion), 소리 감싸기(sound),
-//     끝난 진행 장(finished), 문구 틀에 노드 끼우기(fillNodes), 음운 표기 묶기(keepPh), 모달 창(modal — inert · Tab 가두기 · 초점 돌려주기)
+//     끝난 진행 장(finished), 문구 틀에 노드 끼우기(fillNodes), 음운 표기 묶기(keepPh), 반모음 반달표(breve), 꾸밈 그림(art), 모달 창(modal — inert · Tab 가두기 · 초점 돌려주기)
 //   출처: DOM · SVG 도우미와 기호(glyph)는 「음운 해전」 pblsketch/sori-haejeon js/core/util.js 를 가져왔다.
 //   바꾼 것: 오류 모음 이름(__gamsuErrors), 기호 목록(이 게임의 신호 넷 · 교정 부호 넷 · 단추 기호), G.screens 자리.
 //
@@ -133,8 +133,28 @@ G.util = {
   // 음운 표기(/ㄱ/)가 줄 끝에서 '/'만 남고 끊기지 않게 한 덩어리(<span class=cls> — CSS에서 줄바꿈 없음)로 묶는다.
   //   keepPh('받침 /ㄷ/은 …', 'rw-ph') → [글 · <span class="rw-ph">/ㄷ/</span> · 글]. 글(textContent)은 그대로다.
   keepPh(s, cls) {
-    return String(s).split(/(\/[^\/\s]{1,2}\/)/).filter(Boolean)
-      .map((x) => (/^\/[^\/\s]{1,2}\/$/.test(x) ? G.util.el('span', { class: cls }, x) : x));
+    const B = G.util.breve;
+    return String(s).split(/(\/[^\/\s]{1,5}\/)/).filter(Boolean) // 1~5자: /ㄱ/ · /ㅣ̆/(반달표 포함) · /ㅗ̆·ㅜ̆/
+      .map((x) => (/^\/[^\/\s]{1,5}\/$/.test(x) ? G.util.el('span', { class: cls }, B(x)) : x.indexOf('̆') >= 0 ? B(x) : x))
+      .reduce((a, x) => a.concat(x), []);
+  },
+  // 꾸밈 그림 하나: art('ic_guide', 'gd-title-ico') → <img src="assets/img/ic_guide.webp">(화풍 B 아이콘 · 장 배지 — tools/process_assets.py).
+  //   꾸밈이라 alt 없음 · 보조 기술에는 숨김. 뜻은 옆의 글이 말한다.
+  art(name, cls) {
+    return G.util.el('img', { class: cls || 'app-art', src: 'assets/img/' + name + '.webp', alt: '', 'aria-hidden': 'true', draggable: 'false', decoding: 'async' });
+  },
+  // 반모음 교과서 표기(ㅣ̆ · ㅗ̆ · ㅜ̆ — 자모 + 위에 붙는 반달표 U+0306)를 화면 조각으로: 반달표를 글꼴 조합에 맡기면 획과 겹쳐서
+  //   <span class="ph-gl">ㅣ<span class="ph-b">(반달표, 숨김)</span></span>로 감싸고 보이는 반달표는 CSS(base.css .ph-gl::before)가 그린다.
+  //   반달표가 없으면 [글] 그대로
+  breve(s) {
+    const t = String(s);
+    if (t.indexOf('̆') < 0) return [t];
+    const out = [];
+    t.split(/([^̆]̆)/).filter(Boolean).forEach((x) => {
+      // 반달표 글자는 숨긴 채 남긴다(textContent는 원래 글 그대로 — 점검 · 복사가 같은 글을 본다)
+      out.push(x.length === 2 && x[1] === '̆' ? G.util.el('span', { class: 'ph-gl' }, [x[0], G.util.el('span', { class: 'ph-b' }, '̆')]) : x);
+    });
+    return out;
   },
   // 묻기 창 · 안내 창(role="dialog" aria-modal="true")을 모달로: modal(덮개, 창) → release()
   //   · 덮개에서 문서 맨 위(body)까지 올라가며 그 옆의 요소들에 inert를 붙인다(뒤 화면은 누를 수도 초점이 갈 수도 없음).

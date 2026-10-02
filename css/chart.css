@@ -52,7 +52,7 @@
 }
 .ch-cell:hover { background: var(--accent-soft); border-color: var(--accent); }
 .ch-sl { color: var(--ink-2); font-weight: 500; font-size: .72em; padding: 0 .04em; }
-.ch-cell[data-part="glide"] .ch-ph { font-family: var(--font-body); font-style: italic; }
+.ch-cell[data-part="glide"] .ch-ph { white-space: nowrap; } /* 반모음: ㅣ̆ · ㅗ̆·ㅜ̆ */
 /* 지금 음운(누를 수 없음 — 이미 그 음운) */
 .ch-cell.is-current { cursor: default; background: var(--surface-2); border: 3px solid var(--ink); color: var(--ink); }
 .ch-cell.is-current:hover { background: var(--surface-2); border-color: var(--ink); }

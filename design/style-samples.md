@@ -110,7 +110,11 @@ $(cat tools/prompts/style_a.txt)" -C "$H" --skip-git-repo-check -c 'model_reason
 | studio_bg | 1536×1024 | 견본 B(`style`) | `studio_bg.webp` | 감수 화면 무대 배경 |
 | title | 1024×1536 | 견본 B(`style`) | `title.webp` | 시작 화면 오른쪽 |
 | senior | 1024×1024 | 견본 B(`style`) | `senior.webp` | 감수 지침 · 조항 공개 |
+| start_banner | 1536×1024 | title(`same`) | `start_banner.webp`(가운데 띠 12:5) | 휴대폰 세로 · 좁은 화면 시작 화면 머리(결정 0022) |
+| chapter_badges | 1536×1024(배지 8개) | 견본 B(`style`) | `ch1.webp`~`ch8.webp` | 시작 화면 장 카드 · 감수 화면 머리(결정 0022) |
+| ui_icons | 1536×1024(아이콘 8개) | chapter_badges(`style`) | `ic_guide` · `ic_review` · `ic_rule` · `ic_trophy` · `ic_blocks` · `ic_mark` · `ic_onair` · `ic_hint` | 지침 · 조항 공개 · 장 결과 제목, 게임 방법 카드(결정 0022) |
 
 - 아나운서 · 선배는 자홍(#FF00FF) 단색 배경으로 그리고 `python tools/process_assets.py`가 지운다(음운 해전 방식). 아나운서 다섯 장은 책상 윗면 폭을 맞춰 같은 판(1200×704)에 놓으므로 상태를 바꿔 끼워도 책상이 움직이지 않는다.
 - 다섯 상태가 같은 얼굴로 나오도록 기다림 그림을 참조 그림(`same`)으로 넣었다. 눈으로 확인한 것: 글자 · 로고 없음, 원고 종이는 비어 있음, 실제 인물 닮음 없음, 옷 · 머리 · 넥타이 색이 다섯 장에서 같음.
+- 배지 · 아이콘은 한 장에 4열 × 2줄로 그려 `process_assets.py`가 자홍을 지우고 덩어리 8개를 줄 · 열 차례로 자른다. 장 배지의 빗댐: 1 사원증과 마이크(첫 출근) · 2 똑같이 따라 하는 새 두 마리(닮은 소리) · 3 비탈을 굴러 구슬 색을 바꾸는 공(/ㅣ/ 앞에서) · 4 북채로 세게 친 북(세게) · 5 방석 하나만 남은 의자(자리가 하나) · 6 빈자리에 끼워지는 퍼즐 조각(덧나는 소리) · 7 하나로 합쳐지는 물방울(하나로) · 8 차례로 넘어지는 도미노와 온에어 등(생방송). 눈으로 확인한 것: 글자 · 숫자 없음(도미노 점은 무늬), 로고 없음.
 - 다시 만들기(PowerShell, 저장소 루트): `powershell -NoProfile -ExecutionPolicy Bypass -File tools\gen.ps1 -Name anchors_oops -PromptFile tools\prompts\anchors_oops.txt -Out assets\raw\anchors_oops.png -Image assets\raw\anchors_idle.png -RefMode same` → `python tools/process_assets.py`.

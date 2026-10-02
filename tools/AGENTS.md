@@ -11,6 +11,7 @@
 
 ## 쓰는 법
 - 글꼴: 원본 `Pretendard-Medium.otf`, `Pretendard-Bold.otf`, `OFL-Pretendard.txt`를 음운 해전 저장소의 `tools/fonts_src/`에서 이 저장소의 `tools/fonts_src/`(저장소 제외)로 복사한 뒤 저장소 맨 위에서 `python tools/build_fonts.py`(fontTools·brotli 필요). 스크립트는 아무것도 내려받지 않는다 — 원본이 없으면 멈춘다. **화면 문구를 고쳐 새 글자가 생기면 다시 돌린다.**
+- 화면 그림 목록과 참조 그림은 `design/style-samples.md` '게임 그림' 표. 배지 · 아이콘 묶음(chapter_badges · ui_icons)은 4열 × 2줄 한 장으로 그려 자른다.
 - 그림: `powershell -NoProfile -ExecutionPolicy Bypass -File tools\gen.ps1 -Name 이름 -PromptFile tools\prompts\파일.txt -Out assets\raw\이름.png` (프롬프트는 영어 ASCII만).
 
 ## 불변 조건

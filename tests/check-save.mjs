@@ -241,6 +241,19 @@ const DEF_SETTINGS = { bgmOn: true, bgmVolume: 0.6, sfxOn: true, sfxVolume: 0.8,
   check(b2.S.saveChapter(g) === true, '지침 단계 저장');
   eq(boot(st, { guides: FAKE_GUIDES }).S.loadChapter(), stored(b2.S, g), '지침 단계 복원(새 장이 옛 진행 장을 덮음 — 기기에 하나)');
   eq(boot(st, { guides: FAKE_GUIDES }).S.chapterInfo(), { grade: 'm3', ch: 1, level: 'basic', phase: 'guide', no: 0, total: 7 }, '지침 단계 chapterInfo(no 0)');
+  // 몸풀기(WARMUP — 1장 처음 두 원고, 결정 0021): 지침 전 감수 단계 · 몸풀기를 마친 지침 단계는 맞는 값, 넘치면 버림
+  {
+    const ids1 = ['낮', '부엌', '꽃을', '앞', '깎아', '겉옷', '젖'];
+    const doneOf = (n) => ids1.slice(0, n).map((id) => ({ id, result: 'onair', sends: 1, help: [], helped: false }));
+    check(b2.S.WARMUP && b2.S.WARMUP[1] === 2 && !b2.S.WARMUP[2], '몸풀기는 1장 원고 2개');
+    const w0 = { grade: 'm3', ch: 1, level: 'basic', seed: 7, ids: ids1, phase: 'review', guideDone: false, done: [], cur: null };
+    check(b2.S.saveChapter(w0) === true && !!boot(st, { guides: FAKE_GUIDES }).S.loadChapter(), '몸풀기 첫 원고(지침 전 감수) 저장 · 복원');
+    check(b2.S.saveChapter({ ...w0, done: doneOf(1) }) === true, '몸풀기 둘째 원고 저장');
+    check(b2.S.saveChapter({ ...w0, done: doneOf(2) }) === false, '몸풀기가 끝났는데 지침 전 감수 단계면 버림');
+    check(b2.S.saveChapter({ ...w0, phase: 'guide', done: doneOf(2) }) === true, '몸풀기를 마친 지침 단계 저장');
+    check(b2.S.saveChapter({ ...w0, phase: 'guide', done: doneOf(1) }) === false, '몸풀기 중간의 지침 단계는 버림');
+    check(b2.S.saveChapter({ ...w0, guideDone: true, done: doneOf(2) }) === true, '지침을 채운 뒤 셋째 원고 저장');
+  }
   const rv = {
     grade: 'h1', ch: 1, level: 'basic', ids: ['낮', '부엌', '꽃을', '앞', '깎아', '겉옷', '젖'], phase: 'reveal', guideDone: true,
     done: ['낮', '부엌', '꽃을', '앞', '깎아', '겉옷', '젖'].map((id, i) => ({ id, result: i % 3 === 0 ? 'onair' : i % 3 === 1 ? 'offrule' : 'skip', sends: i % 3 === 2 ? 0 : 1, help: [], helped: false })),

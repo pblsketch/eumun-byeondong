@@ -80,7 +80,7 @@
           const opts = (g.blanks[b].options || []).map((o, i) => el('button', {
             type: 'button', class: 'gd-opt', 'data-i': String(i), 'aria-pressed': 'false',
             onclick: () => pick(info, i),
-          }, o));
+          }, U.breve(o)));
           info.opts = opts;
           return el('div', { class: 'gd-blank', role: 'group', 'data-blank': b, 'aria-label': G.text.fill(TG.blankAria, { n: info.n }) }, [
             el('span', { class: 'gd-blank-no', 'aria-hidden': 'true' }, G.text.circled(info.n)),
@@ -116,12 +116,12 @@
       const foot = el('footer', { class: 'gd-foot' }, [msg, checkBtn]);
 
       // 선배 감수관(그림 + 말풍선): 처음 · 틀렸을 때 · 다 맞았을 때 한 줄씩 바뀐다(정답에 관한 말은 하지 않음)
-      const seniorSay = el('p', { class: 'gd-senior-say' }, TG.senior);
+      const seniorSay = el('p', { class: 'gd-senior-say' }, (run.done || []).length ? TG.seniorAfterWarmup : TG.senior);
       const wrap = el('div', { class: 'gd' }, [
         el('header', { class: 'gd-head' }, [
           el('div', { class: 'gd-head-text' }, [
             el('p', { class: 'gd-kicker' }, G.text.t('common.chapterLevel', { chapter: G.text.chapterTitle(run.ch), level: G.text.levelName(run.level) })),
-            el('h1', { class: 'app-h1 gd-title' }, TG.title),
+            el('div', { class: 'app-titlebar' }, [U.art('ic_guide', 'app-title-ico'), el('h1', { class: 'app-h1 gd-title' }, TG.title)]),
             el('p', { class: 'gd-from' }, TG.from),
           ]),
           el('div', { class: 'gd-senior' }, [
@@ -168,7 +168,8 @@
       function finish() {
         done = true;
         sound(() => G.audio.sfx('guideOk'));
-        const next = Object.assign({}, run, { phase: 'review', guideDone: true, done: [], cur: null });
+        // 몸풀기 장(1장)은 지침 전에 감수한 원고 기록을 그대로 두고 남은 원고로 이어 간다(결정 0021)
+        const next = Object.assign({}, run, { phase: 'review', guideDone: true, done: (run.done || []).slice(), cur: null });
         G.save.saveChapter(next);
         blanks.forEach((x) => x.opts.forEach((o) => { o.disabled = true; }));
         say(TG.allRight, 'ok');

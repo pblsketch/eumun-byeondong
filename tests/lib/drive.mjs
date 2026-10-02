@@ -62,6 +62,17 @@ if (!window.D) {
     D.errSeen = 0;
     await D.wait(150);
   };
+  // 몸풀기(1장 처음 두 원고 — 결정 0021)를 넘겨 지침 화면까지: 감수 화면에서 지침 전이면 [다음 원고] → [넘기기]를 되풀이
+  D.passWarmup = async () => {
+    for (let i = 0; i < 5; i++) {
+      const r = D.G().save.loadChapter();
+      if (D.cur() !== 'review' || !r || r.guideDone) return;
+      const n = r.done.length;
+      D.tapSel('[data-act="rw-next"]', '몸풀기 다음 원고');
+      if (D.$('[data-act="rw-skip-yes"]')) D.tapSel('[data-act="rw-skip-yes"]', '몸풀기 넘기기');
+      await D.until(() => D.cur() === 'guide' || ((D.G().save.loadChapter() || {}).done || []).length > n, 3000, '몸풀기 다음');
+    }
+  };
   // 저장 값을 모두 지우고 새로 연다(처음 쓰는 기기처럼)
   D.fresh = async () => { D.clearStore(); await D.reload(); };
   // 틀 크기 바꾸기(같은 게임 창 그대로)

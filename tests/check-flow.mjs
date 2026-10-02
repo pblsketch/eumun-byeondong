@@ -130,7 +130,7 @@ const SETUP = (v) => `
 await ${v}.evaluate(() => { ${PLAN} });
 `;
 
-step('1장 · 중3 · 기본 — 지침 → 원고 7개(중간 새로 고침) → 조항 공개 → 장 결과', `
+step('1장 · 중3 · 기본 — 몸풀기 2개 → 지침 → 원고 5개(중간 새로 고침) → 조항 공개 → 장 결과', `
 ${open('a1', 1280, 800)}
 ${SETUP('a1')}
 try {
@@ -138,8 +138,15 @@ try {
   ea.push(...await a1.evaluate(async () => { await D.fresh(); D.G().save.setSettings({ reduceMotion: true }); return D.take(); }));
   ea.push(...await a1.evaluate(async () => {
     const G = D.G(), T = D.T();
-    const run = await D.startChapter({ ch: 1, grade: 'm3', level: 'basic' });
-    if (!run || run.ch !== 1 || run.grade !== 'm3' || run.level !== 'basic' || run.phase !== 'guide') D.bad('시작한 진행 장: ' + JSON.stringify(run && { ch: run.ch, g: run.grade, l: run.level, p: run.phase }));
+    const run = await D.startChapter({ ch: 1, grade: 'm3', level: 'basic', keepWarmup: true });
+    if (!run || run.ch !== 1 || run.grade !== 'm3' || run.level !== 'basic' || run.phase !== 'review' || run.guideDone) D.bad('시작한 진행 장(몸풀기): ' + JSON.stringify(run && { ch: run.ch, g: run.grade, l: run.level, p: run.phase, d: run.guideDone }));
+    // 몸풀기 원고 2개(결정 0021) → 지침 화면
+    window.__plan = D.planRun(run);
+    window.__wants = [];
+    for (let i = 0; i < 2; i++) window.__wants.push(await D.playScript(window.__plan[i]));
+    await D.until(() => D.cur() === 'guide' && D.$('.gd-card'), 4000, '몸풀기 뒤 지침 화면');
+    const rw = G.save.loadChapter();
+    if (rw.phase !== 'guide' || rw.done.length !== 2 || rw.guideDone) D.bad('몸풀기 뒤 저장: ' + JSON.stringify({ p: rw.phase, n: rw.done.length, d: rw.guideDone }));
     // 한 칸만 틀리게 → 수만 알림
     let first = true;
     D.pickGuide(1, (g, b) => { const a = g.blanks[b].answer; if (first) { first = false; return (a + 1) % g.blanks[b].options.length; } return a; });
@@ -150,10 +157,9 @@ try {
     await D.solveGuide(1);
     const r2 = G.save.loadChapter();
     if (!r2.guideDone || r2.phase !== 'review') D.bad('지침 완료 저장: ' + JSON.stringify({ d: r2.guideDone, p: r2.phase }));
+    if (r2.done.length !== 2) D.bad('지침 뒤 몸풀기 기록이 남지 않음: ' + r2.done.length);
     await D.enterReview();
-    window.__plan = D.planRun(r2);
-    window.__wants = [];
-    for (let i = 0; i < 3; i++) window.__wants.push(await D.playScript(window.__plan[i]));
+    for (let i = 2; i < 3; i++) window.__wants.push(await D.playScript(window.__plan[i]));
     // 4번째 원고에 교정 하나를 해 두고 새로 고침
     const sc = D.dbg().script();
     if (sc.steps && sc.steps.length) await D.doStep(sc.steps[0]);
